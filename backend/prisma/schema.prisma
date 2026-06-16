@@ -1,0 +1,348 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  BUSINESS_OWNER
+  MANAGER
+  RECOVERY_AGENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BusinessStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BusinessPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  DISPUTED
+}
+
+enum OutstandingStatus {
+  ACTIVE
+  CLEARED
+  DISPUTED
+  WRITTEN_OFF
+}
+
+enum CampaignType {
+  WHATSAPP
+  CALL
+  EMAIL
+  SMS
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum CallStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+}
+
+enum DeliveryStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum PTPStatus {
+  PENDING
+  KEPT
+  BROKEN
+  RESCHEDULED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model Business {
+  id         String         @id @default(uuid())
+  name       String
+  status     BusinessStatus @default(ACTIVE)
+  plan       BusinessPlan   @default(FREE)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+
+  // Relations
+  users           User[]
+  customers       Customer[]
+  invoices        Invoice[]
+  outstandings    Outstanding[]
+  campaigns       Campaign[]
+  whatsapp_logs   WhatsAppLog[]
+  call_logs       CallLog[]
+  ai_analyses     AIAnalysis[]
+  promises_to_pay PromiseToPay[]
+  import_templates ImportTemplate[]
+  import_histories ImportHistory[]
+
+  @@map("businesses")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  business_id  String
+  supabase_uid String     @unique
+  email        String
+  role         UserRole   @default(RECOVERY_AGENT)
+  status       UserStatus @default(ACTIVE)
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([email, business_id])
+  @@index([business_id])
+  @@index([supabase_uid])
+  @@map("users")
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  business_id   String
+  customer_name String
+  phone         String?
+  email         String?
+  city          String?
+  tags          String[] @default([])
+  is_vip        Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // Relations
+  business        Business       @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  invoices        Invoice[]
+  outstanding     Outstanding?
+  whatsapp_logs   WhatsAppLog[]
+  call_logs       CallLog[]
+  ai_analyses     AIAnalysis[]
+  promises_to_pay PromiseToPay[]
+
+  @@unique([phone, business_id])
+  @@index([business_id])
+  @@index([customer_name])
+  @@map("customers")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  business_id    String
+  customer_id    String
+  invoice_number String
+  invoice_date   DateTime
+  amount         Float         @default(0)
+  due_amount     Float
+  days_overdue   Int           @default(0)
+  sales_agent    String?
+  status         InvoiceStatus @default(PENDING)
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  // Relations
+  business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@unique([invoice_number, business_id])
+  @@index([business_id])
+  @@index([customer_id])
+  @@index([status])
+  @@map("invoices")
+}
+
+model Outstanding {
+  id           String            @id @default(uuid())
+  business_id  String
+  customer_id  String            @unique
+  total_due    Float             @default(0)
+  aging_bucket String            @default("0-60")
+  segment      String            @default("Soft Reminder")
+  status       OutstandingStatus @default(ACTIVE)
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([segment])
+  @@index([status])
+  @@map("outstandings")
+}
+
+model Campaign {
+  id           String         @id @default(uuid())
+  business_id  String
+  name         String
+  type         CampaignType
+  status       CampaignStatus @default(DRAFT)
+  scheduled_at DateTime?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  // Relations
+  business      Business      @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  whatsapp_logs WhatsAppLog[]
+  call_logs     CallLog[]
+
+  @@index([business_id])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model WhatsAppLog {
+  id              String         @id @default(uuid())
+  business_id     String
+  customer_id     String
+  campaign_id     String?
+  message         String
+  reply           String?
+  delivery_status DeliveryStatus @default(SENT)
+  created_at      DateTime       @default(now())
+
+  // Relations
+  business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaign_id], references: [id], onDelete: SetNull)
+
+  @@index([business_id])
+  @@index([customer_id])
+  @@map("whatsapp_logs")
+}
+
+model CallLog {
+  id               String     @id @default(uuid())
+  business_id      String
+  customer_id      String
+  campaign_id      String?
+  transcript       String?
+  recording_url    String?
+  call_status      CallStatus @default(PENDING)
+  duration_seconds Int?
+  created_at       DateTime   @default(now())
+
+  // Relations
+  business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaign_id], references: [id], onDelete: SetNull)
+
+  @@index([business_id])
+  @@index([customer_id])
+  @@map("call_logs")
+}
+
+model AIAnalysis {
+  id          String   @id @default(uuid())
+  business_id String
+  customer_id String
+  sentiment   String?
+  intent      String?
+  risk_score  Float?
+  summary     String?
+  created_at  DateTime @default(now())
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([customer_id])
+  @@map("ai_analyses")
+}
+
+model PromiseToPay {
+  id               String    @id @default(uuid())
+  business_id      String
+  customer_id      String
+  promised_amount  Float
+  promised_date    DateTime
+  status           PTPStatus @default(PENDING)
+  notes            String?
+  created_at       DateTime  @default(now())
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([customer_id])
+  @@map("promises_to_pay")
+}
+
+model ImportTemplate {
+  id          String   @id @default(uuid())
+  business_id String
+  name        String
+  mappings    Json
+  created_at  DateTime @default(now())
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([name, business_id])
+  @@index([business_id])
+  @@map("import_templates")
+}
+
+model ImportHistory {
+  id               String       @id @default(uuid())
+  business_id      String
+  file_name        String
+  file_url         String
+  status           ImportStatus @default(PENDING)
+  records_total    Int          @default(0)
+  records_imported Int          @default(0)
+  records_failed   Int          @default(0)
+  error_log        Json         @default("[]")
+  created_at       DateTime     @default(now())
+
+  // Relations
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@map("import_histories")
+}

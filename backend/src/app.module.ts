@@ -1,0 +1,59 @@
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import configuration from './config/configuration';
+import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { BusinessModule } from './modules/business/business.module';
+import { UserModule } from './modules/user/user.module';
+import { CustomerModule } from './modules/customer/customer.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { OutstandingModule } from './modules/outstanding/outstanding.module';
+import { ImportModule } from './modules/import/import.module';
+import { CampaignModule } from './modules/campaign/campaign.module';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
+import { CallingModule } from './modules/calling/calling.module';
+import { AiAnalysisModule } from './modules/ai-analysis/ai-analysis.module';
+import { PromiseToPayModule } from './modules/promise-to-pay/promise-to-pay.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { TenantMiddleware } from './common/middleware/tenant.middleware';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
+    PrismaModule,
+    AuthModule,
+    BusinessModule,
+    UserModule,
+    CustomerModule,
+    InvoiceModule,
+    OutstandingModule,
+    ImportModule,
+    CampaignModule,
+    WhatsappModule,
+    CallingModule,
+    AiAnalysisModule,
+    PromiseToPayModule,
+    DashboardModule,
+    StorageModule,
+    NotificationModule,
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantMiddleware)
+      .forRoutes({ path: 'api/v1/*path', method: RequestMethod.ALL });
+  }
+}
