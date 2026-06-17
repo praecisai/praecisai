@@ -49,7 +49,7 @@ export default function SignupPage() {
             <span className="text-white font-bold text-xl">T</span>
           </div>
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-sm text-slate-400 mt-1">Get started with SolvenAI — free forever</p>
+          <p className="text-sm text-slate-400 mt-1">Get started with PraecisAI — free forever</p>
         </div>
 
         <div className="glass-card p-8">

@@ -9,7 +9,7 @@ export default function LandingPage() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
             <span className="text-white font-bold text-sm">T</span>
           </div>
-          <span className="font-bold text-lg text-white">SolvenAI</span>
+          <span className="font-bold text-lg text-white">PraecisAI</span>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">Sign In</Link>
@@ -35,7 +35,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          SolvenAI automates your accounts receivable process — from importing Excel data to
+          PraecisAI automates your accounts receivable process — from importing Excel data to
           AI-powered follow-ups, WhatsApp reminders, and real-time analytics dashboards.
         </p>
 
@@ -73,7 +73,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-6 text-center">
-        <p className="text-xs text-slate-500">© 2026 SolvenAI. All rights reserved.</p>
+        <p className="text-xs text-slate-500">© 2026 PraecisAI. All rights reserved.</p>
       </footer>
     </div>
   );

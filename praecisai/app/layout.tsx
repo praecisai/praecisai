@@ -3,10 +3,10 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'SolvenAI — AI-Powered Accounts Receivable',
+  title: 'PraecisAI — AI-Powered Accounts Receivable',
   description: 'Enterprise-grade accounts receivable recovery and collections management platform powered by AI.',
   keywords: ['accounts receivable', 'collections management', 'AR recovery', 'invoice management', 'debt recovery'],
-  authors: [{ name: 'SolvenAI' }],
+  authors: [{ name: 'PraecisAI' }],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

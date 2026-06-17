@@ -50,7 +50,7 @@ async function bootstrap() {
   // Swagger
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('SolvenAI API')
+      .setTitle('PraecisAI API')
       .setDescription('Accounts Receivable Recovery Platform API')
       .setVersion('1.0')
       .addBearerAuth()
@@ -61,7 +61,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`🚀 SolvenAI API running at http://localhost:${port}/api/v1`);
+  console.log(`🚀 PraecisAI API running at http://localhost:${port}/api/v1`);
   console.log(`📚 Swagger docs at http://localhost:${port}/api/docs`);
 }
 

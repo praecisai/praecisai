@@ -50,7 +50,7 @@ export function Sidebar() {
         </div>
         <div className="min-w-0">
           <p className="font-bold text-white text-sm leading-tight truncate">
-            {user?.business?.name ?? 'SolvenAI'}
+            {user?.business?.name ?? 'PraecisAI'}
           </p>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">
             {ROLE_LABELS[user?.role ?? ''] ?? 'Loading…'}
