@@ -15,9 +15,9 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Get('me')
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async getMe(@CurrentUser() user: any) {
-    return this.authService.getMe(user.id);
+    return this.authService.getMe(user);
   }
 
   @Post('onboard')

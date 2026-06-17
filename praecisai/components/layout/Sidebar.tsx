@@ -85,14 +85,19 @@ export function Sidebar() {
       {/* User footer */}
       <div className="p-3 border-t border-white/5">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
-            <span className="text-white text-xs font-bold">
-              {user?.email?.[0]?.toUpperCase() ?? 'U'}
-            </span>
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white text-sm font-bold">
+                {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U'}
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-white truncate">{user?.email ?? '...'}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.name ?? user?.email ?? '...'}</p>
+            {user?.name && <p className="text-xs text-slate-400 truncate">{user.email}</p>}
           </div>
           <button
             id="logout-btn"

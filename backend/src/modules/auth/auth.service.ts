@@ -24,13 +24,30 @@ export class AuthService {
     return data.user;
   }
 
-  async getMe(supabaseUid: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { supabase_uid: supabaseUid },
+  async getMe(supabaseUser: any) {
+    let user = await this.prisma.user.findUnique({
+      where: { supabase_uid: supabaseUser.id },
       include: { business: true },
     });
-    if (!user) throw new UnauthorizedException('User not onboarded');
-    return user;
+
+    if (!user) {
+      // Auto-onboard for OAuth users
+      const name = supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User';
+      const businessName = `${name}'s Business`;
+      
+      const res = await this.onboard({
+        supabaseUid: supabaseUser.id,
+        email: supabaseUser.email,
+        businessName,
+      });
+      user = { ...res.user, business: res.business } as any;
+    }
+
+    return {
+      ...user,
+      name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || null,
+      avatar_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || null
+    };
   }
 
   async onboard(dto: {
