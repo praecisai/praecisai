@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import {
   IndianRupee, Users, FileText, Megaphone,
-  TrendingUp, AlertTriangle, CheckCircle, Clock,
+  TrendingUp, AlertTriangle,
 } from 'lucide-react';
 
 function MetricCard({
@@ -32,18 +32,18 @@ function MetricCard({
   return (
     <div className="glass-card p-5 metric-card">
       <div className="flex items-start justify-between mb-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</p>
+        <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider">{title}</p>
         <div className="p-2 rounded-lg" style={{ background: `${color}18` }}>
-          <Icon size={16} style={{ color }} />
+          <Icon size={16} style={{ color }} strokeWidth={1.75} />
         </div>
       </div>
-      <p className="text-2xl font-bold text-white count-animation">{value}</p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+      <p className="text-2xl font-bold text-[var(--dark-brown)] count-animation">{value}</p>
+      {sub && <p className="text-xs text-[var(--walnut)] mt-1">{sub}</p>}
     </div>
   );
 }
 
-const AGING_COLORS = ['#3b82f6', '#f59e0b', '#f97316', '#ef4444'];
+const AGING_COLORS = ['#7F5539', '#9C6644', '#B08968', '#7F1D1D'];
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useDashboardStats();
@@ -60,7 +60,7 @@ export default function DashboardPage() {
     value: s.count,
   })) ?? [];
 
-  const SEGMENT_COLORS = ['#3b82f6', '#f59e0b', '#f97316', '#ef4444', '#10b981', '#8b5cf6'];
+  const SEGMENT_COLORS = ['#7F5539', '#B08968', '#9C6644', '#7F1D1D', '#4A7C59', '#DDB892'];
 
   return (
     <div>
@@ -74,7 +74,7 @@ export default function DashboardPage() {
             value={isLoading ? '...' : formatINR(stats?.total_outstanding ?? 0)}
             sub="Active receivables"
             icon={IndianRupee}
-            color="#3b82f6"
+            color="#7F5539"
             loading={isLoading}
           />
           <MetricCard
@@ -82,7 +82,7 @@ export default function DashboardPage() {
             value={isLoading ? '...' : formatNumber(stats?.total_customers ?? 0)}
             sub="Across all segments"
             icon={Users}
-            color="#8b5cf6"
+            color="#9C6644"
             loading={isLoading}
           />
           <MetricCard
@@ -90,7 +90,7 @@ export default function DashboardPage() {
             value={isLoading ? '...' : formatNumber(stats?.total_invoices ?? 0)}
             sub="All time"
             icon={FileText}
-            color="#10b981"
+            color="#4A7C59"
             loading={isLoading}
           />
           <MetricCard
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             value={isLoading ? '...' : String(stats?.active_campaigns ?? 0)}
             sub="Running + scheduled"
             icon={Megaphone}
-            color="#f59e0b"
+            color="#DDB892"
             loading={isLoading}
           />
         </div>
@@ -107,26 +107,26 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Recovery Rate */}
           <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Recovery Rate</p>
+            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">Recovery Rate</p>
             <div className="flex items-center gap-4">
               <div className="relative w-20 h-20">
                 <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                    fill="none" stroke="rgba(221,184,146,0.4)" strokeWidth="3" />
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none" stroke="#10b981" strokeWidth="3"
+                    fill="none" stroke="#4A7C59" strokeWidth="3"
                     strokeDasharray={`${stats?.recovery_rate ?? 0}, 100`} strokeLinecap="round" />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold text-white">{stats?.recovery_rate ?? 0}%</span>
+                  <span className="text-lg font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</span>
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.recovery_rate ?? 0}%</p>
-                <p className="text-xs text-slate-400">Collections rate</p>
+                <p className="text-2xl font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</p>
+                <p className="text-xs text-[var(--walnut)]">Collections rate</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp size={12} className="text-emerald-400" />
-                  <span className="text-xs text-emerald-400">Tracking enabled</span>
+                  <TrendingUp size={12} className="text-[var(--recovery-green)]" strokeWidth={1.75} />
+                  <span className="text-xs text-[var(--recovery-green)]">Tracking enabled</span>
                 </div>
               </div>
             </div>
@@ -138,10 +138,10 @@ export default function DashboardPage() {
               <div key={bucket.range} className="glass-card p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-full" style={{ background: AGING_COLORS[i] }} />
-                  <span className="text-xs text-slate-400 font-medium">{bucket.range} days</span>
+                  <span className="text-xs text-[var(--walnut)] font-medium">{bucket.range} days</span>
                 </div>
-                <p className="text-lg font-bold text-white">{formatINR(bucket.amount)}</p>
-                <p className="text-xs text-slate-500">{bucket.count} customers</p>
+                <p className="text-lg font-bold text-[var(--dark-brown)]">{formatINR(bucket.amount)}</p>
+                <p className="text-xs text-[var(--walnut)]">{bucket.count} customers</p>
               </div>
             ))}
             {isLoading && [1,2,3,4].map(i => (
@@ -158,19 +158,19 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Aging Bar Chart */}
           <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-              Aging Breakdown (₹)
+            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
+              Aging Breakdown
             </p>
             {isLoading ? (
               <div className="skeleton h-40 w-full rounded-lg" />
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={agingData} barSize={32}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false}
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#B08968' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#B08968' }} axisLine={false} tickLine={false}
                     tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} />
                   <Tooltip
-                    contentStyle={{ background: 'hsl(223,47%,17%)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ background: 'var(--surface-warm)', border: '1px solid var(--caramel)', borderRadius: '8px', fontSize: '12px', color: 'var(--dark-brown)' }}
                     formatter={(v: any) => [formatINR(v as number), 'Amount']}
                   />
                   <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
           {/* Segment Pie Chart */}
           <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               Segment Distribution
             </p>
             {isLoading ? (
@@ -198,17 +198,17 @@ export default function DashboardPage() {
                   </Pie>
                   <Legend
                     layout="vertical" align="right" verticalAlign="middle"
-                    formatter={(v) => <span style={{ fontSize: '11px', color: '#94a3b8' }}>{v}</span>}
+                    formatter={(v) => <span style={{ fontSize: '11px', color: 'var(--walnut)' }}>{v}</span>}
                   />
                   <Tooltip
-                    contentStyle={{ background: 'hsl(223,47%,17%)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ background: 'var(--surface-warm)', border: '1px solid var(--caramel)', borderRadius: '8px', fontSize: '12px', color: 'var(--dark-brown)' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-500">
-                <AlertTriangle size={24} className="mb-2" />
-                <p className="text-sm">No data yet — import your first file</p>
+              <div className="flex flex-col items-center justify-center h-40 text-[var(--walnut)]">
+                <AlertTriangle size={24} className="mb-2" strokeWidth={1.75} />
+                <p className="text-sm">No data yet. Import your first file</p>
               </div>
             )}
           </div>
@@ -217,17 +217,17 @@ export default function DashboardPage() {
         {/* Segment summary list */}
         {!isLoading && (stats?.segment_distribution?.length ?? 0) > 0 && (
           <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               All Segments
             </p>
             <div className="space-y-2">
               {stats?.segment_distribution?.filter(s => s.count > 0).map((s) => (
-                <div key={s.segment} className="flex items-center justify-between py-2 border-b border-white/4 last:border-0">
+                <div key={s.segment} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
                   <div className="flex items-center gap-3">
                     <SegmentBadge segment={s.segment} />
-                    <span className="text-sm text-slate-300">{s.count} customers</span>
+                    <span className="text-sm text-[var(--dark-brown)]">{s.count} customers</span>
                   </div>
-                  <span className="text-sm font-semibold text-white">{formatINR(s.amount)}</span>
+                  <span className="text-sm font-semibold text-[var(--dark-brown)]">{formatINR(s.amount)}</span>
                 </div>
               ))}
             </div>

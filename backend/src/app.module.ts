@@ -18,6 +18,7 @@ import { PromiseToPayModule } from './modules/promise-to-pay/promise-to-pay.modu
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { DemoModule } from './modules/demo/demo.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 @Module({
@@ -48,6 +49,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     DashboardModule,
     StorageModule,
     NotificationModule,
+    DemoModule,
   ],
 })
 export class AppModule implements NestModule {

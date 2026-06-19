@@ -35,7 +35,7 @@ function StepIndicator({ current, steps }: { current: number; steps: string[] })
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
               i < current ? 'bg-emerald-500 text-white' :
               i === current ? 'bg-blue-500 text-white' :
-              'bg-white/5 text-slate-500'
+              'bg-[var(--surface-warm)]/5 text-slate-500'
             }`}>
               {i < current ? <CheckCircle size={14} /> : i + 1}
             </div>
@@ -44,7 +44,7 @@ function StepIndicator({ current, steps }: { current: number; steps: string[] })
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div className={`w-8 h-px mx-2 ${i < current ? 'bg-emerald-500' : 'bg-white/10'}`} />
+            <div className={`w-8 h-px mx-2 ${i < current ? 'bg-emerald-500' : 'bg-[var(--surface-warm)]/10'}`} />
           )}
         </div>
       ))}
@@ -82,7 +82,7 @@ function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
         <FileSpreadsheet size={28} className="text-blue-400" />
       </div>
       <h3 className="text-lg font-semibold text-white mb-2">Drop your Excel or CSV file here</h3>
-      <p className="text-sm text-slate-400 mb-4">Supports .xlsx, .xls, .csv — up to 50MB</p>
+      <p className="text-sm text-slate-400 mb-4">Supports .xlsx, .xls, .csv - up to 50MB</p>
       <button className="px-5 py-2.5 rounded-lg text-sm font-medium text-white"
         style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
         Browse Files
@@ -188,7 +188,7 @@ function ColumnMapperStep({
           </>
         ) : (
           <button onClick={() => setShowSave(true)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-all">
+            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
             <Save size={13} /> Save as template
           </button>
         )}
@@ -337,7 +337,7 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
           View Customers →
         </Link>
         <Link href="/dashboard/outstandings"
-          className="flex-1 py-3 rounded-xl text-center font-semibold text-white border border-white/10 hover:bg-white/5 transition-all text-slate-300">
+          className="flex-1 py-3 rounded-xl text-center font-semibold text-white border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all text-slate-300">
           View Outstandings →
         </Link>
       </div>
@@ -443,7 +443,7 @@ export default function ImportPage() {
           <StepIndicator current={step} steps={STEPS} />
           <button
             onClick={() => setShowHistory((v) => !v)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-all"
+            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all"
           >
             <History size={13} /> History
           </button>
@@ -504,7 +504,7 @@ export default function ImportPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(0)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
+                  <button onClick={() => setStep(0)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
                     ← Back
                   </button>
                   <button
@@ -537,7 +537,7 @@ export default function ImportPage() {
                   <p className="text-sm text-slate-400 mt-0.5">Review first 5 rows with your column mapping applied</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-white/5 transition-all">← Back</button>
+                  <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">← Back</button>
                   <button
                     onClick={handleExecute}
                     className="px-5 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-1.5"
@@ -560,7 +560,7 @@ export default function ImportPage() {
                   </h2>
                 </div>
                 {step === 4 && (
-                  <button onClick={reset} className="px-4 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
+                  <button onClick={reset} className="px-4 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
                     New Import
                   </button>
                 )}

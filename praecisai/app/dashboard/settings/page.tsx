@@ -59,7 +59,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Business ID</label>
-                  <p className="text-xs font-mono text-slate-500 bg-white/3 px-3 py-2 rounded-lg">{user?.business_id ?? '—'}</p>
+                  <p className="text-xs font-mono text-slate-500 bg-[var(--surface-warm)]/3 px-3 py-2 rounded-lg">{user?.business_id ?? '—'}</p>
                 </div>
                 <button className="px-4 py-2 rounded-lg text-sm font-medium text-white"
                   style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-4">Notification delivery via email/SMS — coming soon.</p>
+              <p className="text-xs text-slate-500 mt-4">Notification delivery via email/SMS - coming soon.</p>
             </div>
           )}
         </div>

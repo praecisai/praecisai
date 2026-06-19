@@ -59,7 +59,7 @@ export default function OutstandingsPage() {
             </select>
             {(filters.segment || filters.aging_bucket) && (
               <button onClick={() => setFilters({ page: 1, limit: 20 })}
-                className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-white/5 transition-all">
+                className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
                 Clear
               </button>
             )}

@@ -74,7 +74,7 @@ export default function CustomersPage() {
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 filters.is_vip
                   ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                  : 'text-slate-400 hover:text-white border border-white/10 hover:bg-white/5'
+                  : 'text-slate-400 hover:text-white border border-white/10 hover:bg-[var(--surface-warm)]/5'
               }`}
             >
               <Star size={13} /> VIP
@@ -91,7 +91,7 @@ export default function CustomersPage() {
             {(filters.search || filters.city || filters.segment || filters.is_vip) && (
               <button
                 onClick={() => { setSearch(''); setFilters({ page: 1, limit: 20 }); }}
-                className="px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 transition-all"
+                className="px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all"
               >
                 Clear
               </button>
@@ -136,7 +136,7 @@ export default function CustomersPage() {
               )}
 
               {!isLoading && customers.map((customer: any) => (
-                <tr key={customer.id} className="cursor-pointer hover:bg-white/2 transition-colors">
+                <tr key={customer.id} className="cursor-pointer hover:bg-[var(--surface-warm)]/2 transition-colors">
                   <td>
                     <Link href={`/dashboard/customers/${customer.id}`} className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
@@ -168,7 +168,7 @@ export default function CustomersPage() {
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {(customer.tags ?? []).slice(0, 2).map((tag: string) => (
-                        <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">{tag}</span>
+                        <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-warm)]/5 text-slate-400">{tag}</span>
                       ))}
                     </div>
                   </td>
@@ -187,7 +187,7 @@ export default function CustomersPage() {
                 <button
                   disabled={filters.page === 1}
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-white/5 transition-all"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-[var(--surface-warm)]/5 transition-all"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -195,7 +195,7 @@ export default function CustomersPage() {
                 <button
                   disabled={filters.page === totalPages}
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-white/5 transition-all"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-[var(--surface-warm)]/5 transition-all"
                 >
                   <ChevronRight size={16} />
                 </button>

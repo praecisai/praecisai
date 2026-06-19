@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '../../lib/supabase/client';
 import api from '../../lib/api/client';
+import { Logo } from '../components/landing/Logo';
+import { IconArrowLeft } from '@tabler/icons-react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -57,23 +59,33 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'linear-gradient(135deg, hsl(222,47%,11%) 0%, hsl(240,30%,9%) 100%)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center px-5 py-10 relative"
+      style={{ background: 'var(--cream)' }}
+    >
+      <Link 
+        href="/" 
+        className="absolute top-6 left-6 flex items-center gap-2 font-body text-sm font-medium text-[var(--walnut)] hover:text-[var(--mahogany)] transition-colors"
+      >
+        <IconArrowLeft size={16} stroke={2} />
+        Back to Home
+      </Link>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
-            <span className="text-white font-bold text-xl">T</span>
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-sm text-slate-400 mt-1">Get started with PraecisAI — free forever</p>
+          <h1 className="font-display text-[26px] font-bold text-[var(--dark-brown)]">Create your account</h1>
+          <p className="font-body text-sm text-[var(--walnut)] mt-1.5">Get started with PraecisAI. 14 day free pilot.</p>
         </div>
 
         <div className="glass-card p-8">
           <form onSubmit={handleSignup} className="space-y-5">
             {error && (
-              <div className="p-3 rounded-lg text-sm text-red-400 border border-red-500/20"
-                style={{ background: 'rgba(239,68,68,0.08)' }}>
+              <div
+                className="p-3 rounded-lg text-sm border"
+                style={{ background: 'rgba(127,29,29,0.06)', borderColor: 'rgba(127,29,29,0.2)', color: '#7F1D1D' }}
+              >
                 {error}
               </div>
             )}
@@ -82,7 +94,8 @@ export default function SignupPage() {
               type="button"
               onClick={handleGoogleSignup}
               disabled={loading}
-              className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:bg-white/10 border border-white/10 flex items-center justify-center gap-3"
+              className="w-full py-3 rounded-xl font-display font-semibold text-[var(--dark-brown)] transition-all hover:bg-[var(--sand)] border flex items-center justify-center gap-3 disabled:opacity-50"
+              style={{ borderColor: 'var(--caramel)', background: 'var(--surface-warm)' }}
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -92,15 +105,15 @@ export default function SignupPage() {
               </svg>
               Sign up with Google
             </button>
-            
+
             <div className="flex items-center my-6">
-              <div className="flex-1 border-t border-white/10"></div>
-              <span className="px-3 text-xs text-slate-500 uppercase tracking-wider">or sign up with email</span>
-              <div className="flex-1 border-t border-white/10"></div>
+              <div className="flex-1 border-t" style={{ borderColor: 'var(--caramel)' }} />
+              <span className="px-3 text-xs text-[var(--walnut)] uppercase tracking-wider">or sign up with email</span>
+              <div className="flex-1 border-t" style={{ borderColor: 'var(--caramel)' }} />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+              <label className="block text-xs font-medium text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
                 Business Name
               </label>
               <input
@@ -116,7 +129,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+              <label className="block text-xs font-medium text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
                 Work Email
               </label>
               <input
@@ -131,7 +144,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+              <label className="block text-xs font-medium text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
                 Password
               </label>
               <input
@@ -150,15 +163,16 @@ export default function SignupPage() {
               id="signup-btn"
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+              className="w-full py-3 rounded-xl font-display font-semibold text-[var(--cream)] transition-all hover:bg-[var(--rust)] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--mahogany)' }}
+            >
               {loading ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-400 mt-6">
+          <p className="text-center text-sm text-[var(--walnut)] mt-6">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
+            <Link href="/login" className="text-[var(--mahogany)] hover:text-[var(--rust)] font-semibold">
               Sign in
             </Link>
           </p>

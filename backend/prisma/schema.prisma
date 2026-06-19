@@ -346,3 +346,57 @@ model ImportHistory {
   @@index([business_id])
   @@map("import_histories")
 }
+
+// ─── Demo Models ──────────────────────────────────────────────────────────────
+
+enum DemoLeadStatus {
+  SIGNED_UP
+  EXHAUSTED
+}
+
+enum DemoRunStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum DemoType {
+  WHATSAPP
+  VOICE_CALL
+}
+
+model DemoLead {
+  id                String         @id @default(uuid())
+  name              String
+  phone             String         @unique
+  email             String?
+  business_name     String
+  business_type     String
+  parties_range     String
+  outstanding_range String
+  status            DemoLeadStatus @default(SIGNED_UP)
+  demos_allowed     Int            @default(2)
+  demos_used        Int            @default(0)
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+
+  runs              DemoRun[]
+
+  @@map("demo_leads")
+}
+
+model DemoRun {
+  id           String        @id @default(uuid())
+  demo_lead_id String
+  demo_type    DemoType
+  party_name   String
+  bill_amount  Float
+  status       DemoRunStatus @default(PENDING)
+  created_at   DateTime      @default(now())
+
+  // Relations
+  demo_lead DemoLead @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
+
+  @@index([demo_lead_id])
+  @@map("demo_runs")
+}

@@ -115,10 +115,10 @@ export default function InvoicesPage() {
               <p className="text-xs text-slate-500">Showing {((filters.page! - 1) * filters.limit!) + 1}–{Math.min(filters.page! * filters.limit!, total)} of {total}</p>
               <div className="flex items-center gap-2">
                 <button disabled={filters.page === 1} onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-white/5 transition-all"><ChevronLeft size={16} /></button>
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-[var(--surface-warm)]/5 transition-all"><ChevronLeft size={16} /></button>
                 <span className="text-xs text-slate-400">Page {filters.page} of {totalPages}</span>
                 <button disabled={filters.page === totalPages} onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-white/5 transition-all"><ChevronRight size={16} /></button>
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 hover:bg-[var(--surface-warm)]/5 transition-all"><ChevronRight size={16} /></button>
               </div>
             </div>
           )}
