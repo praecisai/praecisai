@@ -97,7 +97,7 @@ export default function DemoOutstandingTable({
 
     setIsSubmitting(true);
     
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
     
     try {
       const row = data.find(r => r.id === modalState.rowId);

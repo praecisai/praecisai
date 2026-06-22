@@ -21,13 +21,17 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { DemoModule } from './modules/demo/demo.module';
+import { HealthModule } from './modules/health/health.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+
+import { validate } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+      validate,
     }),
     ThrottlerModule.forRoot([
       {
@@ -61,6 +65,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     StorageModule,
     NotificationModule,
     DemoModule,
+    HealthModule,
   ],
 })
 export class AppModule implements NestModule {

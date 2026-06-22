@@ -49,7 +49,7 @@ export default function DemoSignupForm() {
     setGlobalError(null);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
       const res = await fetch(`${backendUrl}/api/v1/demo-leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

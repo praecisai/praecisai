@@ -16,22 +16,14 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      process.env.FRONTEND_URL ?? 'http://localhost:3000',
-    ],
+    origin: ['https://praecisai.vercel.app', 'https://praecisai.in', 'http://localhost:3000'],
     credentials: true,
-  });
-
-  // API Versioning
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: '1',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Global prefix
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api/v1');
 
   // Validation
   app.useGlobalPipes(
@@ -59,6 +51,7 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
+  app.enableShutdownHooks();
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`🚀 PraecisAI API running at http://localhost:${port}/api/v1`);

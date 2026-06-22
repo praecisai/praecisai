@@ -29,19 +29,22 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   useEffect(() => {
     const fetchLead = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
         const res = await fetch(`${backendUrl}/api/v1/demo-leads/validate-token/${token}`);
         if (!res.ok) throw new Error('Invalid token');
         const resData = await res.json();
         setLead(resData.data);
       } catch (err) {
-        setError('This demo link has expired or is invalid.');
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Token validation error:', err);
+        }
+        router.push('/');
       } finally {
         setLoading(false);
       }
     };
     fetchLead();
-  }, [token]);
+  }, [token, router]);
 
   const handleActionComplete = (type: 'WHATSAPP' | 'VOICE_CALL') => {
     setLead((prev) => {
