@@ -29,6 +29,18 @@ export class DemoService {
         parties_range: dto.partiesRange,
         outstanding_range: dto.outstandingRange,
       });
+    } else {
+      // Update existing lead with latest form submission
+      lead = await this.demoLeadRepo.update(lead.id, {
+        name: dto.name,
+        email: dto.email,
+        business_name: dto.businessName,
+        business_type: dto.businessType,
+        group_name: dto.groupName,
+        reference_by: dto.referenceBy,
+        parties_range: dto.partiesRange,
+        outstanding_range: dto.outstandingRange,
+      });
     }
 
     const payload = { sub: lead.id, type: 'demo_token' };
