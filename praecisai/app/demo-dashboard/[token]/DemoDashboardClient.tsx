@@ -11,9 +11,12 @@ import DemoOutstandingTable from '../../components/demo/DemoOutstandingTable';
 export type DemoLead = {
   id: string;
   name: string;
+  phone: string;
   businessName: string;
-  demosUsed: number;
-  demosAllowed: number;
+  whatsappUsed: number;
+  whatsappAllowed: number;
+  callsUsed: number;
+  callsAllowed: number;
   status: 'SIGNED_UP' | 'EXHAUSTED';
 };
 
@@ -29,8 +32,8 @@ export default function DemoDashboardClient({ token }: { token: string }) {
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const res = await fetch(`${backendUrl}/api/v1/demo-leads/validate-token/${token}`);
         if (!res.ok) throw new Error('Invalid token');
-        const data = await res.json();
-        setLead(data);
+        const resData = await res.json();
+        setLead(resData.data);
       } catch (err) {
         setError('This demo link has expired or is invalid.');
       } finally {
@@ -40,14 +43,16 @@ export default function DemoDashboardClient({ token }: { token: string }) {
     fetchLead();
   }, [token]);
 
-  const handleActionComplete = () => {
+  const handleActionComplete = (type: 'WHATSAPP' | 'VOICE_CALL') => {
     setLead((prev) => {
       if (!prev) return prev;
-      const newUsed = prev.demosUsed + 1;
+      const newWhatsappUsed = prev.whatsappUsed + (type === 'WHATSAPP' ? 1 : 0);
+      const newCallsUsed = prev.callsUsed + (type === 'VOICE_CALL' ? 1 : 0);
       return {
         ...prev,
-        demosUsed: newUsed,
-        status: newUsed >= prev.demosAllowed ? 'EXHAUSTED' : 'SIGNED_UP',
+        whatsappUsed: newWhatsappUsed,
+        callsUsed: newCallsUsed,
+        status: (newWhatsappUsed >= prev.whatsappAllowed && newCallsUsed >= prev.callsAllowed) ? 'EXHAUSTED' : 'SIGNED_UP',
       };
     });
   };
@@ -84,10 +89,11 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-[var(--cream)]">
       <DemoDashboardHeader 
-        leadName={lead.name}
         businessName={lead.businessName}
-        demosUsed={lead.demosUsed}
-        demosAllowed={lead.demosAllowed}
+        whatsappUsed={lead.whatsappUsed}
+        whatsappAllowed={lead.whatsappAllowed}
+        callsUsed={lead.callsUsed}
+        callsAllowed={lead.callsAllowed}
       />
 
       {lead.status === 'EXHAUSTED' && <DemoExhaustedBanner />}
@@ -105,8 +111,11 @@ export default function DemoDashboardClient({ token }: { token: string }) {
         <div className="mt-8">
           <DemoOutstandingTable 
             token={token} 
-            demosUsed={lead.demosUsed}
-            demosAllowed={lead.demosAllowed}
+            whatsappUsed={lead.whatsappUsed}
+            whatsappAllowed={lead.whatsappAllowed}
+            callsUsed={lead.callsUsed}
+            callsAllowed={lead.callsAllowed}
+            phone={lead.phone}
             onActionComplete={handleActionComplete}
           />
         </div>

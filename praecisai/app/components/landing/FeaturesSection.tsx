@@ -9,7 +9,7 @@ import {
   IconCalendarCheck,
   IconAlertTriangle,
 } from '@tabler/icons-react';
-import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import { itemVariants, sectionVariants, viewportOnce, scaleIn } from './motion';
 
 const features = [
   {
@@ -92,13 +92,15 @@ export default function FeaturesSection() {
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
-              variants={itemVariants}
+              variants={scaleIn}
               transition={{ delay: index * 0.08 }}
-              whileHover={{ y: -5, boxShadow: '0 16px 48px rgba(127,85,57,0.12)' }}
+              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)' }}
               className="group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
             >
-              {/* Emoji icon */}
-              <div
+              {/* Icon */}
+              <motion.div
+                whileHover={{ scale: 1.12, rotate: [0, -5, 5, 0] }}
+                transition={{ duration: 0.4 }}
                 className="mx-auto mb-5 flex items-center justify-center rounded-xl text-2xl leading-none"
                 style={{
                   backgroundColor: feature.iconBg,
@@ -108,7 +110,7 @@ export default function FeaturesSection() {
                 }}
               >
                 <feature.icon size={24} className="text-[var(--mahogany)]" stroke={1.5} />
-              </div>
+              </motion.div>
 
               <h3 className="font-display text-[17px] font-semibold text-[var(--dark-brown)]">
                 {feature.title}

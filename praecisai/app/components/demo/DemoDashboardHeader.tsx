@@ -6,15 +6,18 @@ import { cn } from '@/lib/utils/cn';
 import Link from 'next/link';
 
 interface DemoDashboardHeaderProps {
-  leadName: string;
   businessName: string;
-  demosUsed: number;
-  demosAllowed: number;
+  whatsappUsed: number;
+  whatsappAllowed: number;
+  callsUsed: number;
+  callsAllowed: number;
 }
 
-export default function DemoDashboardHeader({ leadName, businessName, demosUsed, demosAllowed }: DemoDashboardHeaderProps) {
-  const remaining = Math.max(0, demosAllowed - demosUsed);
-  const dots = Array.from({ length: demosAllowed });
+export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsappAllowed, callsUsed, callsAllowed }: DemoDashboardHeaderProps) {
+  const whatsappRemaining = Math.max(0, whatsappAllowed - whatsappUsed);
+  const callsRemaining = Math.max(0, callsAllowed - callsUsed);
+  const whatsappDots = Array.from({ length: whatsappAllowed });
+  const callsDots = Array.from({ length: callsAllowed });
 
   return (
     <div className="sticky top-0 z-40 flex w-full flex-col border-b border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
@@ -37,26 +40,48 @@ export default function DemoDashboardHeader({ leadName, businessName, demosUsed,
 
       {/* Center: Welcome Text */}
       <div className="mt-4 hidden text-center font-body text-[13px] text-[var(--walnut)] lg:block sm:mt-0">
-        Welcome!<span className="font-semibold text-[var(--dark-brown)]">{leadName}</span> Here&apos;s what your dashboard will look like with your real business's data.
+        Welcome <span className="font-semibold text-[var(--dark-brown)]">{businessName}</span>! Here&apos;s what your dashboard will look like with your real business&apos;s data.
       </div>
 
       {/* Right: Counter & Action */}
       <div className="mt-4 flex items-center justify-between sm:mt-0 sm:justify-end sm:gap-6">
-        <div className="flex flex-col items-start sm:items-end">
-          <span className="font-body text-[12px] font-semibold text-[var(--dark-brown)]">
-            {remaining} free actions remaining
-          </span>
-          <div className="mt-1 flex gap-1.5">
-            {dots.map((_, i) => (
-              <motion.div
-                key={i}
-                layout
-                className={cn(
-                  "h-1.5 w-6 rounded-full transition-colors duration-500",
-                  i < remaining ? "bg-[var(--mahogany)]" : "bg-[var(--caramel)] opacity-50"
-                )}
-              />
-            ))}
+        <div className="flex flex-row items-center gap-6">
+          {/* WhatsApp Counter */}
+          <div className="flex flex-col items-end">
+            <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
+              {whatsappRemaining} WhatsApp actions remaining
+            </span>
+            <div className="mt-1 flex gap-1.5">
+              {whatsappDots.map((_, i) => (
+                <motion.div
+                  key={`wa-${i}`}
+                  layout
+                  className={cn(
+                    "h-1.5 w-6 rounded-full transition-colors duration-500",
+                    i < whatsappRemaining ? "bg-[#25D366]" : "bg-[var(--caramel)] opacity-50"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {/* Call Counter */}
+          <div className="flex flex-col items-end">
+            <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
+              {callsRemaining} Call actions remaining
+            </span>
+            <div className="mt-1 flex gap-1.5">
+              {callsDots.map((_, i) => (
+                <motion.div
+                  key={`call-${i}`}
+                  layout
+                  className={cn(
+                    "h-1.5 w-6 rounded-full transition-colors duration-500",
+                    i < callsRemaining ? "bg-[var(--mahogany)]" : "bg-[var(--caramel)] opacity-50"
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
         

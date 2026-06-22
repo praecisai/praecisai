@@ -90,6 +90,46 @@ body {
   animation: float-mockup 4s ease-in-out infinite;
 }
 
+/* ─── Animated gradient text ──────────────────────────────────── */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.animate-gradient-text {
+  background: linear-gradient(
+    90deg,
+    var(--rust) 0%,
+    var(--mahogany) 25%,
+    var(--walnut) 50%,
+    var(--rust) 75%,
+    var(--mahogany) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+/* ─── Floating dots for hero background ───────────────────────── */
+@keyframes dot-drift {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(10px, -14px); }
+  50%      { transform: translate(-6px, -4px); }
+  75%      { transform: translate(8px, -18px); }
+}
+
+/* ─── Pulsing arrow ───────────────────────────────────────────── */
+@keyframes arrow-pulse {
+  0%, 100% { transform: translateX(0); opacity: 0.6; }
+  50%      { transform: translateX(4px); opacity: 1; }
+}
+
+.animate-arrow-pulse {
+  animation: arrow-pulse 2s ease-in-out infinite;
+}
+
 /* ─── Wavy underline for hero word ────────────────────────────── */
 .wavy-underline {
   text-decoration: underline;

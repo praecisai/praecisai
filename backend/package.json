@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.4",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -30,7 +31,7 @@
     "@nestjs/swagger": "^11.4.4",
     "@nestjs/throttler": "^6.5.0",
     "@supabase/supabase-js": "^2.108.2",
-    "bullmq": "^5.78.1",
+    "bullmq": "^5.79.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "compression": "^1.8.1",
@@ -41,6 +42,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
+    "retell-sdk": "^5.38.0",
     "rxjs": "^7.8.1",
     "uuid": "^14.0.0",
     "xlsx": "^0.18.5"

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { IconUpload, IconRobot, IconChartBar, IconArrowRight } from '@tabler/icons-react';
-import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import { itemVariants, sectionVariants, viewportOnce, scaleIn } from './motion';
 
 const steps = [
   {
@@ -67,30 +67,47 @@ export default function HowItWorks() {
           {steps.map((step, index) => (
             <motion.div
               key={step.number}
-              variants={itemVariants}
-              transition={{ delay: index * 0.15 }}
-              className="relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10"
+              variants={scaleIn}
+              transition={{ delay: index * 0.2 }}
+              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)' }}
+              className="relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10 transition-shadow duration-200"
             >
               {/* Arrow connector (desktop only) */}
               {index < steps.length - 1 && (
                 <div className="absolute -right-5 top-1/2 z-10 hidden -translate-y-1/2 lg:flex">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--caramel)] bg-[var(--cream)]">
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={viewportOnce}
+                    transition={{ delay: 0.5 + index * 0.2 }}
+                    className="animate-arrow-pulse flex h-10 w-10 items-center justify-center rounded-full border border-[var(--caramel)] bg-[var(--cream)]"
+                  >
                     <IconArrowRight size={18} className="text-[var(--caramel)]" stroke={1.75} />
-                  </div>
+                  </motion.div>
                 </div>
               )}
 
               {/* Step number + icon row */}
               <div className="mb-7 flex items-center justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]">
+                <motion.span
+                  initial={{ scale: 0, rotate: -180 }}
+                  whileInView={{ scale: 1, rotate: 0 }}
+                  viewport={viewportOnce}
+                  transition={{ delay: 0.1 + index * 0.2, type: 'spring', stiffness: 200, damping: 12 }}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
+                >
                   {step.number}
-                </span>
-                <div
+                </motion.span>
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  whileInView={{ scale: 1, opacity: 1 }}
+                  viewport={viewportOnce}
+                  transition={{ delay: 0.2 + index * 0.2, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
                   className="flex h-12 w-12 items-center justify-center rounded-xl text-[var(--mahogany)]"
                   style={{ backgroundColor: step.iconBg }}
                 >
                   <step.icon size={24} stroke={1.75} />
-                </div>
+                </motion.div>
               </div>
 
               <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
@@ -100,13 +117,17 @@ export default function HowItWorks() {
                 {step.description}
               </p>
               <div className="mt-7 flex flex-wrap gap-2">
-                {step.tags.map((tag) => (
-                  <span
+                {step.tags.map((tag, ti) => (
+                  <motion.span
                     key={tag}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={viewportOnce}
+                    transition={{ delay: 0.4 + index * 0.2 + ti * 0.08, duration: 0.3 }}
                     className="rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-3 py-1 font-body text-[11px] font-medium text-[var(--walnut)]"
                   >
                     {tag}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
             </motion.div>

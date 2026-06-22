@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import SplashScreen from './components/SplashScreen';
+import WorkflowSplash from './components/splash/WorkflowSplash';
 import Navbar from './components/landing/Navbar';
 import HeroSection from './components/landing/HeroSection';
 import HowItWorks from './components/landing/HowItWorks';
@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <AnimatePresence mode="wait">
       {showSplash ? (
-        <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
+        <WorkflowSplash key="splash" onComplete={() => setShowSplash(false)} />
       ) : (
         <motion.main
           key="landing"

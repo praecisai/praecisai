@@ -12,11 +12,13 @@ import { cn } from '@/lib/utils/cn';
 const formSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   phone: z.string().regex(/^(\+91)?\d{10}$/, 'Valid 10-digit Indian phone number required'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  email: z.string().email('Invalid email'),
   businessName: z.string().min(2, 'Business name is required'),
-  businessType: z.enum(['Textile/Garments', 'Distribution/Wholesale', 'Manufacturing', 'Retail', 'Other'], {
+  businessType: z.enum(['Textile/Garments', 'Distribution/Wholesale', 'FCMG Distributor', 'Pharma Distributor', 'Hardware and Building', 'Electronics/appliance', 'General MSME', 'Other'], {
     message: 'Please select a business type',
   }),
+  groupName: z.string().min(2, 'Group name is required'),
+  referenceBy: z.string().min(2, 'Reference is required'),
   partiesRange: z.enum(['<100', '100-500', '500-2000', '2000+'], {
     message: 'Please select number of parties',
   }),
@@ -132,7 +134,7 @@ export default function DemoSignupForm() {
         {/* Email */}
         <div>
           <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
-            Email (Optional)
+            Email *
           </label>
           <input
             {...register('email')}
@@ -173,11 +175,46 @@ export default function DemoSignupForm() {
             <option value="">Select industry</option>
             <option value="Textile/Garments">Textile/Garments</option>
             <option value="Distribution/Wholesale">Distribution/Wholesale</option>
-            <option value="Manufacturing">Manufacturing</option>
-            <option value="Retail">Retail</option>
+            <option value="FCMG Distributor">FCMG Distributor</option>
+            <option value="Pharma Distributor">Pharma Distributor</option>
+            <option value="Hardware and Building">Hardware and Building</option>
+            <option value="Electronics/appliance">Electronics/appliance</option>
+            <option value="General MSME">General MSME</option>
             <option value="Other">Other</option>
           </select>
           {errors.businessType && <p className="mt-1.5 text-xs text-red-500">{errors.businessType.message}</p>}
+        </div>
+
+        {/* Group Name */}
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
+            Group Name *
+          </label>
+          <input
+            {...register('groupName')}
+            className={cn(
+              "w-full rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-3 font-body text-[14px] text-[var(--dark-brown)] outline-none transition-colors focus:border-[var(--mahogany)] focus:ring-1 focus:ring-[var(--mahogany)]",
+              errors.groupName && "border-red-500 focus:border-red-500 focus:ring-red-500"
+            )}
+            placeholder="e.g. ABC Group"
+          />
+          {errors.groupName && <p className="mt-1.5 text-xs text-red-500">{errors.groupName.message}</p>}
+        </div>
+
+        {/* Reference By */}
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
+            Reference By *
+          </label>
+          <input
+            {...register('referenceBy')}
+            className={cn(
+              "w-full rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-3 font-body text-[14px] text-[var(--dark-brown)] outline-none transition-colors focus:border-[var(--mahogany)] focus:ring-1 focus:ring-[var(--mahogany)]",
+              errors.referenceBy && "border-red-500 focus:border-red-500 focus:ring-red-500"
+            )}
+            placeholder="e.g. John from Marketing"
+          />
+          {errors.referenceBy && <p className="mt-1.5 text-xs text-red-500">{errors.referenceBy.message}</p>}
         </div>
 
         {/* Parties Range */}

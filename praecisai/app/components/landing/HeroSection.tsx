@@ -1,7 +1,8 @@
 'use client';
 
+import { useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   IconCheck,
   IconBrandWhatsapp,
@@ -10,7 +11,10 @@ import {
   IconArrowRight,
   IconLock,
 } from '@tabler/icons-react';
-import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import { itemVariants, sectionVariants, viewportOnce, wordItem, scaleIn } from './motion';
+
+const headlineWords = ['Your', 'outstanding', 'report,', 'collected'];
+const highlightWord = 'automatically';
 
 const trustItems = [
   'No setup fees',
@@ -34,18 +38,120 @@ const agingBars = [
 ];
 
 const metrics = [
-  { value: '₹47.2L', label: 'Total Outstanding',    colorClass: 'text-[var(--mahogany)]' },
-  { value: '1,247',  label: 'Parties tracked',       colorClass: 'text-[var(--dark-brown)]' },
-  { value: '68%',    label: 'Recovery rate',         colorClass: 'text-[var(--rust)]' },
-  { value: '₹12.4L', label: 'Recovered this month', colorClass: 'text-[var(--recovery-green)]' },
+  { value: 47.2, suffix: 'L', label: 'Total Outstanding',    colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
+  { value: 1247, suffix: '',  label: 'Parties tracked',       colorClass: 'text-[var(--dark-brown)]', prefix: '' },
+  { value: 68,   suffix: '%', label: 'Recovery rate',         colorClass: 'text-[var(--rust)]', prefix: '' },
+  { value: 12.4, suffix: 'L', label: 'Recovered this month', colorClass: 'text-[var(--recovery-green)]', prefix: '₹' },
 ];
 
+function AnimatedCounter({
+  value,
+  suffix,
+  prefix,
+}: {
+  value: number;
+  suffix: string;
+  prefix: string;
+}) {
+  const ref = useRef(null);
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          const duration = 1800;
+          const start = performance.now();
+          const raf = (now: number) => {
+            const t = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            setDisplay(value * eased);
+            if (t < 1) requestAnimationFrame(raf);
+          };
+          requestAnimationFrame(raf);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value]);
+
+  const formatted = value % 1 === 0
+    ? Math.round(display).toString()
+    : display.toFixed(1);
+
+  return (
+    <span ref={ref}>
+      {prefix}{formatted}{suffix}
+    </span>
+  );
+}
+
+function Particles() {
+  const dots = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 2 + Math.random() * 3,
+      delay: Math.random() * 4,
+      duration: 5 + Math.random() * 5,
+      opacity: 0.06 + Math.random() * 0.08,
+    }));
+  }, []);
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {dots.map((dot) => (
+        <div
+          key={dot.id}
+          className="absolute rounded-full bg-[var(--walnut)]"
+          style={{
+            left: `${dot.x}%`,
+            top: `${dot.y}%`,
+            width: dot.size,
+            height: dot.size,
+            opacity: dot.opacity,
+            animation: `dot-drift ${dot.duration}s ease-in-out infinite`,
+            animationDelay: `${dot.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function HeroSection() {
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  });
+
+  const mockupY = useTransform(scrollYProgress, [0, 1], [0, 40]);
+  const mockupScale = useTransform(scrollYProgress, [0, 1], [1, 0.97]);
+
+  const [visibleActivities, setVisibleActivities] = useState<number[]>([]);
+
+  useEffect(() => {
+    const timers = activityFeed.map((_, i) =>
+      setTimeout(() => setVisibleActivities((prev) => [...prev, i]), 600 + i * 500)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
   return (
     <section
+      ref={sectionRef}
       className="relative bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
       style={{ paddingTop: '160px' }}
     >
+      <Particles />
+
       {/* Subtle radial glow at center-top */}
       <div
         aria-hidden
@@ -68,28 +174,51 @@ export default function HeroSection() {
           variants={itemVariants}
           className="mb-10 flex justify-center"
         >
-        <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caramel)] bg-[rgba(159,99,68,0.10)] px-4 py-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--rust)] opacity-40" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--rust)]" />
-          </span>
-          <span className="font-body text-xs font-semibold text-[var(--mahogany)]">
-            Built for Indian Businesses
-          </span>
-        </div>
+          <motion.div
+            whileHover={{ scale: 1.04 }}
+            className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caramel)] bg-[rgba(159,99,68,0.10)] px-4 py-2"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--rust)] opacity-40" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--rust)]" />
+            </span>
+            <span className="font-body text-xs font-semibold text-[var(--mahogany)]">
+              Built for Indian Businesses
+            </span>
+          </motion.div>
         </motion.div>
 
-        {/* Headline */}
-        <motion.h1
-          variants={itemVariants}
+        {/* Headline — word by word */}
+        <h1
           className="mx-auto max-w-4xl text-center font-display font-bold leading-[1.06] tracking-[-0.03em] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)' }}
         >
-          Your outstanding report,
+          {headlineWords.map((word, i) => (
+            <motion.span
+              key={word}
+              className="inline-block mr-[0.25em]"
+              custom={i}
+              variants={wordItem}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOnce}
+            >
+              {word}
+            </motion.span>
+          ))}
           <br />
-          collected{' '}
-          <span className="text-[var(--rust)] wavy-underline">automatically</span>.
-        </motion.h1>
+          <motion.span
+            className="inline-block mr-[0.25em]"
+            custom={headlineWords.length}
+            variants={wordItem}
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+          >
+            <span className="animate-gradient-text font-bold">{highlightWord}</span>
+            <span>.</span>
+          </motion.span>
+        </h1>
 
         {/* Subheadline */}
         <motion.p
@@ -106,19 +235,23 @@ export default function HeroSection() {
           variants={itemVariants}
           className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
-          <Link
-            href="#demo"
-            className="group inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
-          >
-            Start recovering for free
-            <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
-          <a
-            href="#how-it-works"
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)]"
-          >
-            See how it works
-          </a>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Link
+              href="#demo"
+              className="group inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
+            >
+              Start recovering for free
+              <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <a
+              href="#how-it-works"
+              className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)]"
+            >
+              See how it works
+            </a>
+          </motion.div>
         </motion.div>
 
         {/* Trust row */}
@@ -126,20 +259,28 @@ export default function HeroSection() {
           variants={itemVariants}
           className="mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5"
         >
-          {trustItems.map((item) => (
-            <span
+          {trustItems.map((item, i) => (
+            <motion.span
               key={item}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={viewportOnce}
+              transition={{ delay: 0.8 + i * 0.1, duration: 0.4 }}
               className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--walnut)]"
             >
               <IconCheck size={13} className="text-[var(--mahogany)]" stroke={2.5} />
               {item}
-            </span>
+            </motion.span>
           ))}
         </motion.div>
 
         {/* ── Dashboard Mockup ── */}
-        <motion.div variants={itemVariants} className="mt-20 sm:mt-24">
-          <div className="animate-float-mockup mx-auto max-w-4xl overflow-hidden rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] shadow-[0_24px_80px_rgba(127,85,57,0.14)]">
+        <motion.div
+          variants={scaleIn}
+          style={{ y: mockupY, scale: mockupScale }}
+          className="mt-20 sm:mt-24"
+        >
+          <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] shadow-[0_24px_80px_rgba(127,85,57,0.14)]">
 
             {/* Browser bar */}
             <div className="flex items-center justify-between border-b border-[var(--caramel)] bg-[var(--sand)] px-5 py-3">
@@ -163,22 +304,33 @@ export default function HeroSection() {
                 {/* Metric cards */}
                 <div className="grid grid-cols-2 gap-4">
                   {metrics.map((m) => (
-                    <div
+                    <motion.div
                       key={m.label}
-                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 text-left"
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={viewportOnce}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      whileHover={{ y: -3, boxShadow: '0 8px 24px rgba(127,85,57,0.12)' }}
+                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 text-left transition-shadow duration-200"
                     >
                       <p className={`font-display text-xl font-bold ${m.colorClass}`}>
-                        {m.value}
+                        <AnimatedCounter value={m.value} suffix={m.suffix} prefix={m.prefix} />
                       </p>
                       <p className="mt-1 font-body text-[11px] leading-tight text-[var(--walnut)]">
                         {m.label}
                       </p>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
 
                 {/* Aging bars */}
-                <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={viewportOnce}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5"
+                >
                   <p className="mb-4 font-display text-[13px] font-semibold text-[var(--mahogany)]">
                     Aging breakdown
                   </p>
@@ -190,26 +342,43 @@ export default function HeroSection() {
                           <span className="font-semibold">{bar.amount}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-[var(--sand)]">
-                          <div
+                          <motion.div
                             className="h-full rounded-full bg-[var(--mahogany)]"
-                            style={{ width: bar.width, opacity: bar.opacity }}
+                            initial={{ width: 0 }}
+                            whileInView={{ width: bar.width }}
+                            viewport={viewportOnce}
+                            transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                            style={{ opacity: bar.opacity }}
                           />
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Right column — activity feed */}
-              <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={viewportOnce}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5"
+              >
                 <p className="mb-4 font-display text-[13px] font-semibold text-[var(--mahogany)]">
                   Live activity
                 </p>
                 <div className="space-y-3">
-                  {activityFeed.map((item) => (
-                    <div
+                  {activityFeed.map((item, i) => (
+                    <motion.div
                       key={item.text}
+                      initial={{ opacity: 0, x: -16, scale: 0.95 }}
+                      animate={
+                        visibleActivities.includes(i)
+                          ? { opacity: 1, x: 0, scale: 1 }
+                          : { opacity: 0, x: -16, scale: 0.95 }
+                      }
+                      transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
                       className="flex items-start gap-3 rounded-lg bg-[var(--surface-warm)] px-3 py-2.5 shadow-[0_1px_4px_rgba(127,85,57,0.07)]"
                     >
                       <div
@@ -226,10 +395,10 @@ export default function HeroSection() {
                           {item.time}
                         </p>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
             </div>
           </div>

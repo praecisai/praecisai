@@ -1,6 +1,8 @@
 import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bullmq';
+import { Redis } from 'ioredis';
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,6 +35,15 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
         limit: 100,
       },
     ]),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        connection: new Redis(configService.get<string>('redis.url') || 'redis://localhost:6379', {
+          maxRetriesPerRequest: null,
+        }) as any,
+      }),
+      inject: [ConfigService],
+    }),
     PrismaModule,
     AuthModule,
     BusinessModule,

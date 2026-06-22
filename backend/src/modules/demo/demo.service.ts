@@ -3,12 +3,15 @@ import { DemoLeadRepository } from './demo-lead.repository';
 import { CreateDemoLeadDto } from './dto/create-demo-lead.dto';
 import { RunDemoDto } from './dto/run-demo.dto';
 import { JwtService } from '@nestjs/jwt';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class DemoService {
   constructor(
     private readonly demoLeadRepo: DemoLeadRepository,
     private readonly jwtService: JwtService,
+    @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
   ) {}
 
   async createLead(dto: CreateDemoLeadDto) {
@@ -21,6 +24,8 @@ export class DemoService {
         email: dto.email,
         business_name: dto.businessName,
         business_type: dto.businessType,
+        group_name: dto.groupName,
+        reference_by: dto.referenceBy,
         parties_range: dto.partiesRange,
         outstanding_range: dto.outstandingRange,
       });
@@ -48,9 +53,12 @@ export class DemoService {
       return {
         id: lead.id,
         name: lead.name,
+        phone: lead.phone,
         businessName: lead.business_name,
-        demosUsed: lead.demos_used,
-        demosAllowed: lead.demos_allowed,
+        whatsappUsed: lead.whatsapp_used,
+        whatsappAllowed: lead.whatsapp_allowed,
+        callsUsed: lead.calls_used,
+        callsAllowed: lead.calls_allowed,
         status: lead.status,
       };
     } catch (e) {
@@ -66,8 +74,14 @@ export class DemoService {
       throw new UnauthorizedException('Demo lead not found');
     }
 
-    if (lead.demos_used >= lead.demos_allowed || lead.status === 'EXHAUSTED') {
-      throw new BadRequestException('Demo actions exhausted');
+    const isWhatsapp = dto.demoType === 'WHATSAPP';
+    const isCall = dto.demoType === 'VOICE_CALL';
+
+    if (isWhatsapp && lead.whatsapp_used >= lead.whatsapp_allowed) {
+      throw new BadRequestException('WhatsApp demo limit reached');
+    }
+    if (isCall && lead.calls_used >= lead.calls_allowed) {
+      throw new BadRequestException('Call demo limit reached');
     }
 
     const run = await this.demoLeadRepo.createRun({
@@ -78,18 +92,40 @@ export class DemoService {
       status: 'SENT',
     });
 
+    const newWhatsappUsed = lead.whatsapp_used + (isWhatsapp ? 1 : 0);
+    const newCallsUsed = lead.calls_used + (isCall ? 1 : 0);
+    const exhausted = newWhatsappUsed >= lead.whatsapp_allowed && newCallsUsed >= lead.calls_allowed;
+
     const updatedLead = await this.demoLeadRepo.update(lead.id, {
-      demos_used: lead.demos_used + 1,
-      status: lead.demos_used + 1 >= lead.demos_allowed ? 'EXHAUSTED' : 'SIGNED_UP',
+      whatsapp_used: newWhatsappUsed,
+      calls_used: newCallsUsed,
+      status: exhausted ? 'EXHAUSTED' : 'SIGNED_UP',
     });
 
     // TODO: integrate WhatsApp Cloud API here if dto.demoType === 'WHATSAPP'
-    // TODO: integrate Retell AI here if dto.demoType === 'VOICE_CALL'
+    
+    if (isCall) {
+      await this.callingQueue.add('outbound-calls', {
+        demoLeadId: lead.id,
+        phoneNumber: lead.phone,
+        context: {
+          business_name: lead.business_name,
+          customer_name: dto.partyName,
+          bill_no: dto.billNo,
+          due_amount: dto.dueAmount.toString(),
+          days_overdue: dto.daysOverdue.toString(),
+          segment: dto.segment,
+          previous_paid_amount: dto.previousPaidAmount?.toString() || '0',
+        }
+      });
+    }
 
     return {
       success: true,
       demoRunId: run.id,
-      demosRemaining: updatedLead.demos_allowed - updatedLead.demos_used,
+      message: "Call queued — your phone should ring shortly",
+      whatsappRemaining: updatedLead.whatsapp_allowed - updatedLead.whatsapp_used,
+      callsRemaining: updatedLead.calls_allowed - updatedLead.calls_used,
     };
   }
 }

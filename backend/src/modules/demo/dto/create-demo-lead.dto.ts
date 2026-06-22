@@ -11,8 +11,8 @@ export class CreateDemoLeadDto {
   phone: string;
 
   @IsString()
-  @IsOptional()
-  email?: string;
+  @IsNotEmpty()
+  email: string;
 
   @IsString()
   @IsNotEmpty()
@@ -29,4 +29,12 @@ export class CreateDemoLeadDto {
   @IsString()
   @IsNotEmpty()
   outstandingRange: string;
+
+  @IsString()
+  @IsNotEmpty()
+  groupName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  referenceBy: string;
 }

@@ -356,6 +356,7 @@ enum DemoLeadStatus {
 
 enum DemoRunStatus {
   PENDING
+  SENDING
   SENT
   FAILED
 }
@@ -369,14 +370,18 @@ model DemoLead {
   id                String         @id @default(uuid())
   name              String
   phone             String         @unique
-  email             String?
+  email             String
   business_name     String
   business_type     String
+  group_name        String
+  reference_by      String
   parties_range     String
   outstanding_range String
   status            DemoLeadStatus @default(SIGNED_UP)
-  demos_allowed     Int            @default(2)
-  demos_used        Int            @default(0)
+  whatsapp_allowed  Int            @default(4)
+  whatsapp_used     Int            @default(0)
+  calls_allowed     Int            @default(4)
+  calls_used        Int            @default(0)
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
 
@@ -391,9 +396,10 @@ model DemoRun {
   demo_type    DemoType
   party_name   String
   bill_amount  Float
-  status       DemoRunStatus @default(PENDING)
-  created_at   DateTime      @default(now())
-
+  status             DemoRunStatus @default(PENDING)
+  retell_call_id     String?       @unique
+  call_recording_url String?
+  created_at         DateTime      @default(now())
   // Relations
   demo_lead DemoLead @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
 

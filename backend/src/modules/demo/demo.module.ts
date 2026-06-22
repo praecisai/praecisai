@@ -5,6 +5,7 @@ import { DemoController } from './demo.controller';
 import { DemoService } from './demo.service';
 import { DemoLeadRepository } from './demo-lead.repository';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { CallingModule } from '../calling/calling.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
       }),
       inject: [ConfigService],
     }),
+    CallingModule,
   ],
   controllers: [DemoController],
   providers: [DemoService, DemoLeadRepository],

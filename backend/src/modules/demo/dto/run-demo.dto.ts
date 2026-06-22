@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { DemoType } from '@prisma/client';
 
 export class RunDemoDto {
@@ -18,4 +18,16 @@ export class RunDemoDto {
 
   @IsNumber()
   daysOverdue: number;
+
+  @IsString()
+  @IsNotEmpty()
+  billNo: string;
+
+  @IsString()
+  @IsNotEmpty()
+  segment: string;
+
+  @IsNumber()
+  @IsOptional()
+  previousPaidAmount?: number;
 }
