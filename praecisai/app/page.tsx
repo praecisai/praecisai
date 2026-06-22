@@ -16,16 +16,14 @@ import FaqSection from './components/landing/FaqSection';
 import CtaSection from './components/landing/CtaSection';
 import Footer from './components/landing/Footer';
 
-let sessionStarted = false;
-
 export default function Home() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
-    if (sessionStarted) {
-      setShowSplash(false);
-    } else {
-      sessionStarted = true;
+    const hasSeenSplash = sessionStorage.getItem('splashShown');
+    if (!hasSeenSplash) {
+      setShowSplash(true);
+      sessionStorage.setItem('splashShown', 'true');
     }
   }, []);
 

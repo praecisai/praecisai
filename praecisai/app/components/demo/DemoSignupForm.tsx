@@ -76,22 +76,20 @@ export default function DemoSignupForm() {
     }
   };
 
-  if (isRedirecting) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-[var(--mahogany)] mb-4" />
-        <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
-          Setting up your demo...
-        </h3>
-        <p className="mt-2 font-body text-sm text-[var(--walnut)]">
-          Generating your custom dataset and dashboard
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="w-full text-left">
+    <form onSubmit={handleSubmit(onSubmit)} className="relative w-full text-left">
+      {isRedirecting && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[var(--surface-warm)]/90 backdrop-blur-md rounded-2xl">
+          <Loader2 className="mb-4 h-10 w-10 animate-spin text-[var(--mahogany)]" />
+          <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
+            Setting up your demo...
+          </h3>
+          <p className="mt-2 font-body text-sm text-[var(--walnut)]">
+            Generating your custom dataset and dashboard
+          </p>
+        </div>
+      )}
+
       {globalError && (
         <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-200">
           {globalError}

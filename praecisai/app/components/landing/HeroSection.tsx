@@ -92,6 +92,12 @@ function AnimatedCounter({
 }
 
 function Particles() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const dots = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => ({
       id: i,
@@ -103,6 +109,10 @@ function Particles() {
       opacity: 0.06 + Math.random() * 0.08,
     }));
   }, []);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
