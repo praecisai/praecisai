@@ -17,12 +17,16 @@ export class CallProcessor extends WorkerHost {
 
   async process(job: Job<any, any, string>): Promise<any> {
     const { demoLeadId, phoneNumber, context } = job.data;
-    console.log(`Processing call for demoLead: ${demoLeadId} to ${phoneNumber}`);
+    
+    // Retell requires E.164 format. Ensure it starts with + (default to India +91)
+    let formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+    
+    console.log(`Processing call for demoLead: ${demoLeadId} to ${formattedPhone}`);
 
     try {
       const call = await this.retellClient.call.createPhoneCall({
         from_number: process.env.RETELL_FROM_NUMBER || '',
-        to_number: phoneNumber,
+        to_number: formattedPhone,
         override_agent_id: process.env.RETELL_AGENT_ID || '',
         retell_llm_dynamic_variables: {
           business_name: context.business_name,

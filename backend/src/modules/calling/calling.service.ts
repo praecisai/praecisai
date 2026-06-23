@@ -53,10 +53,12 @@ export class CallingService {
       const customData = analysis.custom_analysis_data || {};
       
       const moodSummary = customData.customer_mood_summary || analysis.user_sentiment || 'Unknown';
+      const transcriptText = callData.transcript || '';
       
       await this.prisma.demoRun.updateMany({
         where: { retell_call_id: callId },
         data: {
+          transcript: transcriptText,
           // Status remains SENT as it's completed, but we can store analysis data somewhere if we added columns.
           // The prompt mentioned: "message_sent field can store the customer_mood_summary" 
           // But demo_runs doesn't have a message_sent field. If needed we can add one or just rely on recording_url.

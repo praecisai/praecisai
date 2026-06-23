@@ -24,14 +24,15 @@ export type DemoRowData = {
   dueAmount: number;
   daysOutstanding: number;
   mobileNo: string;
-  callStatus: 'Pending' | 'Sent';
+  voiceSent: boolean;
+  whatsappSent: boolean;
 };
 
 const initialData: DemoRowData[] = [
-  { id: '1', partyName: 'RAMESHWAR TEXTILES', city: 'MUMBAI', billNo: '2526/10/A-101', billDate: '15/03/2026', agentName: 'DIRECT', dueAmount: 45000, daysOutstanding: 95, mobileNo: '919876543210', callStatus: 'Pending' },
-  { id: '2', partyName: 'SHARMA DISTRIBUTORS', city: 'DELHI', billNo: '2526/10/A-204', billDate: '10/02/2026', agentName: 'DIRECT', dueAmount: 120500, daysOutstanding: 130, mobileNo: '919876543211', callStatus: 'Pending' },
-  { id: '3', partyName: 'SHARMA DISTRIBUTORS', city: 'DELHI', billNo: '2526/10/A-204', billDate: '05/01/2026', agentName: 'DIRECT', dueAmount: 70500, daysOutstanding: 160, mobileNo: '919876543211', callStatus: 'Pending' },
-  { id: '4', partyName: 'BALAJI HARDWARE', city: 'BANGALORE', billNo: '2526/10/A-412', billDate: '20/11/2025', agentName: 'DIRECT', dueAmount: 210000, daysOutstanding: 215, mobileNo: '919876543213', callStatus: 'Pending' },
+  { id: '1', partyName: 'RAMESHWAR TEXTILES', city: 'MUMBAI', billNo: '101', billDate: '15/03/2026', agentName: 'DIRECT', dueAmount: 45000, daysOutstanding: 95, mobileNo: '919876543210', voiceSent: false, whatsappSent: false },
+  { id: '2', partyName: 'SHARMA DISTRIBUTORS', city: 'DELHI', billNo: '204', billDate: '10/02/2026', agentName: 'DIRECT', dueAmount: 120500, daysOutstanding: 130, mobileNo: '919876543211', voiceSent: false, whatsappSent: false },
+  { id: '3', partyName: 'SHARMA DISTRIBUTORS', city: 'DELHI', billNo: '204', billDate: '05/01/2026', agentName: 'DIRECT', dueAmount: 70500, daysOutstanding: 160, mobileNo: '919876543211', voiceSent: false, whatsappSent: false },
+  { id: '4', partyName: 'BALAJI HARDWARE', city: 'BANGALORE', billNo: '412', billDate: '20/11/2025', agentName: 'DIRECT', dueAmount: 210000, daysOutstanding: 215, mobileNo: '919876543213', voiceSent: false, whatsappSent: false },
 ];
 
 const getSegment = (days: number, amount: number) => {
@@ -127,7 +128,17 @@ export default function DemoOutstandingTable({
       if (!res.ok) throw new Error('Action failed');
       const resData = await res.json();
       
-      setData((old) => old.map(r => r.id === modalState.rowId ? { ...r, callStatus: 'Sent' } : r));
+      setData((old) => old.map(r => {
+        if (r.id === modalState.rowId) {
+          return {
+            ...r,
+            voiceSent: modalState.type === 'VOICE_CALL' ? true : r.voiceSent,
+            whatsappSent: modalState.type === 'WHATSAPP' ? true : r.whatsappSent,
+          };
+        }
+        return r;
+      }));
+
       onActionComplete(modalState.type!);
       setModalState({ isOpen: false, type: null, rowId: null, isBulk: false });
       
@@ -196,14 +207,26 @@ export default function DemoOutstandingTable({
         ),
       },
       {
-        accessorKey: 'callStatus',
+        accessorKey: 'status',
         header: 'Status',
-        cell: ({ getValue }) => {
-          const status = getValue() as string;
-          if (status === 'Sent') {
-            return <div className="flex items-center gap-1.5 text-green-600 font-medium text-[13px]"><CheckCircle2 className="h-4 w-4" /> Sent</div>;
+        cell: ({ row }) => {
+          const { voiceSent, whatsappSent } = row.original;
+          const statuses = [];
+          if (voiceSent) statuses.push('Call Sent');
+          if (whatsappSent) statuses.push('WA Sent');
+
+          if (statuses.length > 0) {
+            return (
+              <div className="flex flex-col gap-1 text-green-600 font-medium text-[12px]">
+                {statuses.map(s => (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {s}
+                  </div>
+                ))}
+              </div>
+            );
           }
-          return <span className="text-[var(--walnut)] text-[13px]">{status}</span>;
+          return <span className="text-[var(--walnut)] text-[13px]">Pending</span>;
         }
       },
       {
@@ -215,7 +238,7 @@ export default function DemoOutstandingTable({
               onClick={() => setModalState({ isOpen: true, type: 'WHATSAPP', rowId: row.original.id, isBulk: false })}
               className="rounded p-1.5 text-[var(--walnut)] hover:bg-[var(--rust)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]"
               title="Send WhatsApp Demo"
-              disabled={row.original.callStatus === 'Sent' || whatsappUsed >= whatsappAllowed}
+              disabled={row.original.whatsappSent || whatsappUsed >= whatsappAllowed}
             >
               <MessageCircle className="h-4 w-4" />
             </button>
@@ -223,7 +246,7 @@ export default function DemoOutstandingTable({
               onClick={() => setModalState({ isOpen: true, type: 'VOICE_CALL', rowId: row.original.id, isBulk: false })}
               className="rounded p-1.5 text-[var(--walnut)] hover:bg-[var(--mahogany)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]"
               title="Make AI Call Demo"
-              disabled={row.original.callStatus === 'Sent' || callsUsed >= callsAllowed}
+              disabled={row.original.voiceSent || callsUsed >= callsAllowed}
             >
               <Phone className="h-4 w-4" />
             </button>
@@ -231,7 +254,7 @@ export default function DemoOutstandingTable({
         ),
       },
     ],
-    []
+    [whatsappUsed, whatsappAllowed, callsUsed, callsAllowed]
   );
 
   const table = useReactTable({

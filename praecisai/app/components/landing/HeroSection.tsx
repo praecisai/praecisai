@@ -25,22 +25,22 @@ const trustItems = [
 
 const activityFeed = [
   { icon: IconBrandWhatsapp, text: 'WhatsApp sent to 59 COLOURS', time: '2m ago', color: '#4A7C59' },
-  { icon: IconPhone,         text: 'Call placed to AAKARSHAN PRATHAM', time: '8m ago', color: '#7F5539' },
-  { icon: IconFileText,      text: 'PDF statement delivered to SHREE FABRICS', time: '14m ago', color: '#9C6644' },
-  { icon: IconCheck,         text: 'Promise logged: ₹1.2L on Friday', time: '22m ago', color: '#4A7C59' },
+  { icon: IconPhone, text: 'Call placed to AAKARSHAN PRATHAM', time: '8m ago', color: '#7F5539' },
+  { icon: IconFileText, text: 'PDF statement delivered to SHREE FABRICS', time: '14m ago', color: '#9C6644' },
+  { icon: IconCheck, text: 'Promise logged: ₹1.2L on Friday', time: '22m ago', color: '#4A7C59' },
 ];
 
 const agingBars = [
-  { label: '0–60 days',    width: '62%', amount: '₹19.8L', opacity: 1 },
-  { label: '61–120 days',  width: '44%', amount: '₹13.2L', opacity: 0.8 },
-  { label: '121–180 days', width: '28%', amount: '₹8.5L',  opacity: 0.6 },
-  { label: '181+ days',    width: '18%', amount: '₹5.7L',  opacity: 0.45 },
+  { label: '0–60 days', width: '62%', amount: '₹19.8L', opacity: 1 },
+  { label: '61–120 days', width: '44%', amount: '₹13.2L', opacity: 0.8 },
+  { label: '121–180 days', width: '28%', amount: '₹8.5L', opacity: 0.6 },
+  { label: '181+ days', width: '18%', amount: '₹5.7L', opacity: 0.45 },
 ];
 
 const metrics = [
-  { value: 47.2, suffix: 'L', label: 'Total Outstanding',    colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
-  { value: 1247, suffix: '',  label: 'Parties tracked',       colorClass: 'text-[var(--dark-brown)]', prefix: '' },
-  { value: 68,   suffix: '%', label: 'Recovery rate',         colorClass: 'text-[var(--rust)]', prefix: '' },
+  { value: 47.2, suffix: 'L', label: 'Total Outstanding', colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
+  { value: 1247, suffix: '', label: 'Parties tracked', colorClass: 'text-[var(--dark-brown)]', prefix: '' },
+  { value: 68, suffix: '%', label: 'Recovery rate', colorClass: 'text-[var(--rust)]', prefix: '' },
   { value: 12.4, suffix: 'L', label: 'Recovered this month', colorClass: 'text-[var(--recovery-green)]', prefix: '₹' },
 ];
 
@@ -158,7 +158,7 @@ export default function HeroSection() {
     <section
       ref={sectionRef}
       className="relative bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
-      style={{ paddingTop: '160px' }}
+      style={{ paddingTop: '120px' }}
     >
       <Particles />
 
@@ -265,24 +265,20 @@ export default function HeroSection() {
         </motion.div>
 
         {/* Trust row */}
-        <motion.div
-          variants={itemVariants}
-          className="mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5"
-        >
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5">
           {trustItems.map((item, i) => (
             <motion.span
               key={item}
               initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={viewportOnce}
-              transition={{ delay: 0.8 + i * 0.1, duration: 0.4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 + i * 0.1, duration: 0.4 }}
               className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--walnut)]"
             >
               <IconCheck size={13} className="text-[var(--mahogany)]" stroke={2.5} />
               {item}
             </motion.span>
           ))}
-        </motion.div>
+        </div>
 
         {/* ── Dashboard Mockup ── */}
         <motion.div

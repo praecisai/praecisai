@@ -399,6 +399,7 @@ model DemoRun {
   status             DemoRunStatus @default(PENDING)
   retell_call_id     String?       @unique
   call_recording_url String?
+  transcript         String?       @db.Text
   created_at         DateTime      @default(now())
   // Relations
   demo_lead DemoLead @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
