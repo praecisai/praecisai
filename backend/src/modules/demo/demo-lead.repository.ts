@@ -25,4 +25,12 @@ export class DemoLeadRepository {
   async createRun(data: Prisma.DemoRunCreateInput) {
     return this.prisma.demoRun.create({ data });
   }
+
+  async findRunsByLeadId(leadId: string) {
+    return this.prisma.demoRun.findMany({
+      where: { demo_lead_id: leadId },
+      select: { party_name: true, demo_type: true, status: true },
+      orderBy: { created_at: 'asc' },
+    });
+  }
 }

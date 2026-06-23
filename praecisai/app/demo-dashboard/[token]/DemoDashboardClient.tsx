@@ -22,6 +22,7 @@ export type DemoLead = {
 
 export default function DemoDashboardClient({ token }: { token: string }) {
   const [lead, setLead] = useState<DemoLead | null>(null);
+  const [pastRuns, setPastRuns] = useState<Array<{ party_name: string; demo_type: string; status: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -29,11 +30,20 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   useEffect(() => {
     const fetchLead = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
         const res = await fetch(`${backendUrl}/api/v1/demo-leads/validate-token/${token}`);
         if (!res.ok) throw new Error('Invalid token');
         const resData = await res.json();
         setLead(resData.data);
+
+        // Also fetch past runs so we can restore per-row button state
+        const runsRes = await fetch(`${backendUrl}/api/v1/demo-leads/${token}/runs`);
+        if (runsRes.ok) {
+          const runsData = await runsRes.json();
+          // Backend may wrap in { data: [...] } envelope or return array directly
+          const runsArray = Array.isArray(runsData) ? runsData : (runsData?.data ?? []);
+          setPastRuns(runsArray);
+        }
       } catch (err) {
         if (process.env.NODE_ENV === 'development') {
           console.error('Token validation error:', err);
@@ -119,6 +129,7 @@ export default function DemoDashboardClient({ token }: { token: string }) {
             callsUsed={lead.callsUsed}
             callsAllowed={lead.callsAllowed}
             phone={lead.phone}
+            pastRuns={pastRuns}
             onActionComplete={handleActionComplete}
           />
         </div>

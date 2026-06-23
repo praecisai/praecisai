@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,6 +13,23 @@ import { MessageCircle, Phone, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import DemoConfirmModal from './DemoConfirmModal';
 import DemoFiltersBar from './DemoFiltersBar';
+
+// Isolated input component — holds its own local state while typing
+// and only commits the value to the parent table on blur.
+// This prevents the table from re-rendering (and losing focus) on every keystroke.
+function MobileInput({ value, onCommit }: { value: string; onCommit: (val: string) => void }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <input
+      type="text"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => onCommit(local)}
+      className="w-28 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)] text-[13px]"
+    />
+  );
+}
 
 export type DemoRowData = {
   id: string;
@@ -50,6 +67,7 @@ export default function DemoOutstandingTable({
   callsUsed, 
   callsAllowed,
   phone,
+  pastRuns,
   onActionComplete 
 }: { 
   token: string, 
@@ -58,9 +76,30 @@ export default function DemoOutstandingTable({
   callsUsed: number, 
   callsAllowed: number,
   phone: string,
+  pastRuns: Array<{ party_name: string; demo_type: string; status: string }>,
   onActionComplete: (type: 'WHATSAPP' | 'VOICE_CALL') => void 
 }) {
-  const [data, setData] = useState<DemoRowData[]>(initialData.map(row => ({ ...row, mobileNo: phone })));
+  const [data, setData] = useState<DemoRowData[]>(() => {
+    const safeRuns = Array.isArray(pastRuns) ? pastRuns : [];
+    // Cap how many rows we mark as sent to match the authoritative used-count from DB.
+    // This prevents stale demo_runs from disabling buttons when calls_used was reset.
+    const voiceRuns = safeRuns.filter(r => r.demo_type === 'VOICE_CALL');
+    const waRuns = safeRuns.filter(r => r.demo_type === 'WHATSAPP');
+    let voiceMarked = 0;
+    let waMarked = 0;
+    return initialData.map(row => {
+      const canMarkVoice = voiceMarked < callsUsed && voiceRuns.some(r => r.party_name === row.partyName);
+      const canMarkWa = waMarked < whatsappUsed && waRuns.some(r => r.party_name === row.partyName);
+      if (canMarkVoice) voiceMarked++;
+      if (canMarkWa) waMarked++;
+      return {
+        ...row,
+        mobileNo: phone,
+        voiceSent: canMarkVoice,
+        whatsappSent: canMarkWa,
+      };
+    });
+  });
   const [modalState, setModalState] = useState<{ isOpen: boolean; type: 'WHATSAPP' | 'VOICE_CALL' | null; rowId: string | null; isBulk: boolean }>({ isOpen: false, type: null, rowId: null, isBulk: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -151,6 +190,7 @@ export default function DemoOutstandingTable({
     }
   };
 
+
   const columns = useMemo<ColumnDef<DemoRowData>[]>(
     () => [
       { accessorKey: 'partyName', header: 'Party Name' },
@@ -161,25 +201,19 @@ export default function DemoOutstandingTable({
       {
         accessorKey: 'dueAmount',
         header: 'Due Amount (₹)',
-        cell: ({ row, getValue }) => (
-          <input
-            type="number"
-            value={getValue() as number}
-            onChange={(e) => handleEdit(row.original.id, 'dueAmount', Number(e.target.value))}
-            className="w-24 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)]"
-          />
+        cell: ({ getValue }) => (
+          <span className="font-medium text-[13px] text-[var(--walnut)]">
+            ₹{(getValue() as number).toLocaleString('en-IN')}
+          </span>
         ),
       },
       {
         accessorKey: 'daysOutstanding',
         header: 'Days',
-        cell: ({ row, getValue }) => (
-          <input
-            type="number"
-            value={getValue() as number}
-            onChange={(e) => handleEdit(row.original.id, 'daysOutstanding', Number(e.target.value))}
-            className="w-16 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)]"
-          />
+        cell: ({ getValue }) => (
+          <span className="font-medium text-[13px] text-[var(--walnut)]">
+            {getValue() as number}
+          </span>
         ),
       },
       {
@@ -198,11 +232,9 @@ export default function DemoOutstandingTable({
         accessorKey: 'mobileNo',
         header: 'Mobile No.',
         cell: ({ row, getValue }) => (
-          <input
-            type="text"
+          <MobileInput
             value={getValue() as string}
-            onChange={(e) => handleEdit(row.original.id, 'mobileNo', e.target.value)}
-            className="w-28 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)] text-[13px]"
+            onCommit={(val) => handleEdit(row.original.id, 'mobileNo', val)}
           />
         ),
       },

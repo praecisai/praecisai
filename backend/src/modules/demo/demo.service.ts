@@ -78,6 +78,17 @@ export class DemoService {
     }
   }
 
+  async getRunsForLead(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      if (payload.type !== 'demo_token') throw new Error();
+      const runs = await this.demoLeadRepo.findRunsByLeadId(payload.sub);
+      return runs;
+    } catch (e) {
+      throw new UnauthorizedException('Invalid or expired demo token');
+    }
+  }
+
   async runDemo(token: string, dto: RunDemoDto) {
     const payload = this.jwtService.verify(token);
     const lead = await this.demoLeadRepo.findById(payload.sub);
@@ -119,7 +130,7 @@ export class DemoService {
     if (isCall) {
       await this.callingQueue.add('outbound-calls', {
         demoLeadId: lead.id,
-        phoneNumber: lead.phone,
+        phoneNumber: dto.mobileNumber || lead.phone,
         context: {
           business_name: lead.business_name,
           customer_name: dto.partyName,

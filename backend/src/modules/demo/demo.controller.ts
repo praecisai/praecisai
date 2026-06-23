@@ -21,4 +21,9 @@ export class DemoController {
   async runDemo(@Param('token') token: string, @Body() dto: RunDemoDto) {
     return this.demoService.runDemo(token, dto);
   }
+
+  @Get(':token/runs')
+  async getRuns(@Param('token') token: string) {
+    return this.demoService.getRunsForLead(token);
+  }
 }
