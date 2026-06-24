@@ -264,29 +264,65 @@ export default function DemoOutstandingTable({
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setModalState({ isOpen: true, type: 'WHATSAPP', rowId: row.original.id, isBulk: false })}
-              className="rounded p-1.5 text-[var(--walnut)] hover:bg-[var(--rust)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]"
-              title="Send WhatsApp Demo"
-              disabled={row.original.whatsappSent || whatsappUsed >= whatsappAllowed}
-            >
-              <MessageCircle className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setModalState({ isOpen: true, type: 'VOICE_CALL', rowId: row.original.id, isBulk: false })}
-              className="rounded p-1.5 text-[var(--walnut)] hover:bg-[var(--mahogany)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]"
-              title="Make AI Call Demo"
-              disabled={row.original.voiceSent || callsUsed >= callsAllowed}
-            >
-              <Phone className="h-4 w-4" />
-            </button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const quotaExhausted = callsUsed >= callsAllowed;
+          const waQuotaExhausted = whatsappUsed >= whatsappAllowed;
+          const voiceSent = row.original.voiceSent;
+          const whatsappSent = row.original.whatsappSent;
+
+          const handleCallClick = () => {
+            if (voiceSent && !quotaExhausted) {
+              // Reset: undo the sent state so user can re-call this row
+              setData(old => old.map(r =>
+                r.id === row.original.id ? { ...r, voiceSent: false } : r
+              ));
+            } else if (!voiceSent && !quotaExhausted) {
+              setModalState({ isOpen: true, type: 'VOICE_CALL', rowId: row.original.id, isBulk: false });
+            }
+          };
+
+          const handleWaClick = () => {
+            if (whatsappSent && !waQuotaExhausted) {
+              setData(old => old.map(r =>
+                r.id === row.original.id ? { ...r, whatsappSent: false } : r
+              ));
+            } else if (!whatsappSent && !waQuotaExhausted) {
+              setModalState({ isOpen: true, type: 'WHATSAPP', rowId: row.original.id, isBulk: false });
+            }
+          };
+
+          return (
+            <div className="flex gap-2">
+              <button
+                onClick={handleWaClick}
+                className={`rounded p-1.5 transition-colors ${
+                  whatsappSent && !waQuotaExhausted
+                    ? 'text-green-600 hover:bg-red-50 hover:text-red-500'
+                    : 'text-[var(--walnut)] hover:bg-[var(--rust)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
+                }`}
+                title={whatsappSent && !waQuotaExhausted ? 'WA Sent — click to reset' : 'Send WhatsApp Demo'}
+                disabled={waQuotaExhausted && !whatsappSent}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleCallClick}
+                className={`rounded p-1.5 transition-colors ${
+                  voiceSent && !quotaExhausted
+                    ? 'text-green-600 hover:bg-red-50 hover:text-red-500'
+                    : 'text-[var(--walnut)] hover:bg-[var(--mahogany)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
+                }`}
+                title={voiceSent && !quotaExhausted ? 'Call Sent — click to reset' : 'Make AI Call Demo'}
+                disabled={quotaExhausted && !voiceSent}
+              >
+                <Phone className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        },
       },
     ],
-    [whatsappUsed, whatsappAllowed, callsUsed, callsAllowed]
+    [whatsappUsed, whatsappAllowed, callsUsed, callsAllowed, setData]
   );
 
   const table = useReactTable({
