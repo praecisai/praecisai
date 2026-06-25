@@ -22,7 +22,7 @@ const formSchema = z.object({
   partiesRange: z.enum(['<100', '100-500', '500-2000', '2000+'], {
     message: 'Please select number of parties',
   }),
-  outstandingRange: z.enum(['<10L', '10-50L', '50L-1Cr', '1Cr+'], {
+  outstandingRange: z.enum(['<1 Cr', '10-50 Cr', '50-500 Cr', '500+ Cr'], {
     message: 'Please select monthly outstanding',
   }),
 });
@@ -256,7 +256,7 @@ export default function DemoSignupForm() {
             control={control}
             render={({ field }) => (
               <div className="flex flex-wrap gap-2">
-                {['<10L', '10-50L', '50L-1Cr', '1Cr+'].map((option) => (
+                {['<1 Cr', '10-50 Cr', '50-500 Cr', '500+ Cr'].map((option) => (
                   <button
                     key={option}
                     type="button"

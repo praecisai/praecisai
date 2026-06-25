@@ -44,7 +44,15 @@ import { validate } from './config/env.validation';
       useFactory: async (configService: ConfigService) => ({
         connection: new Redis(configService.get<string>('redis.url') || 'redis://localhost:6379', {
           maxRetriesPerRequest: null,
+          enableReadyCheck: false,
+          lazyConnect: true,
         }) as any,
+        defaultJobOptions: {
+          removeOnComplete: 20,
+          removeOnFail: 10,
+          attempts: 2,
+          backoff: { type: 'fixed', delay: 5000 },
+        },
       }),
       inject: [ConfigService],
     }),

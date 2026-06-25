@@ -33,4 +33,52 @@ export class DemoLeadRepository {
       orderBy: { created_at: 'asc' },
     });
   }
+
+  // For call history summary — fetch completed voice call runs for a party with their extraction data
+  async findCallHistoryForParty(leadId: string, partyName: string) {
+    return this.prisma.demoRun.findMany({
+      where: {
+        demo_lead_id: leadId,
+        party_name: partyName,
+        demo_type: 'VOICE_CALL',
+        status: 'SENT',
+      },
+      select: {
+        created_at: true,
+        call_summary: true,
+        disposition: true,
+        call_sentiment: true,
+        promise_date: true,
+        promise_amount: true,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
+  // Check if same phone number was called in the last N minutes
+  async findRecentCallToPhone(phoneNumber: string, withinMinutes: number) {
+    const since = new Date(Date.now() - withinMinutes * 60 * 1000);
+    return this.prisma.demoRun.findFirst({
+      where: {
+        demo_lead: { phone: phoneNumber },
+        demo_type: 'VOICE_CALL',
+        created_at: { gte: since },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  // Check if a party has an active sensitive cooldown (death/medical emergency)
+  async findActiveSensitiveCooldown(leadId: string, partyName: string) {
+    return this.prisma.demoRun.findFirst({
+      where: {
+        demo_lead_id: leadId,
+        party_name: partyName,
+        is_sensitive: true,
+        sensitive_cooldown_until: { gte: new Date() },
+      },
+      select: { sensitive_cooldown_until: true },
+      orderBy: { created_at: 'desc' },
+    });
+  }
 }

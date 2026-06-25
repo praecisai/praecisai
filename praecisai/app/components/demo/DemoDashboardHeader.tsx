@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import Link from 'next/link';
+import { ThemeToggle } from '../ThemeToggle';
 
 interface DemoDashboardHeaderProps {
   businessName: string;
@@ -85,9 +86,10 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
           </div>
         </div>
         
-        <Link 
+        <ThemeToggle />
+        <Link
           href="/"
-          className="ml-4 flex items-center gap-2 rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-2 font-body text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
+          className="ml-2 flex items-center gap-2 rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-2 font-body text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
           title="Exit Demo"
         >
           <LogOut size={16} />

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { Logo } from '../../app/components/landing/Logo';
+import { ThemeToggle } from '../../app/components/ThemeToggle';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -45,9 +46,10 @@ export function Sidebar() {
       className="w-64 flex-shrink-0 flex flex-col h-screen sticky top-0"
       style={{ background: 'var(--surface-warm)', borderRight: '1px solid var(--caramel)' }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
+      {/* Logo + Theme Toggle */}
+      <div className="flex items-center justify-between px-5 py-5 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
         <Logo />
+        <ThemeToggle />
       </div>
 
       {/* Nav */}

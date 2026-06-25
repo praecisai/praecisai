@@ -57,6 +57,10 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   POSTHOG_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  ANTHROPIC_API_KEY?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

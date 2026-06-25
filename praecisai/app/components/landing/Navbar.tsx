@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IconMenu2, IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
 import { Logo } from './Logo';
-import { ThemeToggle } from '../ThemeToggle';
 
 const navLinks = [
   { label: 'How it works', href: '#how-it-works' },
@@ -61,7 +60,6 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <ThemeToggle />
           <Link
             href="/login"
             className="rounded-lg border border-[var(--mahogany)] px-4 py-2 font-display text-sm font-semibold text-[var(--mahogany)] transition-colors hover:bg-[var(--sand)]"
@@ -134,9 +132,6 @@ export default function Navbar() {
                 >
                   Sign up
                 </Link>
-                <div className="mt-2 flex justify-center">
-                  <ThemeToggle />
-                </div>
               </div>
             </div>
           </motion.div>

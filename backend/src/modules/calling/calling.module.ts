@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { CallingController } from './calling.controller';
 import { CallingService } from './calling.service';
 import { CallProcessor } from './queues/call.processor';
+import { CallExtractionService } from './call-extraction.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
@@ -13,7 +14,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
     }),
   ],
   controllers: [CallingController],
-  providers: [CallingService, CallProcessor],
+  providers: [CallingService, CallProcessor, CallExtractionService],
   exports: [BullModule, CallingService],
 })
 export class CallingModule {}

@@ -366,6 +366,31 @@ enum DemoType {
   VOICE_CALL
 }
 
+enum CallDisposition {
+  INTERESTED
+  NOT_INTERESTED
+  CALLBACK
+  PTP
+  DISPUTE
+  NO_ANSWER
+  UNKNOWN
+}
+
+enum CallSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  HOSTILE
+  UNKNOWN
+}
+
+enum CallLanguage {
+  HINDI
+  ENGLISH
+  MIXED
+  UNKNOWN
+}
+
 model DemoLead {
   id                String         @id @default(uuid())
   name              String
@@ -391,19 +416,36 @@ model DemoLead {
 }
 
 model DemoRun {
-  id           String        @id @default(uuid())
-  demo_lead_id String
-  demo_type    DemoType
-  party_name   String
-  bill_amount  Float
-  status             DemoRunStatus @default(PENDING)
-  retell_call_id     String?       @unique
+  id                 String        @id @default(uuid())
+  demo_lead_id       String
+  demo_type          DemoType
+  party_name         String
+  bill_amount        Float
+  status             DemoRunStatus   @default(PENDING)
+  retell_call_id     String?         @unique
   call_recording_url String?
-  transcript         String?       @db.Text
-  created_at         DateTime      @default(now())
+  created_at         DateTime        @default(now())
+
+  // Structured extraction fields (populated after call_analyzed webhook, no raw transcript stored)
+  call_summary             String?
+  disposition              CallDisposition?
+  call_sentiment           CallSentiment?
+  promise_date             DateTime?
+  promise_amount           Float?
+  key_objection            String?
+  follow_up_required       Boolean          @default(false)
+  follow_up_notes          String?
+  language_used            CallLanguage?
+  talk_ratio               Float?
+  extracted_at             DateTime?
+  // Sensitive situation — death/medical emergency triggers 18-day calling cooldown
+  is_sensitive             Boolean          @default(false)
+  sensitive_cooldown_until DateTime?
+
   // Relations
   demo_lead DemoLead @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
 
   @@index([demo_lead_id])
+  @@index([disposition])
   @@map("demo_runs")
 }
