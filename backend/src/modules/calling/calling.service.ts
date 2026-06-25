@@ -102,7 +102,7 @@ export class CallingService {
           talk_ratio: extraction.talk_ratio,
           is_sensitive: isSensitive,
           sensitive_cooldown_until: sensitiveCooldownUntil,
-          extracted_at: new Date(),
+          extracted_at: this.toIST(new Date()),
         }),
         // From Retell's own GPT-5.1 analysis (always written)
         promise_date: retellPromiseDate,
@@ -118,6 +118,11 @@ export class CallingService {
     this.logger.log(
       `Call ${callId} analyzed: disposition=${extraction?.disposition ?? 'UNKNOWN'} sentiment=${callSentiment} ptp=${retellCustom.promised_date ?? 'none'}`,
     );
+  }
+
+  // Returns current time shifted to IST (UTC+5:30) so Supabase displays Indian time
+  private toIST(date: Date): Date {
+    return new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
   }
 
   private mapSentiment(moodSummary: string | undefined, retellSentiment: string | undefined): CallSentiment {
