@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 export interface CallExtractionResult {
   call_summary: string;
@@ -12,9 +12,10 @@ export interface CallExtractionResult {
   is_sensitive: boolean;
 }
 
-const EXTRACTION_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
+const SYSTEM_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
+Analyze the transcript and respond ONLY with a valid JSON object — no markdown, no backticks, no explanation.`;
 
-Analyze the transcript and respond ONLY with a valid JSON object — no markdown, no backticks, no explanation.
+const USER_PROMPT = `Extract the following from the call transcript:
 
 {
   "call_summary": "<2-3 sentence factual summary>",
@@ -23,19 +24,21 @@ Analyze the transcript and respond ONLY with a valid JSON object — no markdown
   "follow_up_required": <true | false>,
   "follow_up_notes": "<string or null>",
   "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
-  "talk_ratio": <0-100 integer or null>,
+  "talk_ratio": <0-100 integer — % of call the agent spoke, or null>,
   "is_sensitive": <true if death/medical emergency/hospital mentioned, else false>
 }
 
-Disposition:
+Disposition guide:
 - INTERESTED: willing to pay
 - NOT_INTERESTED: refused or disconnected
 - CALLBACK: asked to call back later
-- PTP: gave specific promise to pay
+- PTP: gave specific promise to pay (date/amount)
 - DISPUTE: disputes the bill
-- NO_ANSWER: call not answered or no conversation`;
+- NO_ANSWER: call not answered or no meaningful conversation
 
-// Strip markdown code fences if model wraps JSON in them
+Transcript:
+`;
+
 function stripMarkdown(text: string): string {
   return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 }
@@ -43,22 +46,22 @@ function stripMarkdown(text: string): string {
 @Injectable()
 export class CallExtractionService {
   private readonly logger = new Logger(CallExtractionService.name);
-  private readonly client: Anthropic | null;
+  private readonly client: OpenAI | null;
 
   constructor() {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (apiKey) {
-      this.client = new Anthropic({ apiKey });
-      this.logger.log('CallExtractionService initialized with Anthropic client');
+      this.client = new OpenAI({ apiKey });
+      this.logger.log('CallExtractionService initialized with OpenAI client');
     } else {
       this.client = null;
-      this.logger.warn('ANTHROPIC_API_KEY not set — call extraction disabled');
+      this.logger.warn('OPENAI_API_KEY not set — call extraction disabled');
     }
   }
 
-  async extract(transcript: string, durationSeconds?: number): Promise<CallExtractionResult | null> {
+  async extract(transcript: string): Promise<CallExtractionResult | null> {
     if (!this.client) {
-      this.logger.warn('Extraction skipped — no Anthropic client');
+      this.logger.warn('Extraction skipped — no OpenAI client');
       return null;
     }
 
@@ -66,62 +69,35 @@ export class CallExtractionService {
     this.logger.log(`Extraction requested — transcript length: ${trimmed.length} chars`);
 
     if (trimmed.length < 30) {
-      this.logger.warn(`Transcript too short (${trimmed.length} chars) — skipping extraction`);
+      this.logger.warn(`Transcript too short (${trimmed.length} chars) — skipping`);
       return null;
     }
 
-    // Try Haiku first, fall back to Sonnet if model not available
-    const models = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 600,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: USER_PROMPT + trimmed },
+        ],
+      });
 
-    for (const model of models) {
-      try {
-        this.logger.log(`Trying extraction with model: ${model}`);
+      const raw = response.choices[0]?.message?.content ?? '';
+      this.logger.log(`Raw extraction response: ${raw.substring(0, 300)}`);
 
-        const message = await this.client.messages.create({
-          model,
-          max_tokens: 600,
-          messages: [
-            {
-              role: 'user',
-              content: `${EXTRACTION_PROMPT}\n\nTranscript:\n${trimmed}`,
-            },
-          ],
-        });
+      const parsed = JSON.parse(stripMarkdown(raw)) as CallExtractionResult;
 
-        const raw = message.content[0].type === 'text' ? message.content[0].text : '';
-        this.logger.log(`Raw extraction response (first 200 chars): ${raw.substring(0, 200)}`);
-
-        const cleaned = stripMarkdown(raw);
-        const parsed = JSON.parse(cleaned) as CallExtractionResult;
-
-        if (parsed.talk_ratio !== null && parsed.talk_ratio !== undefined) {
-          parsed.talk_ratio = Math.min(100, Math.max(0, parsed.talk_ratio));
-        }
-
-        this.logger.log(`Extraction success with ${model}: disposition=${parsed.disposition} sensitive=${parsed.is_sensitive}`);
-        return parsed;
-
-      } catch (err: any) {
-        const errMsg = err?.message || String(err);
-        this.logger.error(`Extraction failed with model ${model}: ${errMsg}`);
-
-        // If it's a model access error, try next model
-        if (errMsg.includes('model') || errMsg.includes('404') || errMsg.includes('not found')) {
-          this.logger.warn(`Model ${model} not available, trying next...`);
-          continue;
-        }
-
-        // For JSON parse errors, log the raw response
-        if (errMsg.includes('JSON') || errMsg.includes('parse')) {
-          this.logger.error('JSON parse failed — Claude returned non-JSON response');
-        }
-
-        // For other errors (rate limit, auth), don't retry
-        return null;
+      if (parsed.talk_ratio !== null && parsed.talk_ratio !== undefined) {
+        parsed.talk_ratio = Math.min(100, Math.max(0, parsed.talk_ratio));
       }
-    }
 
-    this.logger.error('All extraction models failed');
-    return null;
+      this.logger.log(`Extraction success: disposition=${parsed.disposition} sensitive=${parsed.is_sensitive}`);
+      return parsed;
+    } catch (err: any) {
+      this.logger.error(`Extraction failed: ${err?.message || String(err)}`);
+      return null;
+    }
   }
 }

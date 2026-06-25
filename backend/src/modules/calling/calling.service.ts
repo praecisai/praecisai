@@ -77,7 +77,7 @@ export class CallingService {
     const callSentiment = this.mapSentiment(retellCustom.customer_mood_summary, retellSentiment);
 
     // Claude fills the gaps Retell doesn't cover
-    const extraction = await this.extractionService.extract(transcript, durationSeconds);
+    const extraction = await this.extractionService.extract(transcript);
 
     if (!extraction) {
       this.logger.warn(`Extraction returned null for call ${callId} — storing Retell data only`);
