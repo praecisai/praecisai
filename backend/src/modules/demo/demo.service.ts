@@ -35,32 +35,92 @@ function amountToHindi(amount: number): string {
 }
 
 // ─── Segment-specific call scripts ───────────────────────────────────────────
-// IMPORTANT: Never mention bill number. Use {{due_amount_hindi}} for amounts.
-// Agent speaks slowly, natural pauses, proper Hinglish.
+// Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
-  'Soft Reminder': `Yeh pehli call hai. Light and polite — sirf inform karo, koi pressure nahi.
-IMPORTANT: Bill number kabhi mat bolna. Sirf amount aur time mention karo.
-Script guidance: "Aapka {{due_amount_hindi}} pending hai jo kuch samay se clear nahi hua. Main bas ek chota sa reminder dena chahti thi. Kab tak aap arrange kar sakte hain?"
-Agar date milti hai — warmly note kar lo. Agar nahi — "Koi baat nahi ji, aap note kar lijiye. Hum phir contact karenge." Bahut short call — 60-90 seconds enough hai.`,
+  'Soft Reminder': `
+SEGMENT: Soft Reminder — FIRST EVER contact. Tone must be extremely light, warm, friendly.
 
-  'Follow-up': `Pehle reminder ja chuka hai. Ab specific date maango.
-IMPORTANT: Bill number kabhi mat bolna.
-Script guidance: "{{customer_name}} ji, aapko pehle bhi ek baar humari taraf se message gaya tha. Main chahti hoon ki yeh jaldi resolve ho jaye taaki main aapko baar baar pareshaan na karun. {{due_amount_hindi}} pending hai — kya koi specific date bata sakte hain jab tak payment ho sakti hai?"
-Agar date de — clearly confirm karo: "Theek hai ji, toh main [date] note kar leti hoon." Agar nahi — ek week suggest karo. Firm but warm.`,
+ALLOWED:
+- Gently inform about pending amount ({{due_amount_hindi}})
+- Ask casually when payment can be made
+- "Bas yaad dilana tha ji" type language
+- If no date given — completely okay, just thank them and close
 
-  'Strong Follow-up': `Multiple contacts ho chuke hain. Ab firm ho jao — polite raho but clear commitment chahiye.
-IMPORTANT: Bill number kabhi mat bolna.
-Script guidance: "{{customer_name}} ji, humne pehle bhi kaafi baar try kiya aapko. Mujhe pata hai aap busy rehte hain, lekin {{due_amount_hindi}} kaafi time se pending hai. Main chahti hoon ki aaj koi pakka date fix ho jaye — warna mujhe apne seniors ko is baare mein inform karna padega."
-Agar partial commitment bhi milti hai — accept karo. Agar nahi — next step clearly batao. No empty promises.`,
+STRICTLY NOT ALLOWED (these belong to higher segments):
+- DO NOT mention seniors, boss, department, pressure of any kind
+- DO NOT say "multiple reminders" or "pehle bhi contact kiya"
+- DO NOT ask for a "committed" date — a rough idea is enough
+- DO NOT show any urgency or firmness
 
-  'Escalation': `Final level. Warm pleading tone + genuine company pressure. Full history use karo briefly.
-IMPORTANT: Bill number kabhi mat bolna.
-Script guidance: "{{customer_name}} ji, main aapko honestly bol rahi hoon — mere superiors ka pressure aa raha hai is matter pe. Aap hamare valued customer hain aur main bilkul nahi chahti ki yeh aage badhe. {{due_amount_hindi}} — kya aaj kuch bhi arrangement ho sakti hai? Chahe thoda bhi ho?"
-Partial payment bhi gracefully accept karo. Minimum ek firm date lo. Be genuine — customer ko feel hona chahiye ki aap unki help karna chahti hain, dhaman nahi.`,
+SAMPLE FLOW:
+"{{customer_name}} ji, actually {{due_amount_hindi}} ka ek payment pending hai humari taraf se... kuch samay se. Main bas aapko inform karna chahti thi. Kab tak ho sakta hai roughly?"
+If they give a date: "Perfect ji, note kar liya. Shukriya."
+If they can't say: "Koi baat nahi ji, aap dekh lena apni convenience se. Hum phir touch mein rahenge."`,
+
+  'Follow-up': `
+SEGMENT: Follow-up — Second contact. Slightly more direct but still warm and friendly.
+
+ALLOWED:
+- Mention that a reminder was sent earlier (briefly, once)
+- Ask for a SPECIFIC date — this is the key ask
+- "Ghadi ghadi pareshaan na karun aapko" angle — get a date so you don't have to call again
+- Mild firmness is okay
+
+STRICTLY NOT ALLOWED:
+- DO NOT mention seniors, boss, department pressure — that is Escalation only
+- DO NOT say "formal process" or any legal/official language
+- DO NOT be aggressive or show frustration
+
+SAMPLE FLOW:
+"{{customer_name}} ji, pehle bhi humari taraf se ek message gaya tha {{due_amount_hindi}} ke baare mein. Main chahti hoon ki yeh resolve ho jaye taaki main aapko baar baar na karna padein. Kya koi ek date fix kar sakte hain aap — jab tak payment ho jaye?"
+Confirm date clearly. If no date: suggest next week.`,
+
+  'Strong Follow-up': `
+SEGMENT: Strong Follow-up — Multiple contacts made. Firm but respectful. Commitment is essential.
+
+ALLOWED:
+- Reference that multiple attempts have been made (briefly)
+- Be firm about needing a commitment today
+- Can say accounts team is following up / accounts department needs an update
+- Mild urgency is okay — "aaj kuch fix ho jaye"
+
+STRICTLY NOT ALLOWED:
+- DO NOT say "seniors ka pressure" "boss ka pressure" "department se pressure" — that is Escalation ONLY
+- DO NOT use pleading/begging tone — that is Escalation
+- DO NOT threaten any legal action or formal process
+
+SAMPLE FLOW:
+"{{customer_name}} ji, humne pehle kaafi baar try kiya aapko. Main samajhti hoon aap busy rehte hain — lekin {{due_amount_hindi}} kaafi samay se pending hai aur accounts team mujhse pooch rahi hai. Kya aaj koi pakki date fix ho sakti hai?"
+If partial commitment: accept gracefully. If nothing: note it and say you'll follow up.`,
+
+  'Escalation': `
+SEGMENT: Escalation — Final stage. Warm pleading + genuine urgency from senior management.
+
+ALLOWED:
+- Mention senior management / superiors are now involved
+- Show genuine personal concern — "main personally nahi chahti yeh aage badhe"
+- Pleading tone — you are requesting, not demanding
+- Accept partial payment gratefully
+- "Aap jaise important client ke liye main personal level pe handle kar rahi thi"
+
+SAMPLE FLOW:
+"{{customer_name}} ji, main aapko honestly bol rahi hoon — mere seniors ab is account ke baare mein pooch rahe hain. Aap hamare valued client hain aur main bilkul nahi chahti ki yeh matter formally aage badhe. {{due_amount_hindi}} — kya aaj kuch bhi arrangement ho sakti hai? Chahe thoda bhi."
+Accept any commitment. Be genuine and warm — not threatening.`,
 };
 
 function buildSegmentInstructions(segment: string): string {
   return SEGMENT_INSTRUCTIONS[segment] ?? SEGMENT_INSTRUCTIONS['Soft Reminder'];
+}
+
+// IST greeting based on time of call — server runs UTC, IST = UTC+5:30
+function getISTGreeting(): string {
+  const nowUTC = new Date();
+  const istMinutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes() + 330;
+  const istHour = Math.floor(istMinutes / 60) % 24;
+  if (istHour >= 5 && istHour < 12) return 'Good morning';
+  if (istHour >= 12 && istHour < 17) return 'Good afternoon';
+  if (istHour >= 17 && istHour < 21) return 'Good evening';
+  return 'Hello';
 }
 
 function buildCallHistorySummary(
@@ -245,6 +305,7 @@ export class DemoService {
           multi_invoice_note: multiInvoiceNote,
           partial_payment_note: partialPaymentNote,
           handoff_number: process.env.RETELL_HANDOFF_NUMBER || '',
+          greeting_time: getISTGreeting(),
         },
       });
     }

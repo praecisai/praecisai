@@ -46,6 +46,7 @@ export class CallProcessor extends WorkerHost {
           multi_invoice_note: context.multi_invoice_note || '',
           partial_payment_note: context.partial_payment_note || '',
           handoff_number: context.handoff_number,
+          greeting_time: context.greeting_time || 'Namaskar',
         },
         metadata: {
           demo_lead_id: demoLeadId,

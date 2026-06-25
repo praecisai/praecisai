@@ -9,39 +9,36 @@ export interface CallExtractionResult {
   follow_up_notes: string | null;
   language_used: 'HINDI' | 'ENGLISH' | 'MIXED' | 'UNKNOWN';
   talk_ratio: number | null;
-  is_sensitive: boolean;  // customer disclosed death/medical emergency — triggers 18-day cooldown
+  is_sensitive: boolean;
 }
 
-// Retell already extracts: promised_amount, promised_date, customer_mood_summary, was_transferred.
-// Claude fills the gaps: call_summary, disposition, key_objection, follow_up_*, language_used, talk_ratio, is_sensitive.
 const EXTRACTION_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
 
-You will receive a transcript of a voice call between an AI recovery agent and a business debtor (party).
-Retell has already extracted payment promises — focus on conversation quality, next steps, and sensitive situations.
-Respond ONLY with valid JSON matching this exact schema — no commentary, no markdown.
+Analyze the transcript and respond ONLY with a valid JSON object — no markdown, no backticks, no explanation.
 
 {
-  "call_summary": "<2-3 sentence factual summary of what happened>",
-  "disposition": "<one of: INTERESTED | NOT_INTERESTED | CALLBACK | PTP | DISPUTE | NO_ANSWER | UNKNOWN>",
-  "key_objection": "<single sentence summarising the main objection raised, else null>",
+  "call_summary": "<2-3 sentence factual summary>",
+  "disposition": "<INTERESTED | NOT_INTERESTED | CALLBACK | PTP | DISPUTE | NO_ANSWER | UNKNOWN>",
+  "key_objection": "<single sentence or null>",
   "follow_up_required": <true | false>,
-  "follow_up_notes": "<what to say or do on next contact, else null>",
-  "language_used": "<one of: HINDI | ENGLISH | MIXED | UNKNOWN>",
-  "talk_ratio": <0–100 integer representing approximate % of conversation where the agent spoke, else null>,
-  "is_sensitive": <true if customer disclosed death in family, medical emergency, serious illness, hospitalisation, accident — else false>
+  "follow_up_notes": "<string or null>",
+  "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
+  "talk_ratio": <0-100 integer or null>,
+  "is_sensitive": <true if death/medical emergency/hospital mentioned, else false>
 }
 
-Disposition guide:
-- INTERESTED: customer acknowledged debt, showed willingness to pay
-- NOT_INTERESTED: customer refused or disconnected
-- CALLBACK: customer asked to be called back at a different time
-- PTP: customer gave a specific promise to pay (date/amount)
-- DISPUTE: customer disputes the bill or amount
-- NO_ANSWER: call not picked up or no meaningful conversation
+Disposition:
+- INTERESTED: willing to pay
+- NOT_INTERESTED: refused or disconnected
+- CALLBACK: asked to call back later
+- PTP: gave specific promise to pay
+- DISPUTE: disputes the bill
+- NO_ANSWER: call not answered or no conversation`;
 
-is_sensitive = true triggers an 18-day calling cooldown. Set it ONLY when the customer explicitly disclosed a personal emergency (death, hospital, serious illness). Cash flow issues or general "I'm busy" do NOT qualify.
-
-Context: Indian B2B outstanding recovery call.`;
+// Strip markdown code fences if model wraps JSON in them
+function stripMarkdown(text: string): string {
+  return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+}
 
 @Injectable()
 export class CallExtractionService {
@@ -52,6 +49,7 @@ export class CallExtractionService {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey) {
       this.client = new Anthropic({ apiKey });
+      this.logger.log('CallExtractionService initialized with Anthropic client');
     } else {
       this.client = null;
       this.logger.warn('ANTHROPIC_API_KEY not set — call extraction disabled');
@@ -59,33 +57,71 @@ export class CallExtractionService {
   }
 
   async extract(transcript: string, durationSeconds?: number): Promise<CallExtractionResult | null> {
-    if (!this.client) return null;
-    if (!transcript || transcript.trim().length < 50) return null;
-
-    try {
-      const message = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 512,
-        messages: [
-          {
-            role: 'user',
-            content: `${EXTRACTION_PROMPT}\n\nTranscript:\n${transcript}`,
-          },
-        ],
-      });
-
-      const text = message.content[0].type === 'text' ? message.content[0].text : '';
-      const parsed = JSON.parse(text) as CallExtractionResult;
-
-      // Clamp talk_ratio to 0-100
-      if (parsed.talk_ratio !== null && parsed.talk_ratio !== undefined) {
-        parsed.talk_ratio = Math.min(100, Math.max(0, parsed.talk_ratio));
-      }
-
-      return parsed;
-    } catch (err) {
-      this.logger.error('Call extraction failed', err);
+    if (!this.client) {
+      this.logger.warn('Extraction skipped — no Anthropic client');
       return null;
     }
+
+    const trimmed = transcript?.trim() ?? '';
+    this.logger.log(`Extraction requested — transcript length: ${trimmed.length} chars`);
+
+    if (trimmed.length < 30) {
+      this.logger.warn(`Transcript too short (${trimmed.length} chars) — skipping extraction`);
+      return null;
+    }
+
+    // Try Haiku first, fall back to Sonnet if model not available
+    const models = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
+
+    for (const model of models) {
+      try {
+        this.logger.log(`Trying extraction with model: ${model}`);
+
+        const message = await this.client.messages.create({
+          model,
+          max_tokens: 600,
+          messages: [
+            {
+              role: 'user',
+              content: `${EXTRACTION_PROMPT}\n\nTranscript:\n${trimmed}`,
+            },
+          ],
+        });
+
+        const raw = message.content[0].type === 'text' ? message.content[0].text : '';
+        this.logger.log(`Raw extraction response (first 200 chars): ${raw.substring(0, 200)}`);
+
+        const cleaned = stripMarkdown(raw);
+        const parsed = JSON.parse(cleaned) as CallExtractionResult;
+
+        if (parsed.talk_ratio !== null && parsed.talk_ratio !== undefined) {
+          parsed.talk_ratio = Math.min(100, Math.max(0, parsed.talk_ratio));
+        }
+
+        this.logger.log(`Extraction success with ${model}: disposition=${parsed.disposition} sensitive=${parsed.is_sensitive}`);
+        return parsed;
+
+      } catch (err: any) {
+        const errMsg = err?.message || String(err);
+        this.logger.error(`Extraction failed with model ${model}: ${errMsg}`);
+
+        // If it's a model access error, try next model
+        if (errMsg.includes('model') || errMsg.includes('404') || errMsg.includes('not found')) {
+          this.logger.warn(`Model ${model} not available, trying next...`);
+          continue;
+        }
+
+        // For JSON parse errors, log the raw response
+        if (errMsg.includes('JSON') || errMsg.includes('parse')) {
+          this.logger.error('JSON parse failed — Claude returned non-JSON response');
+        }
+
+        // For other errors (rate limit, auth), don't retry
+        return null;
+      }
+    }
+
+    this.logger.error('All extraction models failed');
+    return null;
   }
 }

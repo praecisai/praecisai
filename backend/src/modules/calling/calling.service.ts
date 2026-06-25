@@ -91,21 +91,23 @@ export class CallingService {
     await this.prisma.demoRun.updateMany({
       where: { retell_call_id: callId },
       data: {
-        // From Claude
-        call_summary: extraction?.call_summary ?? null,
-        disposition: (extraction?.disposition ?? 'UNKNOWN') as CallDisposition,
-        key_objection: extraction?.key_objection ?? null,
-        follow_up_required: extraction?.follow_up_required ?? false,
-        follow_up_notes: extraction?.follow_up_notes ?? null,
-        language_used: (extraction?.language_used ?? 'UNKNOWN') as CallLanguage,
-        talk_ratio: extraction?.talk_ratio ?? null,
-        is_sensitive: isSensitive,
-        sensitive_cooldown_until: sensitiveCooldownUntil,
-        // From Retell's own analysis
+        // From Claude (only written when extraction actually ran)
+        ...(extraction && {
+          call_summary: extraction.call_summary,
+          disposition: extraction.disposition as CallDisposition,
+          key_objection: extraction.key_objection,
+          follow_up_required: extraction.follow_up_required,
+          follow_up_notes: extraction.follow_up_notes,
+          language_used: extraction.language_used as CallLanguage,
+          talk_ratio: extraction.talk_ratio,
+          is_sensitive: isSensitive,
+          sensitive_cooldown_until: sensitiveCooldownUntil,
+          extracted_at: new Date(),
+        }),
+        // From Retell's own GPT-5.1 analysis (always written)
         promise_date: retellPromiseDate,
         promise_amount: isNaN(retellPromiseAmount as number) ? null : retellPromiseAmount,
         call_sentiment: callSentiment,
-        extracted_at: new Date(),
       },
     });
 
