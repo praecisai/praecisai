@@ -55,7 +55,7 @@ export type DemoRowData = {
 
 // ─── Demo dataset — showcases all 5 intelligence cases ───────────────────────
 const initialData: DemoRowData[] = [
-  // Case: Soft Reminder — simple single invoice, first touch
+  // Below 90 — no segment, buttons disabled
   {
     id: '1',
     partyName: 'RAMESHWAR TEXTILES',
@@ -64,7 +64,21 @@ const initialData: DemoRowData[] = [
     billDate: '25/03/2026',
     agentName: 'DIRECT',
     dueAmount: 45000,
-    daysOutstanding: 95,
+    daysOutstanding: 62,
+    mobileNo: '',
+    voiceSent: false,
+    whatsappSent: false,
+  },
+  // Soft Reminder — 90-120 days
+  {
+    id: '1b',
+    partyName: 'PATEL ENTERPRISES',
+    city: 'SURAT',
+    billNo: 'INV-155',
+    billDate: '05/03/2026',
+    agentName: 'DIRECT',
+    dueAmount: 32000,
+    daysOutstanding: 98,
     mobileNo: '',
     voiceSent: false,
     whatsappSent: false,
@@ -78,7 +92,7 @@ const initialData: DemoRowData[] = [
     billDate: '15/01/2026',
     agentName: 'DIRECT',
     dueAmount: 120500,
-    daysOutstanding: 161,
+    daysOutstanding: 138,   // 121-150 → Follow-up
     mobileNo: '',
     voiceSent: false,
     whatsappSent: false,
@@ -92,7 +106,7 @@ const initialData: DemoRowData[] = [
     billDate: '10/03/2026',
     agentName: 'DIRECT',
     dueAmount: 85000,
-    daysOutstanding: 107,
+    daysOutstanding: 125,   // 121-150 → Follow-up
     mobileNo: '',
     voiceSent: false,
     whatsappSent: false,
@@ -107,8 +121,8 @@ const initialData: DemoRowData[] = [
     billNo: 'INV-204',
     billDate: '05/01/2026',
     agentName: 'DIRECT',
-    dueAmount: 120500,         // original bill amount
-    daysOutstanding: 160,
+    dueAmount: 120500,
+    daysOutstanding: 170,   // 151-200 → Strong Follow-up
     mobileNo: '',
     voiceSent: false,
     whatsappSent: false,
@@ -121,7 +135,7 @@ const initialData: DemoRowData[] = [
     billDate: '05/01/2026',
     agentName: 'DIRECT',
     dueAmount: 70500,
-    daysOutstanding: 160,
+    daysOutstanding: 170,   // 151-200 → Strong Follow-up
     mobileNo: '',
     voiceSent: false,
     whatsappSent: false,
@@ -136,7 +150,7 @@ const initialData: DemoRowData[] = [
     billDate: '20/11/2025',
     agentName: 'DIRECT',
     dueAmount: 210000,
-    daysOutstanding: 215,
+    daysOutstanding: 147,   // days at time of Soft Reminder call (15 Apr)
     mobileNo: '',
     voiceSent: true,
     whatsappSent: false,
@@ -153,7 +167,7 @@ const initialData: DemoRowData[] = [
     billDate: '20/11/2025',
     agentName: 'DIRECT',
     dueAmount: 210000,
-    daysOutstanding: 215,
+    daysOutstanding: 160,   // days at time of Follow-up call (28 Apr)
     mobileNo: '',
     voiceSent: true,
     whatsappSent: true,
@@ -191,16 +205,17 @@ const initialData: DemoRowData[] = [
     voiceSent: false,
     whatsappSent: false,
     isPaidGracePeriod: true,
-    graceDaysLeft: 11,
+    graceDaysLeft: 15,
   },
 ];
 
 const getSegment = (days: number, amount: number) => {
-  if (amount < 0) return { label: 'Credit Note', bg: 'bg-gray-100 text-gray-600' };
-  if (days <= 120) return { label: 'Soft Reminder', bg: 'badge-soft border-none' };
-  if (days <= 150) return { label: 'Follow-up', bg: 'badge-followup border-none' };
-  if (days <= 200) return { label: 'Strong Follow-up', bg: 'badge-strong border-none' };
-  return { label: 'Escalation', bg: 'badge-escalation border-none' };
+  if (amount < 0)  return { label: 'Credit Note',     bg: 'bg-gray-100 text-gray-600',  disabled: false };
+  if (days < 90)   return { label: '',                bg: '',                            disabled: true  };
+  if (days <= 120) return { label: 'Soft Reminder',   bg: 'badge-soft border-none',      disabled: false };
+  if (days <= 150) return { label: 'Follow-up',       bg: 'badge-followup border-none',  disabled: false };
+  if (days <= 200) return { label: 'Strong Follow-up',bg: 'badge-strong border-none',    disabled: false };
+  return { label: 'Escalation', bg: 'badge-escalation border-none', disabled: false };
 };
 
 // ─── Segment notes shown above the table ─────────────────────────────────────
@@ -210,27 +225,27 @@ const CARD_BASE = 'bg-[var(--sand)] border-[var(--caramel)]';
 const SEGMENT_NOTES = [
   {
     icon: '💬',
-    label: 'Soft Reminder',
+    label: 'Soft Reminder (90–120 days)',
     labelColor: 'text-[var(--recovery-green)]',
-    note: 'First touch — agent politely mentions the pending amount and asks when payment can be made. No pressure.',
+    note: 'First call — Meena politely informs about pending amount and asks when payment can be made. No pressure.',
   },
   {
     icon: '📅',
-    label: 'Follow-up',
+    label: 'Follow-up (121–150 days)',
     labelColor: 'text-[var(--walnut)]',
-    note: 'Second contact — agent asks for a specific payment date. Mentions previous reminder. "Ghadi ghadi pareshaan na karun aapko."',
+    note: 'Second contact — asks for a specific payment date. Mentions previous reminder. "Ghadi ghadi pareshaan na karun."',
   },
   {
     icon: '⚡',
-    label: 'Strong Follow-up',
+    label: 'Strong Follow-up (151–200 days)',
     labelColor: 'text-[var(--rust)]',
-    note: 'Multiple attempts — firm commitment asked. Previous contact history is briefly mentioned. Seniors may be looped in if unresolved.',
+    note: 'Multiple attempts — firm commitment required. Accounts team is following up. Previous history mentioned briefly.',
   },
   {
     icon: '🔴',
-    label: 'Escalation',
+    label: 'Escalation (200+ days)',
     labelColor: 'text-[var(--mahogany)]',
-    note: 'Final level — pleading + company pressure angle. Full past interaction summary included. Partial payments also accepted.',
+    note: 'Final level — senior management involved. Warm but urgent. Partial payments accepted. Full past history included.',
   },
 ];
 
@@ -464,6 +479,9 @@ export default function DemoOutstandingTable({
             ? Math.max(...data.filter(r => r.partyName === row.original.partyName && !r.isPaidGracePeriod && !r.isPastCall).map(r => r.daysOutstanding))
             : row.original.daysOutstanding;
           const seg = getSegment(effectiveDays, row.original.dueAmount);
+          if (seg.disabled) {
+            return <span className="text-[var(--walnut)] opacity-40 text-[13px]">—</span>;
+          }
           return (
             <span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 font-body text-[11px] font-semibold tracking-wide', seg.bg)}>
               {seg.label}
@@ -485,6 +503,12 @@ export default function DemoOutstandingTable({
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
+          const daysForStatus = row.original.isMultiInvoice
+            ? Math.max(...data.filter(r => r.partyName === row.original.partyName && !r.isPaidGracePeriod && !r.isPastCall).map(r => r.daysOutstanding))
+            : row.original.daysOutstanding;
+          if (!row.original.isPastCall && !row.original.isPaidGracePeriod && daysForStatus < 90) {
+            return <span className="text-[var(--walnut)] opacity-30 text-[13px]">—</span>;
+          }
           if (row.original.isPastCall) {
             return (
               <span className="text-[11px] text-[var(--walnut)] italic leading-snug">
@@ -534,6 +558,23 @@ export default function DemoOutstandingTable({
                 <Clock className="h-3.5 w-3.5" />
                 {row.original.graceDaysLeft}d grace
               </span>
+            );
+          }
+
+          const effectiveDaysForAction = row.original.isMultiInvoice
+            ? Math.max(...data.filter(r => r.partyName === row.original.partyName && !r.isPaidGracePeriod && !r.isPastCall).map(r => r.daysOutstanding))
+            : row.original.daysOutstanding;
+          const rowSeg = getSegment(effectiveDaysForAction, row.original.dueAmount);
+          if (rowSeg.disabled) {
+            return (
+              <div className="flex gap-2">
+                <button disabled className="rounded p-1.5 text-[var(--walnut)] opacity-20 cursor-not-allowed">
+                  <MessageCircle className="h-4 w-4" />
+                </button>
+                <button disabled className="rounded p-1.5 text-[var(--walnut)] opacity-20 cursor-not-allowed">
+                  <Phone className="h-4 w-4" />
+                </button>
+              </div>
             );
           }
 

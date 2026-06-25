@@ -85,7 +85,7 @@ export class CallingService {
 
     const isSensitive = extraction?.is_sensitive ?? false;
     const sensitiveCooldownUntil = isSensitive
-      ? new Date(Date.now() + 18 * 24 * 60 * 60 * 1000)
+      ? new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)  // 15 days from day of call
       : null;
 
     await this.prisma.demoRun.updateMany({

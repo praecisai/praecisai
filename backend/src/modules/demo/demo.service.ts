@@ -231,7 +231,7 @@ export class DemoService {
           (sensitiveCooldown.sensitive_cooldown_until.getTime() - Date.now()) / 86400000,
         );
         throw new BadRequestException(
-          `This party mentioned a sensitive personal situation. Out of respect, calling is paused for ${daysLeft} more day${daysLeft !== 1 ? 's' : ''}.`,
+          `This party mentioned a sensitive situation. Calling paused for ${daysLeft} more day${daysLeft !== 1 ? 's' : ''} out of respect.`,
         );
       }
     }
@@ -266,6 +266,11 @@ export class DemoService {
 
     // Compute Hindi amount for the effective due (total if multi-invoice, single if not)
     const dueAmountHindi = amountToHindi(effectiveDueAmount);
+
+    // If overdue > 90 days, build a natural mention for the agent to use
+    const daysMention = effectiveDays > 90
+      ? `90 din se zyada ho gaye hain — aur abhi ${effectiveDays} din ho gaye hain.`
+      : '';
 
     const run = await this.demoLeadRepo.createRun({
       demo_lead: { connect: { id: lead.id } },
@@ -306,6 +311,7 @@ export class DemoService {
           partial_payment_note: partialPaymentNote,
           handoff_number: process.env.RETELL_HANDOFF_NUMBER || '',
           greeting_time: getISTGreeting(),
+          days_mention: daysMention,
         },
       });
     }
