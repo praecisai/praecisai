@@ -8,112 +8,136 @@ interface WorkflowNodeProps {
   top: string;
   isClimax?: boolean;
   metric?: string;
+  step?: string;
 }
 
-export default function WorkflowNode({ id, icon: Icon, label, left, top, isClimax, metric }: WorkflowNodeProps) {
+export default function WorkflowNode({ id, icon: Icon, label, left, top, isClimax, metric, step }: WorkflowNodeProps) {
   return (
     <div
       id={id}
       className={`workflow-node absolute z-20 ${isClimax ? 'workflow-node-climax' : ''}`}
-      style={{ left, top, transform: 'translate(-50%, -50%)', width: '180px', height: '112px' }}
+      style={{ left, top, transform: 'translate(-50%, -50%)', width: '180px', height: '138px' }}
     >
-      {/* Outer expanding ring — animated in by GSAP on activation */}
+      {/* Outer expanding ring — animated in by GSAP */}
       <div
-        className="workflow-outer-ring absolute rounded-2xl border border-[rgba(221,184,146,0.35)] opacity-0 pointer-events-none"
-        style={{ inset: '-10px' }}
+        className="workflow-outer-ring absolute rounded-2xl border-2 opacity-0 pointer-events-none"
+        style={{ inset: '-12px', borderColor: isClimax ? 'rgba(221,184,146,0.5)' : 'rgba(221,184,146,0.25)' }}
       />
 
-      {/* Main glass card */}
+      {/* Second outer pulse ring — offset for depth */}
       <div
-        className="relative w-full h-full rounded-xl flex flex-col items-center justify-center overflow-hidden"
+        className="workflow-outer-ring-2 absolute rounded-2xl border opacity-0 pointer-events-none"
+        style={{ inset: '-22px', borderColor: 'rgba(156,102,68,0.12)' }}
+      />
+
+      {/* Main card */}
+      <div
+        className="relative w-full h-full rounded-2xl flex flex-col overflow-hidden"
         style={{
-          background: 'rgba(10,6,3,0.82)',
-          border: '1px solid rgba(221,184,146,0.2)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          background: isClimax
+            ? 'linear-gradient(160deg, rgba(30,14,4,0.99) 0%, rgba(18,8,2,0.99) 100%)'
+            : 'rgba(7,4,1,0.98)',
+          border: `1px solid rgba(221,184,146,${isClimax ? 0.35 : 0.14})`,
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
         }}
       >
-        {/* Inner radial glow (activated by GSAP) */}
+        {/* Top shimmer sweep (GSAP) */}
+        <div
+          className="workflow-accent-line absolute top-0 left-0 right-0 h-px opacity-0 pointer-events-none"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(221,184,146,1) 50%, transparent 100%)' }}
+        />
+
+        {/* Inner glow — bottom-up warm bloom (GSAP) */}
         <div
           className="workflow-glow absolute inset-0 opacity-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 90%, rgba(156,102,68,0.35) 0%, transparent 68%)' }}
+          style={{ background: 'radial-gradient(ellipse at 50% 110%, rgba(156,102,68,0.45) 0%, transparent 62%)' }}
         />
 
-        {/* Border glow + inset highlight (activated by GSAP) */}
+        {/* Border + outer halo (GSAP) */}
         <div
-          className="workflow-border-glow absolute inset-0 rounded-xl opacity-0 pointer-events-none"
-          style={{ boxShadow: '0 0 36px rgba(156,102,68,0.7), inset 0 1px 0 rgba(221,184,146,0.3)' }}
+          className="workflow-border-glow absolute inset-0 rounded-2xl opacity-0 pointer-events-none"
+          style={{ boxShadow: '0 0 32px rgba(156,102,68,0.55), 0 0 70px rgba(156,102,68,0.2), inset 0 1px 0 rgba(221,184,146,0.22)' }}
         />
 
+        {/* Climax gold explosion */}
         {isClimax && (
           <div
-            className="workflow-climax-glow absolute inset-0 rounded-xl opacity-0 pointer-events-none"
+            className="workflow-climax-glow absolute inset-0 rounded-2xl opacity-0 pointer-events-none"
             style={{
-              boxShadow:
-                '0 0 90px rgba(156,102,68,1), 0 0 180px rgba(156,102,68,0.55), inset 0 0 40px rgba(156,102,68,0.25)',
-              background: 'rgba(156,102,68,0.14)',
+              boxShadow: '0 0 90px rgba(221,184,146,0.95), 0 0 180px rgba(156,102,68,0.5), inset 0 0 50px rgba(156,102,68,0.28)',
+              background: 'rgba(156,102,68,0.1)',
             }}
           />
         )}
 
-        {/* Top shimmer sweep line */}
-        <div
-          className="workflow-accent-line absolute top-0 left-0 right-0 h-px opacity-0 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(90deg, transparent 0%, rgba(221,184,146,0.95) 50%, transparent 100%)',
-          }}
-        />
-
-        {/* Segments burst (node 3) */}
-        <div className="workflow-segments-burst absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none">
-          <span
-            className="dot-green absolute h-3 w-3 rounded-full"
-            style={{ background: '#4A7C59', boxShadow: '0 0 14px #4A7C59' }}
-          />
-          <span
-            className="dot-amber absolute h-3 w-3 rounded-full"
-            style={{ background: '#DDB892', boxShadow: '0 0 14px #DDB892' }}
-          />
-          <span
-            className="dot-red absolute h-3 w-3 rounded-full"
-            style={{ background: '#9C2020', boxShadow: '0 0 14px #9C2020' }}
-          />
-        </div>
-
-        {/* Ping ripple (node 4) */}
+        {/* Ping ripple (node 4 only) */}
         <div className="workflow-ping-ripple absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none">
-          <span
-            className="ripple-circle absolute h-14 w-14 rounded-full border-2"
-            style={{ borderColor: 'rgba(156,102,68,0.85)' }}
-          />
+          <span className="ripple-circle absolute h-16 w-16 rounded-full border-2" style={{ borderColor: 'rgba(156,102,68,0.75)' }} />
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center gap-1.5 px-3 w-full">
-          {/* Icon container */}
-          <div
-            className="relative flex items-center justify-center w-10 h-10 rounded-xl"
-            style={{
-              background: 'rgba(156,102,68,0.12)',
-              border: '1px solid rgba(221,184,146,0.18)',
-            }}
-          >
-            <div className="workflow-icon text-[var(--walnut)] opacity-55">
-              <Icon size={20} stroke={1.75} />
+        {/* ── Card body ── */}
+        <div className="relative z-10 flex flex-col h-full px-4 pt-3 pb-3">
+
+          {/* Header row: step number + subtle divider */}
+          <div className="flex items-center justify-between mb-2.5">
+            <span
+              className="workflow-step font-mono text-[9px] font-bold tracking-[0.25em] opacity-0"
+              style={{ color: isClimax ? 'rgba(221,184,146,0.7)' : 'rgba(176,137,104,0.45)' }}
+            >
+              {step}
+            </span>
+            {/* Active dot indicator */}
+            <div
+              className="workflow-active-dot w-1.5 h-1.5 rounded-full opacity-0"
+              style={{
+                background: isClimax ? '#DDB892' : '#7F5539',
+                boxShadow: `0 0 8px ${isClimax ? 'rgba(221,184,146,0.9)' : 'rgba(156,102,68,0.7)'}`,
+              }}
+            />
+          </div>
+
+          {/* Icon */}
+          <div className="flex items-center justify-center mb-2">
+            <div
+              className="relative flex items-center justify-center w-11 h-11 rounded-2xl"
+              style={{
+                background: isClimax ? 'rgba(156,102,68,0.18)' : 'rgba(156,102,68,0.09)',
+                border: `1px solid rgba(221,184,146,${isClimax ? 0.3 : 0.14})`,
+              }}
+            >
+              <div
+                className="workflow-icon"
+                style={{ color: isClimax ? '#DDB892' : '#9C6644', opacity: 0.45 }}
+              >
+                <Icon size={20} stroke={1.6} />
+              </div>
             </div>
           </div>
 
-          <span className="workflow-label font-body text-[10.5px] font-semibold tracking-wide text-[var(--walnut)] opacity-55 text-center leading-tight">
+          {/* Label */}
+          <span
+            className="workflow-label text-center font-semibold leading-tight"
+            style={{
+              fontSize: '10.5px',
+              color: isClimax ? 'rgba(237,224,212,0.85)' : 'rgba(221,184,146,0.5)',
+              letterSpacing: '0.04em',
+            }}
+          >
             {label}
           </span>
 
-          {/* Metric — revealed when node activates */}
+          {/* Metric — GSAP reveals */}
           {metric && (
-            <div className="workflow-metric opacity-0 mt-0.5">
+            <div className="workflow-metric flex items-center justify-center mt-1.5 opacity-0">
               <span
-                className="font-display text-[11px] font-bold tracking-wider"
-                style={{ color: '#DDB892', textShadow: '0 0 14px rgba(221,184,146,0.7)' }}
+                className="font-display font-bold"
+                style={{
+                  fontSize: isClimax ? '13px' : '11px',
+                  color: isClimax ? '#EDE0D4' : '#DDB892',
+                  textShadow: `0 0 18px rgba(221,184,146,${isClimax ? 0.95 : 0.55})`,
+                  letterSpacing: '0.05em',
+                }}
               >
                 {metric}
               </span>
