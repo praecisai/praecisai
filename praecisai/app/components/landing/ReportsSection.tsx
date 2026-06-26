@@ -167,9 +167,9 @@ export default function ReportsSection() {
           </AnimatePresence>
         </motion.div>
 
-        {/* Demo Signup Form */}
+        {/* Demo Signup Form — anchor on static div so scroll lands correctly */}
+        <div id="demo" style={{ scrollMarginTop: '80px' }} />
         <motion.div
-          id="demo"
           variants={itemVariants}
           className="mx-auto mt-16 max-w-3xl overflow-hidden rounded-3xl border border-[var(--caramel)] bg-[var(--surface-warm)] shadow-xl"
         >

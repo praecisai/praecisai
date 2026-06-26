@@ -7,6 +7,15 @@ import { IconMenu2, IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
 import { Logo } from './Logo';
 
+function scrollToDemo(e: React.MouseEvent) {
+  e.preventDefault();
+  const el = document.getElementById('demo');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState(null, '', '#demo');
+  }
+}
+
 const navLinks = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Features', href: '#features' },
@@ -66,12 +75,13 @@ export default function Navbar() {
           >
             Login
           </Link>
-          <Link
+          <a
             href="#demo"
+            onClick={scrollToDemo}
             className="rounded-lg border border-[var(--mahogany)] px-4 py-2 font-display text-sm font-semibold text-[var(--mahogany)] transition-colors hover:bg-[var(--sand)]"
           >
             Try Demo
-          </Link>
+          </a>
           <Link
             href="/signup"
             className="rounded-lg bg-[var(--mahogany)] px-5 py-2.5 font-display text-sm font-semibold text-[var(--cream)] transition-colors hover:bg-[var(--rust)]"
@@ -118,13 +128,13 @@ export default function Navbar() {
                 >
                   Login
                 </Link>
-                <Link
+                <a
                   href="#demo"
-                  onClick={() => setMobileOpen(false)}
+                  onClick={(e) => { setMobileOpen(false); scrollToDemo(e); }}
                   className="rounded-lg border border-[var(--caramel)] px-3 py-3 text-center font-display text-sm font-semibold text-[var(--mahogany)] hover:bg-[var(--sand)]"
                 >
                   Try Demo
-                </Link>
+                </a>
                 <Link
                   href="/signup"
                   onClick={() => setMobileOpen(false)}

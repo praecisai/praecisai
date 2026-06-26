@@ -16,7 +16,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['https://praecisai.vercel.app', 'https://praecisai.in', 'http://localhost:3000'],
+    origin: ['https://praecisai.vercel.app', 'https://praecisai.in', 'https://www.praecisai.in', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
