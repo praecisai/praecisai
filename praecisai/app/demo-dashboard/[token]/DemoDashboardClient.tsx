@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import Loader from '../../components/ui/Loader';
 import DemoDashboardHeader from '../../components/demo/DemoDashboardHeader';
 import DemoExhaustedBanner from '../../components/demo/DemoExhaustedBanner';
 import DemoStatCards from '../../components/demo/DemoStatCards';
@@ -73,7 +74,11 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--cream)]">
-        <Loader2 className="h-10 w-10 animate-spin text-[var(--mahogany)]" />
+        <Loader
+          title="Preparing your demo..."
+          subtitle="Setting up your recovery intelligence dashboard"
+          size="md"
+        />
       </div>
     );
   }

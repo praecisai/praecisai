@@ -43,7 +43,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-64 flex-shrink-0 flex flex-col h-screen sticky top-0"
+      className="w-64 flex-shrink-0 flex flex-col fixed top-0 left-0 bottom-0 z-30"
       style={{ background: 'var(--surface-warm)', borderRight: '1px solid var(--caramel)' }}
     >
       {/* Logo + Theme Toggle */}
@@ -52,8 +52,8 @@ export function Sidebar() {
         <ThemeToggle />
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      {/* Nav — scrollable, pushes footer to bottom */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = item.exact
@@ -80,7 +80,7 @@ export function Sidebar() {
       <div className="p-3 border-t" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
         <div
           className="flex items-center gap-3 px-2 py-2 rounded-lg"
-          style={{ background: 'rgba(237,224,212,0.5)' }}
+          style={{ background: 'var(--sand)' }}
         >
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"

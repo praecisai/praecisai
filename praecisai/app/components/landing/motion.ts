@@ -26,12 +26,12 @@ export const itemVariants = {
 export const viewportOnce = { once: true, margin: '-100px' as const };
 
 export const wordItem = {
-  hidden: { opacity: 0, y: 50, rotateX: 15 },
+  hidden: { opacity: 0, y: 48, filter: 'blur(10px)' },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    rotateX: 0,
-    transition: { delay: i * 0.08, duration: 0.7, ease: easeSnap },
+    filter: 'blur(0px)',
+    transition: { delay: i * 0.09, duration: 0.72, ease: easeSnap },
   }),
 };
 

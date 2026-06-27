@@ -12,9 +12,12 @@ import {
   IconLock,
 } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce, wordItem, scaleIn } from './motion';
+import { TextAnimate } from '@/registry/magicui/text-animate';
+import LightRays from './LightRays';
 
-const headlineWords = ['Your', 'outstanding', 'report,', 'collected'];
-const highlightWord = 'automatically';
+const line1Words = ['Stop', 'chasing', 'payments.'];
+const line2Start = 'Start';
+const line2Highlight = 'recovering cash.';
 
 const trustItems = [
   'No setup fees',
@@ -158,9 +161,24 @@ export default function HeroSection() {
     <section
       ref={sectionRef}
       className="relative bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
-      style={{ paddingTop: '120px' }}
+      style={{ paddingTop: '148px' }}
     >
       <Particles />
+      {/* Light rays from top-center, follow cursor */}
+      <LightRays
+        raysOrigin="top-center"
+        raysColor="#DDB892"
+        raysSpeed={0.6}
+        lightSpread={0.55}
+        rayLength={2.8}
+        followMouse={true}
+        mouseInfluence={0.09}
+        noiseAmount={0}
+        distortion={0}
+        pulsating={false}
+        fadeDistance={1}
+        className="z-0"
+      />
 
       {/* Subtle radial glow at center-top */}
       <div
@@ -180,54 +198,52 @@ export default function HeroSection() {
         viewport={viewportOnce}
       >
         {/* Badge */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-10 flex justify-center"
-        >
-          <motion.div
-            whileHover={{ scale: 1.04 }}
-            className="inline-flex items-center gap-2.5 rounded-full border border-[var(--caramel)] bg-[rgba(159,99,68,0.10)] px-4 py-2"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--rust)] opacity-40" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--rust)]" />
-            </span>
-            <span className="font-body text-xs font-semibold text-[var(--mahogany)]">
-              Built for Indian Businesses
-            </span>
+        <motion.div variants={itemVariants} className="mb-10 flex justify-center">
+          <motion.div whileHover={{ scale: 1.04 }} className="pill-beam">
+            <div className="relative z-10 inline-flex items-center gap-2.5 rounded-full border border-[rgba(221,184,146,0.28)] bg-[rgba(159,99,68,0.10)] px-4 py-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--rust)] opacity-40" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--rust)]" />
+              </span>
+              <span className="font-body text-xs font-semibold text-[var(--mahogany)]">
+                Built for Indian Businesses
+              </span>
+            </div>
           </motion.div>
         </motion.div>
 
-        {/* Headline — word by word */}
+        {/* Headline — line 1 char-by-char, line 2 whole-phrase for gradient to work */}
         <h1
-          className="mx-auto max-w-4xl text-center font-display font-bold leading-[1.06] tracking-[-0.03em] text-[var(--dark-brown)]"
+          className="mx-auto max-w-4xl text-center font-display font-bold leading-[1.1] tracking-[-0.03em] text-[var(--dark-warm)]"
           style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)' }}
         >
-          {headlineWords.map((word, i) => (
+          {/* Line 1 */}
+          <span className="block">
+            <TextAnimate animation="blurInUp" by="character" once stagger={0.024}>
+              {line1Words.join(' ')}
+            </TextAnimate>
+          </span>
+          {/* Line 2 — explicit delays so animation is clearly visible after line 1 */}
+          <span className="block mt-1">
             <motion.span
-              key={word}
-              className="inline-block mr-[0.25em]"
-              custom={i}
-              variants={wordItem}
-              initial="hidden"
-              whileInView="visible"
-              viewport={viewportOnce}
+              className="inline-block mr-[0.3em]"
+              initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5, duration: 0.72, ease: [0.17, 0.67, 0.29, 1] }}
             >
-              {word}
+              {line2Start}
             </motion.span>
-          ))}
-          <br />
-          <motion.span
-            className="inline-block mr-[0.25em]"
-            custom={headlineWords.length}
-            variants={wordItem}
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-          >
-            <span className="animate-gradient-text font-bold">{highlightWord}</span>
-            <span>.</span>
-          </motion.span>
+            <motion.span
+              className="inline-block animate-gradient-text font-bold"
+              initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.68, duration: 0.72, ease: [0.17, 0.67, 0.29, 1] }}
+            >
+              {line2Highlight}
+            </motion.span>
+          </span>
         </h1>
 
         {/* Subheadline */}
@@ -235,9 +251,9 @@ export default function HeroSection() {
           variants={itemVariants}
           className="mx-auto mt-9 max-w-[560px] text-center font-body text-[17px] leading-[1.75] text-[var(--walnut)]"
         >
-          Upload your Excel file. PraecisAI sends WhatsApp reminders, branded PDF
-          statements, and natural Hindi voice calls to recover dues your team has
-          been chasing for months.
+          Upload your outstanding Excel once. PraecisAI makes AI Hindi voice calls,
+          sends WhatsApp reminders, and delivers branded PDFs — automatically — so
+          you stop chasing and start collecting.
         </motion.p>
 
         {/* CTA Buttons */}
