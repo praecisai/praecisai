@@ -189,7 +189,7 @@ export default function LightRays({
       const renderer = new Renderer({ dpr: Math.min(window.devicePixelRatio, 2), alpha: true });
       rendererRef.current = renderer;
       const gl = renderer.gl;
-      gl.canvas.style.cssText = 'width:100%;height:100%;';
+      gl.canvas.style.cssText = 'width:100%;height:100%;background:transparent;';
 
       while (containerRef.current.firstChild) containerRef.current.removeChild(containerRef.current.firstChild);
       containerRef.current.appendChild(gl.canvas);

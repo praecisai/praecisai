@@ -66,7 +66,7 @@ export default function TestimonialsSection() {
               key={testimonial.name}
               variants={itemVariants}
               transition={{ delay: index * 0.1 }}
-              className="flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7 sm:p-8"
+              className="spotlight-card flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7 sm:p-8"
             >
               {/* Quote icon */}
               <div>

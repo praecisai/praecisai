@@ -160,7 +160,7 @@ export default function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
+      className="relative overflow-hidden bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
       style={{ paddingTop: '148px' }}
     >
       <Particles />

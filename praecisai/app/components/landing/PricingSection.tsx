@@ -60,7 +60,7 @@ export default function PricingSection() {
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.12)]">
+          <div className="spotlight-card overflow-hidden rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.12)]">
             {/* Price header */}
             <div className="bg-[var(--surface-warm)] px-8 py-10 text-center sm:px-10">
               <p className="font-display text-[52px] font-bold leading-none text-[var(--dark-brown)]">

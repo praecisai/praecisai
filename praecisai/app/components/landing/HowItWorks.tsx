@@ -69,7 +69,7 @@ export default function HowItWorks() {
               variants={scaleIn}
               transition={{ delay: index * 0.2 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)' }}
-              className="relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10 transition-shadow duration-200"
+              className="spotlight-card relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10 transition-shadow duration-200"
             >
               {/* Arrow connector (desktop only) */}
               {index < steps.length - 1 && (

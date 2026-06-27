@@ -293,7 +293,7 @@ function BentoCard({ className, children }: { className?: string; children: Reac
       glowColor={GLOW_COLOR}
       particleCount={12}
       clickEffect={true}
-      enableMagnetism={true}
+      enableMagnetism={false}
       enableTilt={false}
     >
       {children}

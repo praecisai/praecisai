@@ -145,7 +145,7 @@ export default function ReportsSection() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                className="rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7"
+                className="spotlight-card rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7"
               >
                 {/* Icon + frequency row */}
                 <div className="mb-5 flex items-start justify-between">

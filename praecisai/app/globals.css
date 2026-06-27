@@ -292,6 +292,27 @@ body {
   border-radius: 6px;
 }
 
+/* ── Universal spotlight-card — glow overlay injected by CardSpotlight.tsx ── */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight-card-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 5px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
 /* ── MagicBento card effects (PraecisAI palette) ───────────────── */
 .magic-bento-card--border-glow {
   --glow-x: 50%;

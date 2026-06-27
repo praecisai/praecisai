@@ -104,7 +104,7 @@ export default function FeaturesSection() {
               variants={scaleIn}
               transition={{ delay: index * 0.08 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)' }}
-              className="group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
+              className="spotlight-card group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
             >
               <motion.div
                 whileHover={{ scale: 1.12, rotate: [0, -5, 5, 0] }}
@@ -124,23 +124,6 @@ export default function FeaturesSection() {
           ))}
         </div>
 
-        {/* Trust points */}
-        <motion.div
-          variants={sectionVariants}
-          className="mt-10 grid gap-4 sm:grid-cols-3"
-        >
-          {trustPoints.map((point, i) => (
-            <motion.div
-              key={point.text}
-              variants={itemVariants}
-              transition={{ delay: i * 0.1 }}
-              className="flex items-start gap-3 rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-5 py-4 text-left"
-            >
-              <point.icon size={18} className="mt-0.5 shrink-0 text-[var(--mahogany)]" stroke={1.75} />
-              <p className="font-body text-[13px] leading-snug text-[var(--walnut)]">{point.text}</p>
-            </motion.div>
-          ))}
-        </motion.div>
       </motion.div>
     </section>
   );
