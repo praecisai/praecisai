@@ -26,9 +26,9 @@ class EnvironmentVariables {
   @IsNotEmpty()
   BOLNA_AGENT_ID: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  BOLNA_WEBHOOK_SECRET: string;
+  BOLNA_WEBHOOK_SECRET?: string;
 
   @IsString()
   @IsNotEmpty()
