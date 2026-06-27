@@ -161,30 +161,40 @@ export default function LightRays({
   const mouseRef       = useRef({ x: 0.5, y: 0.5 });
   const smoothMouseRef = useRef({ x: 0.5, y: 0.5 });
   const rafRef         = useRef<number | null>(null);
+  const loopRef        = useRef<((t: number) => void) | null>(null);
   const cleanupRef     = useRef<(() => void) | null>(null);
-  const [visible, setVisible] = useState(false);
 
-  // Intersection observer — only run WebGL when visible
+  // Intersection observer — pause/resume RAF without touching WebGL context
   useEffect(() => {
     if (!containerRef.current) return;
-    const obs = new IntersectionObserver(
-      ([e]) => setVisible(e.isIntersecting),
-      { threshold: 0.1 }
-    );
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        // resume
+        if (loopRef.current && rafRef.current === null) {
+          rafRef.current = requestAnimationFrame(loopRef.current);
+        }
+      } else {
+        // pause — cancel RAF but keep GL alive
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      }
+    }, { threshold: 0.05 });
     obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
 
-  // Main WebGL setup
+  // Main WebGL setup — runs ONCE on mount
   useEffect(() => {
-    if (!visible || !containerRef.current) return;
-    cleanupRef.current?.();
+    if (!containerRef.current) return;
 
     let cancelled = false;
 
     const init = async () => {
       await new Promise(r => setTimeout(r, 10));
       if (cancelled || !containerRef.current) return;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
 
       const renderer = new Renderer({ dpr: Math.min(window.devicePixelRatio, 2), alpha: true });
       rendererRef.current = renderer;
@@ -246,11 +256,15 @@ export default function LightRays({
         } catch { return; }
         rafRef.current = requestAnimationFrame(loop);
       };
+
+      // Store loop so the IntersectionObserver can resume it
+      loopRef.current = loop;
       rafRef.current = requestAnimationFrame(loop);
 
       cleanupRef.current = () => {
         cancelled = true;
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+        loopRef.current = null;
         window.removeEventListener('resize', resize);
         try {
           gl.getExtension('WEBGL_lose_context')?.loseContext();
@@ -264,7 +278,7 @@ export default function LightRays({
     init();
     return () => { cleanupRef.current?.(); cleanupRef.current = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, []);
 
   // Live-update uniforms without re-init
   useEffect(() => {
