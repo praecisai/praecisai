@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import {
-  IconCheck,
   IconBrandWhatsapp,
   IconPhone,
   IconFileText,
@@ -17,6 +16,9 @@ import {
   IconTrendingUp,
   IconUsers,
   IconCalendarEvent,
+  IconShieldCheck,
+  IconRocket,
+  IconBuildingStore,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
 import { TextAnimate } from '@/registry/magicui/text-animate';
@@ -339,7 +341,7 @@ export default function BentoSection() {
         {/* Grid */}
         <motion.div
           ref={gridRef}
-          className="bento-magic-grid grid gap-4 lg:grid-cols-3 lg:grid-rows-2"
+          className="bento-magic-grid grid gap-4 lg:grid-cols-3"
           initial="hidden" whileInView="visible" viewport={{ once: true }}
           transition={{ staggerChildren: 0.1 }}
         >
@@ -385,6 +387,26 @@ export default function BentoSection() {
                   ↑ 68% average recovery rate
                 </p>
               </div>
+            </div>
+
+            {/* Trust points — fill space below stat card */}
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[
+                { icon: IconShieldCheck,    text: 'Bank-grade security', sub: 'Data never leaves India' },
+                { icon: IconRocket,         text: 'Live in 10 minutes',  sub: 'Just upload your Excel' },
+                { icon: IconBuildingStore,  text: 'Built for MSMEs',     sub: 'Textile, pharma, hardware' },
+              ].map(({ icon: Icon, text, sub }) => (
+                <div key={text}
+                  className="flex items-start gap-2.5 rounded-xl border px-3 py-2.5 bg-[rgba(127,85,57,0.04)] dark:bg-[rgba(221,184,146,0.04)] border-[rgba(221,184,146,0.18)]">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[rgba(127,85,57,0.1)]">
+                    <Icon size={14} stroke={1.75} style={{ color: 'var(--mahogany)' }} />
+                  </div>
+                  <div>
+                    <p className="font-body text-[12px] font-semibold text-[var(--dark-warm)]">{text}</p>
+                    <p className="font-body text-[11px] text-[var(--walnut)]">{sub}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </BentoCard>
 

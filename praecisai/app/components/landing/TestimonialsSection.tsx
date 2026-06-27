@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { IconStarFilled, IconQuote } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import AnimatedHeading from './AnimatedHeading';
 
 const testimonials = [
   {
@@ -52,13 +53,11 @@ export default function TestimonialsSection() {
         >
           Testimonials
         </motion.p>
-        <motion.h2
-          variants={itemVariants}
+        <AnimatedHeading
+          text="Trusted by collections teams across India"
           className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
-        >
-          Trusted by collections teams across India
-        </motion.h2>
+        />
 
         {/* Testimonial grid */}
         <div className="mt-16 grid gap-6 sm:grid-cols-2">

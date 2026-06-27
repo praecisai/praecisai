@@ -8,8 +8,13 @@ import {
   IconTarget,
   IconCalendarCheck,
   IconAlertTriangle,
+  IconShieldCheck,
+  IconClock,
+  IconUsers,
 } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce, scaleIn } from './motion';
+// scaleIn kept for feature cards
+import AnimatedHeading from './AnimatedHeading';
 
 const features = [
   {
@@ -56,6 +61,12 @@ const features = [
   },
 ];
 
+const trustPoints = [
+  { icon: IconShieldCheck, text: 'Bank-grade data security. Your data never leaves India.' },
+  { icon: IconClock, text: 'Set up in under 10 minutes. Upload Excel and go live.' },
+  { icon: IconUsers, text: 'Built specifically for Indian MSME businesses.' },
+];
+
 export default function FeaturesSection() {
   return (
     <section id="features" className="bg-[var(--cream)] px-5 py-28 sm:px-8 sm:py-36 text-center">
@@ -73,13 +84,11 @@ export default function FeaturesSection() {
         >
           Features
         </motion.p>
-        <motion.h2
-          variants={itemVariants}
+        <AnimatedHeading
+          text="Everything your collections team needs"
           className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
-        >
-          Everything your collections team needs
-        </motion.h2>
+        />
         <motion.p
           variants={itemVariants}
           className="mx-auto mt-5 max-w-xl text-center font-body text-[15px] leading-relaxed text-[var(--walnut)]"
@@ -97,21 +106,14 @@ export default function FeaturesSection() {
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)' }}
               className="group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
             >
-              {/* Icon */}
               <motion.div
                 whileHover={{ scale: 1.12, rotate: [0, -5, 5, 0] }}
                 transition={{ duration: 0.4 }}
-                className="mx-auto mb-5 flex items-center justify-center rounded-xl text-2xl leading-none"
-                style={{
-                  backgroundColor: feature.iconBg,
-                  width: '52px',
-                  height: '52px',
-                  fontSize: '22px',
-                }}
+                className="mx-auto mb-5 flex items-center justify-center rounded-xl"
+                style={{ backgroundColor: feature.iconBg, width: '52px', height: '52px' }}
               >
                 <feature.icon size={24} className="text-[var(--mahogany)]" stroke={1.5} />
               </motion.div>
-
               <h3 className="font-display text-[17px] font-semibold text-[var(--dark-brown)]">
                 {feature.title}
               </h3>
@@ -121,6 +123,24 @@ export default function FeaturesSection() {
             </motion.div>
           ))}
         </div>
+
+        {/* Trust points */}
+        <motion.div
+          variants={sectionVariants}
+          className="mt-10 grid gap-4 sm:grid-cols-3"
+        >
+          {trustPoints.map((point, i) => (
+            <motion.div
+              key={point.text}
+              variants={itemVariants}
+              transition={{ delay: i * 0.1 }}
+              className="flex items-start gap-3 rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-5 py-4 text-left"
+            >
+              <point.icon size={18} className="mt-0.5 shrink-0 text-[var(--mahogany)]" stroke={1.75} />
+              <p className="font-body text-[13px] leading-snug text-[var(--walnut)]">{point.text}</p>
+            </motion.div>
+          ))}
+        </motion.div>
       </motion.div>
     </section>
   );

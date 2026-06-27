@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { IconCheck, IconArrowRight, IconShieldCheck } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import AnimatedHeading from './AnimatedHeading';
 
 const features = [
   'Unlimited parties',
@@ -35,13 +36,11 @@ export default function PricingSection() {
         >
           Pricing
         </motion.p>
-        <motion.h2
-          variants={itemVariants}
+        <AnimatedHeading
+          text="Simple, honest pricing"
           className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
-        >
-          Simple, honest pricing
-        </motion.h2>
+        />
         <motion.p
           variants={itemVariants}
           className="mx-auto mt-5 max-w-md text-center font-body text-[15px] leading-relaxed text-[var(--walnut)]"

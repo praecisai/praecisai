@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { IconUpload, IconRobot, IconChartBar, IconArrowRight } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce, scaleIn } from './motion';
+import AnimatedHeading from './AnimatedHeading';
 
 const steps = [
   {
@@ -54,13 +55,11 @@ export default function HowItWorks() {
         >
           How it works
         </motion.p>
-        <motion.h2
-          variants={itemVariants}
+        <AnimatedHeading
+          text="From Excel upload to recovered cash in 3 steps"
           className="mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
-        >
-          From Excel upload to recovered cash in 3 steps
-        </motion.h2>
+        />
 
         {/* Step cards */}
         <div className="relative mt-20 grid gap-8 lg:grid-cols-3">

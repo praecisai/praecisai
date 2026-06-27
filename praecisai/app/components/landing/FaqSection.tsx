@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IconPlus, IconMinus } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import AnimatedHeading from './AnimatedHeading';
 
 const faqs = [
   {
@@ -111,13 +112,11 @@ export default function FaqSection() {
         >
           FAQ
         </motion.p>
-        <motion.h2
-          variants={itemVariants}
+        <AnimatedHeading
+          text="Questions, answered"
           className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
-        >
-          Questions, answered
-        </motion.h2>
+        />
         <motion.p
           variants={itemVariants}
           className="mx-auto mt-4 max-w-md text-center font-body text-[15px] leading-relaxed text-[var(--walnut)]"
