@@ -20,19 +20,19 @@ class EnvironmentVariables {
 
   @IsString()
   @IsNotEmpty()
-  RETELL_API_KEY: string;
+  BOLNA_API_KEY: string;
 
   @IsString()
   @IsNotEmpty()
-  RETELL_AGENT_ID: string;
+  BOLNA_AGENT_ID: string;
 
   @IsString()
   @IsNotEmpty()
-  RETELL_WEBHOOK_SECRET: string;
+  BOLNA_WEBHOOK_SECRET: string;
 
   @IsString()
   @IsNotEmpty()
-  RETELL_HANDOFF_NUMBER: string;
+  BOLNA_HANDOFF_NUMBER: string;
 
   @IsString()
   @IsNotEmpty()
@@ -48,7 +48,7 @@ class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
-  RETELL_FROM_NUMBER?: string;
+  BOLNA_FROM_NUMBER?: string;
 
   @IsOptional()
   @IsString()

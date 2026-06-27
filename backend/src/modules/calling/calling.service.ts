@@ -13,9 +13,14 @@ export class CallingService {
   ) {}
 
   async handleWebhook(payload: any) {
-    const eventType = payload.event;
-    const callData = payload.call;
-
+    // Normalize Bolna event names to internal names
+    const eventMap: Record<string, string> = {
+      'call_initiated': 'call_started',
+      'call_completed': 'call_ended',
+      'call_processed': 'call_analyzed',
+    };
+    const eventType = eventMap[payload.event] ?? payload.event;
+    const callData = payload.call ?? payload;
     if (!callData || !callData.metadata || !callData.metadata.demo_lead_id) {
       this.logger.warn('Received webhook without demo_lead_id metadata');
       return;

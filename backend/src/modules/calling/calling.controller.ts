@@ -12,27 +12,22 @@ export class CallingController {
   // Enable events: call_started, call_ended, call_analyzed
   // Copy webhook secret to RETELL_WEBHOOK_SECRET env var in Railway
   @Post('webhook')
-  async handleRetellWebhook(
-    @Headers('x-retell-signature') signature: string,
+  async handleBolnaWebhook(
+    @Headers('x-bolna-signature') signature: string,
     @Body() payload: any,
     @Res() res: Response,
   ) {
-    // Return 200 OK immediately to prevent Retell timeout
     res.status(200).json({ received: true });
 
-    const secret = process.env.RETELL_WEBHOOK_SECRET;
-    
-    // Verify signature (Retell SDK documentation format)
-    if (secret && signature) {
-      const hmac = crypto.createHmac('sha256', secret);
-      const digest = hmac.update(JSON.stringify(payload)).digest('hex');
+    if (process.env.BOLNA_WEBHOOK_SECRET && signature) {
+      const hmac = crypto.createHmac('sha256', process.env.BOLNA_WEBHOOK_SECRET);
+      hmac.update(JSON.stringify(payload)).digest('hex');
     }
 
-    // Process asynchronously after responding
     try {
       await this.callingService.handleWebhook(payload);
     } catch (error) {
-      console.error('Error handling Retell webhook:', error);
+      console.error('Error handling Bolna webhook:', error);
     }
   }
 }

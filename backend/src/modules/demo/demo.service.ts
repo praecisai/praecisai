@@ -309,7 +309,7 @@ export class DemoService {
           call_history_summary: histSummary,
           multi_invoice_note: multiInvoiceNote,
           partial_payment_note: partialPaymentNote,
-          handoff_number: process.env.RETELL_HANDOFF_NUMBER || '',
+          handoff_number: process.env.BOLNA_HANDOFF_NUMBER || '',
           greeting_time: getISTGreeting(),
           days_mention: daysMention,
         },
