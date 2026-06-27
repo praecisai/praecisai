@@ -11,6 +11,7 @@ import HeroSection from './components/landing/HeroSection';
 import HowItWorks from './components/landing/HowItWorks';
 import FeaturesSection from './components/landing/FeaturesSection';
 import BentoSection from './components/landing/BentoSection';
+import CapabilitiesSection from './components/landing/CapabilitiesSection';
 import ReportsSection from './components/landing/ReportsSection';
 import StatsSection from './components/landing/StatsSection';
 import PricingSection from './components/landing/PricingSection';
@@ -65,6 +66,7 @@ export default function Home() {
       <FeaturesSection />
       <BentoSection />
       <ReportsSection />
+      <CapabilitiesSection />
       <StatsSection />
       <PricingSection />
       <TestimonialsSection />

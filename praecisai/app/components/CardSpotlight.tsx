@@ -14,7 +14,7 @@ const GLOW2   = '221, 184, 146';  // caramel
 
 const OVERLAY_CSS = `
   position:absolute; inset:0; border-radius:inherit; padding:5px;
-  pointer-events:none; z-index:10; opacity:0;
+  pointer-events:none; z-index:2; opacity:0;
   transition:opacity 0.15s ease;
   -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite:xor;

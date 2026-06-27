@@ -295,7 +295,7 @@ body {
 /* ── Universal spotlight-card — glow overlay injected by CardSpotlight.tsx ── */
 .spotlight-card {
   position: relative;
-  overflow: hidden;
+  /* No overflow:hidden — would clip arrow connectors in HowItWorks */
 }
 
 .spotlight-card-glow {
@@ -304,7 +304,7 @@ body {
   border-radius: inherit;
   padding: 5px;
   pointer-events: none;
-  z-index: 10;
+  z-index: 2; /* below arrow connectors at z-index:10 */
   opacity: 0;
   transition: opacity 0.15s ease;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);

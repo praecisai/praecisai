@@ -68,20 +68,20 @@ export default function HowItWorks() {
               key={step.number}
               variants={scaleIn}
               transition={{ delay: index * 0.2 }}
-              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)' }}
+              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
               className="spotlight-card relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10 transition-shadow duration-200"
             >
               {/* Arrow connector (desktop only) */}
               {index < steps.length - 1 && (
-                <div className="absolute -right-5 top-1/2 z-10 hidden -translate-y-1/2 lg:flex">
+                <div className="absolute -right-7 top-1/2 z-10 hidden -translate-y-1/2 lg:flex">
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={viewportOnce}
                     transition={{ delay: 0.5 + index * 0.2 }}
-                    className="animate-arrow-pulse flex h-10 w-10 items-center justify-center rounded-full border border-[var(--caramel)] bg-[var(--cream)]"
+                    className="animate-arrow-pulse flex h-10 w-10 items-center justify-center rounded-full border border-[var(--mahogany)] bg-[var(--mahogany)]"
                   >
-                    <IconArrowRight size={18} className="text-[var(--caramel)]" stroke={1.75} />
+                    <IconArrowRight size={18} className="text-[var(--cream)]" stroke={2} />
                   </motion.div>
                 </div>
               )}

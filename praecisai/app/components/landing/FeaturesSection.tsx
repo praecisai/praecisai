@@ -103,7 +103,7 @@ export default function FeaturesSection() {
               key={feature.title}
               variants={scaleIn}
               transition={{ delay: index * 0.08 }}
-              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)' }}
+              whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
               className="spotlight-card group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
             >
               <motion.div
