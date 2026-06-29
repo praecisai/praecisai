@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight } from 'lucide-react';
+import Loader from '../ui/Loader';
 import { cn } from '@/lib/utils/cn';
 
 const formSchema = z.object({
@@ -79,14 +80,12 @@ export default function DemoSignupForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="relative w-full text-left">
       {isRedirecting && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[var(--surface-warm)]/90 backdrop-blur-md rounded-2xl">
-          <Loader2 className="mb-4 h-10 w-10 animate-spin text-[var(--mahogany)]" />
-          <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
-            Setting up your demo...
-          </h3>
-          <p className="mt-2 font-body text-sm text-[var(--walnut)]">
-            Generating your custom dataset and dashboard
-          </p>
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--surface-warm)]/90 backdrop-blur-md rounded-2xl">
+          <Loader
+            title="Setting up your demo..."
+            subtitle="Generating your custom dataset and dashboard"
+            size="md"
+          />
         </div>
       )}
 
