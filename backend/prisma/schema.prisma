@@ -116,8 +116,10 @@ model Business {
   call_logs       CallLog[]
   ai_analyses     AIAnalysis[]
   promises_to_pay PromiseToPay[]
-  import_templates ImportTemplate[]
-  import_histories ImportHistory[]
+  import_templates     ImportTemplate[]
+  import_histories     ImportHistory[]
+  pdc_cheques          PdcCheque[]
+  pdc_upload_histories PdcUploadHistory[]
 
   @@map("businesses")
 }
@@ -157,6 +159,7 @@ model Customer {
   business        Business       @relation(fields: [business_id], references: [id], onDelete: Cascade)
   invoices        Invoice[]
   outstanding     Outstanding?
+  pdc_cheques     PdcCheque[]
   whatsapp_logs   WhatsAppLog[]
   call_logs       CallLog[]
   ai_analyses     AIAnalysis[]
@@ -200,9 +203,11 @@ model Outstanding {
   total_due    Float             @default(0)
   aging_bucket String            @default("0-60")
   segment      String            @default("Soft Reminder")
-  status       OutstandingStatus @default(ACTIVE)
-  created_at   DateTime          @default(now())
-  updated_at   DateTime          @updatedAt
+  status               OutstandingStatus @default(ACTIVE)
+  pdc_cooldown_until   DateTime?
+  total_pdc_cleared    Float             @default(0)
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
 
   // Relations
   business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -349,6 +354,12 @@ model ImportHistory {
 
 // ─── Demo Models ──────────────────────────────────────────────────────────────
 
+enum PdcStatus {
+  PENDING
+  CLEARED
+  BOUNCED
+}
+
 enum DemoLeadStatus {
   SIGNED_UP
   EXHAUSTED
@@ -448,4 +459,47 @@ model DemoRun {
   @@index([demo_lead_id])
   @@index([disposition])
   @@map("demo_runs")
+}
+
+// ─── PDC Cheque Models ────────────────────────────────────────────────────────
+
+model PdcUploadHistory {
+  id              String   @id @default(uuid())
+  business_id     String
+  file_name       String
+  records_total   Int      @default(0)
+  records_matched Int      @default(0)
+  records_cleared Int      @default(0)
+  created_at      DateTime @default(now())
+
+  business Business    @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  cheques  PdcCheque[]
+
+  @@index([business_id])
+  @@map("pdc_upload_histories")
+}
+
+model PdcCheque {
+  id              String    @id @default(uuid())
+  business_id     String
+  customer_id     String?
+  upload_batch_id String
+  party_name      String
+  cheque_no       String
+  cheque_date     DateTime
+  amount          Float
+  status          PdcStatus @default(PENDING)
+  cleared_date    DateTime?
+  notes           String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  business     Business         @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer     Customer?        @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+  upload_batch PdcUploadHistory @relation(fields: [upload_batch_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([customer_id])
+  @@index([status])
+  @@map("pdc_cheques")
 }

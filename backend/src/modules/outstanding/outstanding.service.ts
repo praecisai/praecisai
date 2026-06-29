@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getSegment, getAgingBucket, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
+import { PdcService } from '../pdc/pdc.service';
 
 export class OutstandingFiltersDto {
   segment?: string;
@@ -12,7 +13,10 @@ export class OutstandingFiltersDto {
 
 @Injectable()
 export class OutstandingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => PdcService)) private pdcService: PdcService,
+  ) {}
 
   async findAll(businessId: string, filters: OutstandingFiltersDto = {}) {
     const { segment, aging_bucket, status, page = 1, limit = 20 } = filters;
@@ -48,26 +52,30 @@ export class OutstandingService {
    * Called after import or invoice update.
    */
   async recalculateForCustomer(businessId: string, customerId: string) {
+    // Snapshot previous outstanding before recalc (for PDC detection)
+    const prevOutstanding = await this.prisma.outstanding.findUnique({
+      where: { customer_id: customerId },
+      select: { total_due: true },
+    });
+    const prevDue = prevOutstanding?.total_due ?? 0;
+
     const invoices = await this.prisma.invoice.findMany({
       where: { business_id: businessId, customer_id: customerId },
     });
 
-    // Sum all positive due amounts (skip credit notes)
     const totalDue = invoices.reduce((sum, inv) => {
       return inv.due_amount > 0 ? sum + inv.due_amount : sum;
     }, 0);
 
-    // Max days overdue among active invoices
     const maxDaysOverdue = invoices.reduce((max, inv) => {
       return inv.due_amount > 0 ? Math.max(max, inv.days_overdue) : max;
     }, 0);
 
     const segment = getSegment(maxDaysOverdue, totalDue, DEFAULT_SEGMENT_RULES);
     const agingBucket = getAgingBucket(maxDaysOverdue);
-
     const status = totalDue === 0 ? 'CLEARED' : 'ACTIVE';
 
-    return this.prisma.outstanding.upsert({
+    const result = await this.prisma.outstanding.upsert({
       where: { customer_id: customerId },
       create: {
         business_id: businessId,
@@ -84,6 +92,17 @@ export class OutstandingService {
         status: status as any,
       },
     });
+
+    // Detect PDC cheque clearing if outstanding amount decreased
+    if (prevDue > 0 && totalDue < prevDue) {
+      try {
+        await this.pdcService.detectClearedCheques(businessId, customerId, prevDue, totalDue);
+      } catch (e) {
+        // non-blocking — PDC detection failure should not break import
+      }
+    }
+
+    return result;
   }
 
   /**

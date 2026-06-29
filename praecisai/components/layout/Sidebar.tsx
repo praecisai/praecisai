@@ -6,7 +6,7 @@ import { createClient } from '../../lib/supabase/client';
 import {
   LayoutDashboard, Users, FileText, TrendingDown,
   Upload, Megaphone, BarChart2, Settings, LogOut,
-  ChevronRight, Bell, Search,
+  ChevronRight, Bell, Search, FileSpreadsheet,
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { Logo } from '../../app/components/landing/Logo';
@@ -19,8 +19,9 @@ const NAV_ITEMS = [
   { href: '/dashboard/outstandings', label: 'Outstandings', icon: TrendingDown },
   { href: '/dashboard/import', label: 'Import Center', icon: Upload },
   { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: '/dashboard/pdc',       label: 'PDC Cheques', icon: FileSpreadsheet },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart2 },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/settings',  label: 'Settings', icon: Settings },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
