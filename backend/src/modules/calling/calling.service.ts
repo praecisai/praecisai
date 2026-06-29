@@ -68,17 +68,27 @@ export class CallingService {
   private async handleCallAnalyzed(callId: string, payload: any) {
     const transcript: string = payload.transcript || '';
 
-    // Bolna extractions — check all possible locations
+    // Bolna extractions — deeply nested structure: extractions.field_name.field_name.subjective/objective
     const extractions = payload.custom_extractions || payload.extracted_data || payload.agent_extraction || {};
     this.logger.log(`Bolna extractions for ${callId}: ${JSON.stringify(extractions)}`);
 
-    const promisedDate = this.parseDate(
-      extractions.promised_date?.subjective ?? extractions.promised_date
-    );
+    // Bolna nests each extraction as: extractions.promised_date.promised_date.subjective
+    const promisedDateRaw = extractions?.promised_date?.promised_date?.subjective
+      ?? extractions?.promised_date?.promised_date?.objective
+      ?? extractions?.promised_date?.subjective
+      ?? extractions?.promised_date;
+    const promisedDate = this.parseDate(promisedDateRaw);
 
-    const rawAmount = extractions.promised_amount?.objective ?? extractions.promised_amount?.subjective ?? extractions.promised_amount;
+    const rawAmount = extractions?.promised_amount?.promised_amount?.objective
+      ?? extractions?.promised_amount?.promised_amount?.subjective
+      ?? extractions?.promised_amount?.subjective
+      ?? extractions?.promised_amount;
     const promisedAmount = rawAmount ? parseFloat(String(rawAmount).replace(/[^0-9.]/g, '')) : null;
-    const moodSummary = extractions.customer_mood_summary?.subjective ?? extractions.customer_mood_summary ?? '';
+
+    const moodSummary = extractions?.customer_mood_summary?.customer_mood_summary?.subjective
+      ?? extractions?.customer_mood_summary?.subjective
+      ?? extractions?.customer_mood_summary
+      ?? '';
     const callSentiment = this.mapSentiment(moodSummary, '');
 
     // Claude extraction from transcript
@@ -106,7 +116,7 @@ export class CallingService {
           talk_ratio: extraction.talk_ratio,
           is_sensitive: isSensitive,
           sensitive_cooldown_until: sensitiveCooldownUntil,
-          extracted_at: this.toIST(new Date()),
+          extracted_at: new Date(),
         }),
         promise_date: promisedDate,
         promise_amount: isNaN(promisedAmount as number) ? null : promisedAmount,
@@ -119,7 +129,7 @@ export class CallingService {
     }
 
     this.logger.log(
-      `Call ${callId} analyzed: disposition=${extraction?.disposition ?? 'UNKNOWN'} sentiment=${callSentiment} ptp=${extractions.promised_date ?? 'none'}`,
+      `Call ${callId} analyzed: disposition=${extraction?.disposition ?? 'UNKNOWN'} sentiment=${callSentiment} ptp=${promisedDate?.toISOString() ?? 'none'} amount=${promisedAmount ?? 'none'}`,
     );
   }
 
