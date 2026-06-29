@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { Logo } from '../../app/components/landing/Logo';
-import { ThemeToggle } from '../../app/components/ThemeToggle';
+import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -50,7 +50,7 @@ export function Sidebar() {
       {/* Logo + Theme Toggle */}
       <div className="flex items-center justify-between px-5 py-5 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
         <Logo />
-        <ThemeToggle />
+        <AnimatedThemeToggler />
       </div>
 
       {/* Nav — scrollable, pushes footer to bottom */}
