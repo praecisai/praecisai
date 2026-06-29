@@ -49,7 +49,6 @@ export class DemoLeadRepository {
         disposition: true,
         call_sentiment: true,
         promise_date: true,
-        promise_amount: true,
       },
       orderBy: { created_at: 'asc' },
     });
