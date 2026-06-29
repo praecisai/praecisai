@@ -119,7 +119,6 @@ export class CallingService {
           extracted_at: new Date(),
         }),
         promise_date: promisedDate,
-        promise_amount: isNaN(promisedAmount as number) ? null : promisedAmount,
         call_sentiment: callSentiment,
       },
     });
