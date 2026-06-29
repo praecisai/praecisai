@@ -55,8 +55,8 @@ export class CallProcessor extends WorkerHost {
       const call = await response.json();
       console.log('Bolna API response:', JSON.stringify(call));
 
-      // Bolna may return call_id or id depending on API version
-      const callId = call.call_id || call.id || call.callId;
+      // Bolna returns execution_id as the call identifier
+      const callId = call.execution_id || call.run_id || call.call_id || call.id;
 
       const run = await this.prisma.demoRun.findFirst({
         where: { demo_lead_id: demoLeadId, status: DemoRunStatus.PENDING },

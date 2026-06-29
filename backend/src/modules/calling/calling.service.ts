@@ -13,97 +13,78 @@ export class CallingService {
   ) {}
 
   async handleWebhook(payload: any) {
-    // Normalize Bolna event names to internal names
-    const eventMap: Record<string, string> = {
-      'call_initiated': 'call_started',
-      'call_completed': 'call_ended',
-      'call_processed': 'call_analyzed',
-    };
-    const eventType = eventMap[payload.event] ?? payload.event;
-    this.logger.log(`Bolna webhook received: ${JSON.stringify(payload)}`);
+    this.logger.log(`Bolna webhook status: ${payload.status} id: ${payload.id}`);
 
-    // Bolna may nest call data differently — check multiple locations
-    const callData = payload.call ?? payload.data ?? payload;
+    // Bolna sends status-based webhooks, not event-based like Retell
+    // payload.id = execution_id = what we stored as retell_call_id
+    const callId = payload.id;
+    const status = payload.status;
 
-    // Bolna may send metadata at root level or nested under call
-    const metadata = callData.metadata ?? payload.metadata ?? {};
-    const demoLeadId = metadata.demo_lead_id ?? callData.demo_lead_id;
-
-    if (!demoLeadId) {
-      this.logger.warn(`Received webhook without demo_lead_id. Full payload: ${JSON.stringify(payload)}`);
+    if (!callId) {
+      this.logger.warn('Received webhook without call id');
       return;
     }
 
-    const callId = callData.call_id ?? callData.id ?? payload.call_id;
-
-    if (eventType === 'call_started') {
-      const run = await this.prisma.demoRun.findFirst({
-        where: {
-          demo_lead_id: demoLeadId,
-          status: { in: [DemoRunStatus.PENDING, DemoRunStatus.SENDING] },
-        },
-        orderBy: { created_at: 'desc' },
+    // Map Bolna statuses to our flow
+    if (status === 'initiated' || status === 'ringing') {
+      // Mark as SENT when call is ringing
+      await this.prisma.demoRun.updateMany({
+        where: { retell_call_id: callId },
+        data: { status: DemoRunStatus.SENT },
       });
 
-      if (run) {
-        await this.prisma.demoRun.update({
-          where: { id: run.id },
-          data: {
-            status: DemoRunStatus.SENT,
-            retell_call_id: callId,
-          },
-        });
-      }
-    } else if (eventType === 'call_ended') {
-      const recordingUrl = callData.recording_url;
+    } else if (status === 'in-progress') {
+      // Call connected — nothing extra to do
+
+    } else if (status === 'completed') {
+      // Call ended — save recording and run analysis
+      const recordingUrl = payload.telephony_data?.recording_url;
       if (recordingUrl) {
         await this.prisma.demoRun.updateMany({
           where: { retell_call_id: callId },
           data: { call_recording_url: recordingUrl },
         });
       }
-    } else if (eventType === 'call_analyzed') {
-      await this.handleCallAnalyzed(callId, callData);
+      await this.handleCallAnalyzed(callId, payload);
+
+    } else if (status === 'failed' || status === 'error') {
+      await this.prisma.demoRun.updateMany({
+        where: { retell_call_id: callId },
+        data: { status: DemoRunStatus.FAILED },
+      });
     }
   }
 
-  private async handleCallAnalyzed(callId: string, callData: any) {
-    const transcript: string = callData.transcript || '';
-    const durationSeconds: number | undefined = callData.duration_ms
-      ? Math.round(callData.duration_ms / 1000)
-      : undefined;
+  private async handleCallAnalyzed(callId: string, payload: any) {
+    const transcript: string = payload.transcript || '';
 
-    // Retell's own GPT-5.1 post-call analysis (already extracted by Retell)
-    const retellAnalysis = callData.call_analysis || {};
-    const retellCustom = retellAnalysis.custom_analysis_data || {};
+    // Bolna extractions — from custom_extractions or extracted_data
+    const extractions = payload.custom_extractions || payload.extracted_data || {};
 
-    const retellPromiseDate = retellCustom.promised_date
-      ? new Date(retellCustom.promised_date)
+    const promisedDate = extractions.promised_date
+      ? new Date(extractions.promised_date)
       : null;
-    const retellPromiseAmount = retellCustom.promised_amount
-      ? parseFloat(retellCustom.promised_amount)
+    const promisedAmount = extractions.promised_amount
+      ? parseFloat(extractions.promised_amount)
       : null;
+    const moodSummary = extractions.customer_mood_summary || '';
+    const callSentiment = this.mapSentiment(moodSummary, '');
 
-    // Map Retell's user_sentiment to our CallSentiment enum
-    const retellSentiment = retellAnalysis.user_sentiment as string | undefined;
-    const callSentiment = this.mapSentiment(retellCustom.customer_mood_summary, retellSentiment);
-
-    // Claude fills the gaps Retell doesn't cover
+    // Claude extraction from transcript
     const extraction = await this.extractionService.extract(transcript);
 
     if (!extraction) {
-      this.logger.warn(`Extraction returned null for call ${callId} — storing Retell data only`);
+      this.logger.warn(`Extraction returned null for call ${callId} — storing Bolna data only`);
     }
 
     const isSensitive = extraction?.is_sensitive ?? false;
     const sensitiveCooldownUntil = isSensitive
-      ? new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)  // 15 days from day of call
+      ? new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
       : null;
 
     await this.prisma.demoRun.updateMany({
       where: { retell_call_id: callId },
       data: {
-        // From Claude (only written when extraction actually ran)
         ...(extraction && {
           call_summary: extraction.call_summary,
           disposition: extraction.disposition as CallDisposition,
@@ -116,19 +97,18 @@ export class CallingService {
           sensitive_cooldown_until: sensitiveCooldownUntil,
           extracted_at: this.toIST(new Date()),
         }),
-        // From Retell's own GPT-5.1 analysis (always written)
-        promise_date: retellPromiseDate,
-        promise_amount: isNaN(retellPromiseAmount as number) ? null : retellPromiseAmount,
+        promise_date: promisedDate,
+        promise_amount: isNaN(promisedAmount as number) ? null : promisedAmount,
         call_sentiment: callSentiment,
       },
     });
 
     if (isSensitive) {
-      this.logger.warn(`Sensitive situation flagged for call ${callId} — 18-day cooldown applied`);
+      this.logger.warn(`Sensitive situation flagged for call ${callId} — cooldown applied`);
     }
 
     this.logger.log(
-      `Call ${callId} analyzed: disposition=${extraction?.disposition ?? 'UNKNOWN'} sentiment=${callSentiment} ptp=${retellCustom.promised_date ?? 'none'}`,
+      `Call ${callId} analyzed: disposition=${extraction?.disposition ?? 'UNKNOWN'} sentiment=${callSentiment} ptp=${extractions.promised_date ?? 'none'}`,
     );
   }
 
