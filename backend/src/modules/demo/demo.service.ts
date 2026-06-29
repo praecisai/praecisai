@@ -41,6 +41,16 @@ function amountToHindi(amount: number): string {
   return `लगभग ${lakhs} लाख रुपये`;
 }
 
+// ─── Proper case for TTS — converts "PATEL ENTERPRISES" to "Patel Enterprises"
+// All-caps names sound robotic when TTS reads them. Proper case sounds natural.
+function toProperCase(name: string): string {
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // ─── Segment-specific call scripts ───────────────────────────────────────────
 // Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
@@ -295,7 +305,7 @@ export class DemoService {
         phoneNumber: lead.phone,
         context: {
           business_name: lead.business_name,
-          customer_name: dto.partyName,
+          customer_name: toProperCase(dto.partyName),
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
           due_amount_hindi: dueAmountHindi,
           days_overdue: effectiveDays.toString(),
