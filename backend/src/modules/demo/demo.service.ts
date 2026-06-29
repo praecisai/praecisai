@@ -7,31 +7,38 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 // ─── Hindi amount approximation ──────────────────────────────────────────────
-// Converts exact rupee amounts to natural spoken Hindi approximations.
-// e.g. 130000 → "ek lakh se dedh lakh ke beech"
-// Customers get frustrated by long exact numbers — round figures feel more natural.
+// Converts exact rupee amounts to clean spoken Hindi — rounded, natural, short.
+// Rule: always round to nearest clean number. Never say ranges or long phrases.
 function amountToHindi(amount: number): string {
-  if (amount <= 0) return 'kuch amount';
-  if (amount < 10000) {
-    const k = Math.round(amount / 1000);
-    return `${k} hazaar rupaye`;
-  }
-  if (amount < 25000) return 'das se paachees hazaar rupaye ke beech';
-  if (amount < 40000) return 'paachees se chaalis hazaar rupaye ke beech';
-  if (amount < 60000) return 'lagbhag pachaas hazaar rupaye';
-  if (amount < 80000) return 'pachaas se pauchhaatar hazaar rupaye ke beech';
-  if (amount < 100000) return 'pauv lakh se ek lakh ke beech';
-  if (amount < 125000) return 'lagbhag ek lakh rupaye';
-  if (amount < 175000) return 'ek lakh se dedh lakh ke beech';
-  if (amount < 225000) return 'lagbhag do lakh rupaye';
-  if (amount < 275000) return 'do lakh se dhai lakh ke beech';
-  if (amount < 350000) return 'teen lakh ke karib';
-  if (amount < 450000) return 'teen se chaar lakh ke beech';
-  if (amount < 550000) return 'lagbhag paanch lakh rupaye';
-  if (amount < 750000) return 'paanch se saat lakh ke beech';
-  if (amount < 1000000) return 'saat lakh se das lakh ke beech';
+  if (amount <= 0) return 'कुछ amount';
+  if (amount < 5000) return 'कुछ हज़ार रुपये';
+  if (amount < 15000) return 'लगभग दस हज़ार रुपये';
+  if (amount < 22500) return 'लगभग बीस हज़ार रुपये';
+  if (amount < 35000) return 'लगभग तीस हज़ार रुपये';
+  if (amount < 45000) return 'लगभग चालीस हज़ार रुपये';
+  if (amount < 55000) return 'लगभग पचास हज़ार रुपये';
+  if (amount < 65000) return 'लगभग साठ हज़ार रुपये';
+  if (amount < 75000) return 'लगभग सत्तर हज़ार रुपये';
+  if (amount < 87500) return 'लगभग पचहत्तर हज़ार रुपये';
+  if (amount < 112500) return 'लगभग एक लाख रुपये';
+  if (amount < 137500) return 'सवा लाख रुपये';
+  if (amount < 162500) return 'डेढ़ लाख रुपये';
+  if (amount < 187500) return 'पौने दो लाख रुपये';
+  if (amount < 212500) return 'लगभग दो लाख रुपये';
+  if (amount < 237500) return 'सवा दो लाख रुपये';
+  if (amount < 262500) return 'ढाई लाख रुपये';
+  if (amount < 312500) return 'लगभग तीन लाख रुपये';
+  if (amount < 375000) return 'सवा तीन लाख रुपये';
+  if (amount < 437500) return 'लगभग चार लाख रुपये';
+  if (amount < 475000) return 'साढ़े चार लाख रुपये';
+  if (amount < 550000) return 'लगभग पाँच लाख रुपये';
+  if (amount < 650000) return 'लगभग छह लाख रुपये';
+  if (amount < 750000) return 'लगभग सात लाख रुपये';
+  if (amount < 850000) return 'लगभग आठ लाख रुपये';
+  if (amount < 950000) return 'लगभग नौ लाख रुपये';
+  if (amount < 1100000) return 'लगभग दस लाख रुपये';
   const lakhs = Math.round(amount / 100000);
-  return `lagbhag ${lakhs} lakh rupaye`;
+  return `लगभग ${lakhs} लाख रुपये`;
 }
 
 // ─── Segment-specific call scripts ───────────────────────────────────────────
