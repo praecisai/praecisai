@@ -36,8 +36,18 @@ export class CallingService {
     } else if (status === 'in-progress') {
       // Call connected — nothing extra to do
 
+    } else if (status === 'call-disconnected') {
+      // Call disconnected — save recording URL immediately
+      const recordingUrl = payload.telephony_data?.recording_url;
+      if (recordingUrl) {
+        await this.prisma.demoRun.updateMany({
+          where: { retell_call_id: callId },
+          data: { call_recording_url: recordingUrl },
+        });
+      }
+
     } else if (status === 'completed') {
-      // Call ended — save recording and run analysis
+      // Call completed — save recording and run analysis
       const recordingUrl = payload.telephony_data?.recording_url;
       if (recordingUrl) {
         await this.prisma.demoRun.updateMany({
@@ -58,8 +68,9 @@ export class CallingService {
   private async handleCallAnalyzed(callId: string, payload: any) {
     const transcript: string = payload.transcript || '';
 
-    // Bolna extractions — from custom_extractions or extracted_data
-    const extractions = payload.custom_extractions || payload.extracted_data || {};
+    // Bolna extractions — check all possible locations
+    const extractions = payload.custom_extractions || payload.extracted_data || payload.agent_extraction || {};
+    this.logger.log(`Bolna extractions for ${callId}: ${JSON.stringify(extractions)}`);
 
     const promisedDate = extractions.promised_date
       ? new Date(extractions.promised_date)
@@ -117,8 +128,8 @@ export class CallingService {
     return new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
   }
 
-  private mapSentiment(moodSummary: string | undefined, retellSentiment: string | undefined): CallSentiment {
-    const text = (moodSummary || retellSentiment || '').toLowerCase();
+  private mapSentiment(moodSummary: any, retellSentiment: any): CallSentiment {
+    const text = (String(moodSummary || retellSentiment || '')).toLowerCase();
     if (!text) return CallSentiment.UNKNOWN;
     if (text.includes('hostile') || text.includes('angry') || text.includes('rude')) return CallSentiment.HOSTILE;
     if (text.includes('negative') || text.includes('frustrated') || text.includes('reluctant')) return CallSentiment.NEGATIVE;
