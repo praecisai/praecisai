@@ -20,14 +20,21 @@ export class CallingService {
       'call_processed': 'call_analyzed',
     };
     const eventType = eventMap[payload.event] ?? payload.event;
-    const callData = payload.call ?? payload;
-    if (!callData || !callData.metadata || !callData.metadata.demo_lead_id) {
-      this.logger.warn('Received webhook without demo_lead_id metadata');
+    this.logger.log(`Bolna webhook received: ${JSON.stringify(payload)}`);
+
+    // Bolna may nest call data differently — check multiple locations
+    const callData = payload.call ?? payload.data ?? payload;
+
+    // Bolna may send metadata at root level or nested under call
+    const metadata = callData.metadata ?? payload.metadata ?? {};
+    const demoLeadId = metadata.demo_lead_id ?? callData.demo_lead_id;
+
+    if (!demoLeadId) {
+      this.logger.warn(`Received webhook without demo_lead_id. Full payload: ${JSON.stringify(payload)}`);
       return;
     }
 
-    const demoLeadId = callData.metadata.demo_lead_id;
-    const callId = callData.call_id;
+    const callId = callData.call_id ?? callData.id ?? payload.call_id;
 
     if (eventType === 'call_started') {
       const run = await this.prisma.demoRun.findFirst({

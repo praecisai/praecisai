@@ -53,6 +53,10 @@ export class CallProcessor extends WorkerHost {
       }
 
       const call = await response.json();
+      console.log('Bolna API response:', JSON.stringify(call));
+
+      // Bolna may return call_id or id depending on API version
+      const callId = call.call_id || call.id || call.callId;
 
       const run = await this.prisma.demoRun.findFirst({
         where: { demo_lead_id: demoLeadId, status: DemoRunStatus.PENDING },
@@ -62,11 +66,11 @@ export class CallProcessor extends WorkerHost {
       if (run) {
         await this.prisma.demoRun.update({
           where: { id: run.id },
-          data: { retell_call_id: call.call_id, status: DemoRunStatus.SENDING },
+          data: { retell_call_id: callId, status: DemoRunStatus.SENDING },
         });
       }
 
-      console.log(`Call dispatched: ${call.call_id}`);
+      console.log(`Call dispatched: ${callId}`);
       return call;
     } catch (error) {
       console.error('Failed to dispatch call:', error);
