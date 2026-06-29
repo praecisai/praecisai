@@ -72,13 +72,13 @@ export class CallingService {
     const extractions = payload.custom_extractions || payload.extracted_data || payload.agent_extraction || {};
     this.logger.log(`Bolna extractions for ${callId}: ${JSON.stringify(extractions)}`);
 
-    const promisedDate = extractions.promised_date
-      ? new Date(extractions.promised_date)
-      : null;
-    const promisedAmount = extractions.promised_amount
-      ? parseFloat(extractions.promised_amount)
-      : null;
-    const moodSummary = extractions.customer_mood_summary || '';
+    const promisedDate = this.parseDate(
+      extractions.promised_date?.subjective ?? extractions.promised_date
+    );
+
+    const rawAmount = extractions.promised_amount?.objective ?? extractions.promised_amount?.subjective ?? extractions.promised_amount;
+    const promisedAmount = rawAmount ? parseFloat(String(rawAmount).replace(/[^0-9.]/g, '')) : null;
+    const moodSummary = extractions.customer_mood_summary?.subjective ?? extractions.customer_mood_summary ?? '';
     const callSentiment = this.mapSentiment(moodSummary, '');
 
     // Claude extraction from transcript
@@ -124,6 +124,20 @@ export class CallingService {
   }
 
   // Returns current time shifted to IST (UTC+5:30) so Supabase displays Indian time
+  private parseDate(dateStr: any): Date | null {
+    if (!dateStr) return null;
+    const str = String(dateStr).trim();
+    // Handle DD/MM/YYYY format from Bolna
+    const ddmmyyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (ddmmyyyy) {
+      const [, dd, mm, yyyy] = ddmmyyyy;
+      const d = new Date(`${yyyy}-${mm}-${dd}`);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   private toIST(date: Date): Date {
     return new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
   }
