@@ -73,7 +73,7 @@ SEGMENT: Follow-up
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
 2. Mention you had reached out before (once, briefly).
-3. Ask for a date — week, specific date, anything. Use this angle: "घड़ी घड़ी परेशान न करूँ आपको, बस एक date मिल जाए।"
+3. Ask for a date — week, specific date, anything. Use a polite request tone: "please ek date bata dijiye taaki main note kar sakun."
 
 If customer gives ANY timeframe (ek hafte, kal, 2-3 din) — confirm calculated date and close. STOP. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
@@ -85,7 +85,7 @@ SEGMENT: Strong Follow-up
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
 2. Mention you have tried reaching out multiple times.
-3. Ask for a date firmly but respectfully — "घड़ी घड़ी परेशान न करूँ आपको, बस एक date मिल जाए।"
+3. Ask for a date firmly but respectfully — "please ek date confirm kar dijiye, taaki main aage update de sakun."
 4. You can mention accounts team is following up and asking for an update.
 
 If customer gives ANY timeframe — confirm calculated date and close. STOP.
@@ -165,6 +165,7 @@ export class DemoService {
         email: dto.email,
         business_name: dto.businessName,
         business_type: dto.businessType,
+        city: dto.city,
         group_name: dto.groupName,
         reference_by: dto.referenceBy,
         parties_range: dto.partiesRange,
@@ -176,6 +177,7 @@ export class DemoService {
         email: dto.email,
         business_name: dto.businessName,
         business_type: dto.businessType,
+        city: dto.city,
         group_name: dto.groupName,
         reference_by: dto.referenceBy,
         parties_range: dto.partiesRange,
@@ -305,6 +307,7 @@ export class DemoService {
         phoneNumber: lead.phone,
         context: {
           business_name: lead.business_name,
+          business_city: lead.city || '',
           customer_name: toProperCase(dto.partyName),
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
           due_amount_hindi: dueAmountHindi,

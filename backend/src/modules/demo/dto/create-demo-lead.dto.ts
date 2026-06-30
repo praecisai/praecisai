@@ -24,6 +24,10 @@ export class CreateDemoLeadDto {
 
   @IsString()
   @IsNotEmpty()
+  city: string;
+
+  @IsString()
+  @IsNotEmpty()
   partiesRange: string;
 
   @IsString()

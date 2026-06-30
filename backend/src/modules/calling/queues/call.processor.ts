@@ -31,6 +31,7 @@ export class CallProcessor extends WorkerHost {
           recipient_phone_number: formattedPhone,
           user_data: {
             business_name: context.business_name,
+            business_city: context.business_city || '',
             customer_name: context.customer_name,
             due_amount: context.due_amount,
             due_amount_hindi: context.due_amount_hindi,

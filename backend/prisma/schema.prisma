@@ -409,6 +409,7 @@ model DemoLead {
   email             String
   business_name     String
   business_type     String
+  city              String         @default("")
   group_name        String
   reference_by      String
   parties_range     String

@@ -15,6 +15,7 @@ const formSchema = z.object({
   phone: z.string().regex(/^(\+91)?\d{10}$/, 'Valid 10-digit Indian phone number required'),
   email: z.string().email('Invalid email'),
   businessName: z.string().min(2, 'Business name is required'),
+  city: z.string().min(2, 'City is required'),
   businessType: z.enum(['Textile/Garments', 'Distribution/Wholesale', 'FCMG Distributor', 'Pharma Distributor', 'Hardware and Building', 'Electronics/appliance', 'General MSME', 'Other'], {
     message: 'Please select a business type',
   }),
@@ -155,6 +156,22 @@ export default function DemoSignupForm() {
             placeholder="ABC Enterprises"
           />
           {errors.businessName && <p className="mt-1.5 text-xs text-red-500">{errors.businessName.message}</p>}
+        </div>
+
+        {/* City */}
+        <div>
+          <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
+            City *
+          </label>
+          <input
+            {...register('city')}
+            className={cn(
+              "w-full rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-3 font-body text-[14px] text-[var(--dark-brown)] outline-none transition-colors focus:border-[var(--mahogany)] focus:ring-1 focus:ring-[var(--mahogany)]",
+              errors.city && "border-red-500 focus:border-red-500 focus:ring-red-500"
+            )}
+            placeholder="Mumbai"
+          />
+          {errors.city && <p className="mt-1.5 text-xs text-red-500">{errors.city.message}</p>}
         </div>
 
         {/* Business Type */}
