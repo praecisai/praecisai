@@ -6,21 +6,28 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
+// ─── Hindi number words for multiples of 5 (in thousands) — 5 to 95 ──────────
+const THOUSAND_WORDS: Record<number, string> = {
+  5: 'पाँच', 10: 'दस', 15: 'पंद्रह', 20: 'बीस', 25: 'पच्चीस',
+  30: 'तीस', 35: 'पैंतीस', 40: 'चालीस', 45: 'पैंतालीस', 50: 'पचास',
+  55: 'पचपन', 60: 'साठ', 65: 'पैंसठ', 70: 'सत्तर', 75: 'पचहत्तर',
+  80: 'अस्सी', 85: 'पचासी', 90: 'नब्बे', 95: 'पंचानवे', 100: 'सौ',
+};
+
 // ─── Hindi amount approximation ──────────────────────────────────────────────
-// Converts exact rupee amounts to clean spoken Hindi — rounded, natural, short.
-// Rule: always round to nearest clean number. Never say ranges or long phrases.
+// Converts exact rupee amounts to clean spoken Hindi — always rounded UP to
+// the nearest ₹5,000 for amounts under 1 lakh. DB and UI keep the exact amount;
+// only the spoken value on calls is rounded — customers get frustrated by exact figures.
 function amountToHindi(amount: number): string {
   if (amount <= 0) return 'कुछ amount';
-  if (amount < 5000) return 'कुछ हज़ार रुपये';
-  if (amount < 15000) return 'लगभग दस हज़ार रुपये';
-  if (amount < 22500) return 'लगभग बीस हज़ार रुपये';
-  if (amount < 35000) return 'लगभग तीस हज़ार रुपये';
-  if (amount < 45000) return 'लगभग चालीस हज़ार रुपये';
-  if (amount < 55000) return 'लगभग पचास हज़ार रुपये';
-  if (amount < 65000) return 'लगभग साठ हज़ार रुपये';
-  if (amount < 75000) return 'लगभग सत्तर हज़ार रुपये';
-  if (amount < 87500) return 'लगभग पचहत्तर हज़ार रुपये';
-  if (amount < 112500) return 'लगभग एक लाख रुपये';
+
+  if (amount < 100000) {
+    const roundedThousands = Math.min(100, Math.ceil(amount / 5000) * 5);
+    const word = THOUSAND_WORDS[roundedThousands];
+    if (roundedThousands === 100) return 'लगभग एक लाख रुपये';
+    return `लगभग ${word} हज़ार रुपये`;
+  }
+
   if (amount < 137500) return 'सवा लाख रुपये';
   if (amount < 162500) return 'डेढ़ लाख रुपये';
   if (amount < 187500) return 'पौने दो लाख रुपये';
@@ -97,18 +104,20 @@ DO NOT mention boss pressure or seniors — that is Escalation only.`,
   'Escalation': `
 SEGMENT: Escalation
 
-TONE: Warm, pleading, genuinely requesting. As if there is pressure from your boss and you personally do not want this to go further.
+TONE: Warm, pleading, genuinely requesting — as if there is pressure from seniors and you want to help resolve this before it goes further.
 
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
-2. Mention your seniors are now asking about this account personally.
-3. Say you personally do not want this to go further — you are requesting as a personal favour.
+2. Mention seniors are now asking about this account — use the word "personally" only ONCE in the entire call, in this one line only.
+3. Request warmly — never repeat "personally" again after this point.
 4. Accept ANY commitment — full amount, partial, any date, any timeframe — gratefully.
 
-SAMPLE LINES:
-"मेरे seniors अब personally पूछ रहे हैं इस account के बारे में।"
-"मैं personally नहीं चाहती यह आगे बढ़े — आप हमारे valued client हैं।"
-"चाहे थोड़ा भी हो जाए आज — मैं personally handle कर लूँगी।"
+SAMPLE LINES (use only ONE of these, never combine):
+"Sir, mere seniors ab is account ke baare mein puch rahe hain."
+"Sir, main bilkul nahi chahti yeh aage badhe — aap hamare valued client hain."
+"Chahe thoda bhi ho jaaye aaj, please ek arrangement kar dijiye."
+
+HARD RULE: Never say "personally" more than once in the entire call.
 
 If customer gives ANY commitment — accept warmly and close immediately.`,
 };
