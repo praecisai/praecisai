@@ -174,47 +174,54 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop floating pill ── */}
-      <header className="fixed top-5 inset-x-0 z-[100] hidden lg:flex justify-center px-4">
-        <div
-          className={cn(
-            'flex h-12 items-center rounded-full backdrop-blur-[16px]',
-            'border transition-all duration-300',
-            // Generous horizontal padding so the pill has breathing room
-            'pl-5 pr-3',
-            scrolled
-              ? 'border-[rgba(221,184,146,0.5)] bg-[rgba(255,253,249,0.95)] shadow-[0_4px_28px_rgba(127,85,57,0.12)]'
-              : 'border-[rgba(221,184,146,0.28)] bg-[rgba(255,253,249,0.82)]',
-            'dark:bg-[rgba(10,6,3,0.88)] dark:border-[rgba(221,184,146,0.2)]',
-          )}
+      <header className="fixed top-5 inset-x-0 z-[100] hidden lg:flex justify-center px-6">
+        <motion.div
+          animate={{ width: scrolled ? '900px' : '1080px' }}
+          transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+          style={{ maxWidth: 'calc(100vw - 48px)', willChange: 'width' }}
         >
-          {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <Logo />
-          </Link>
-
-          {/* Gap + divider */}
-          <div className="mx-5 h-4 w-px bg-[rgba(221,184,146,0.3)]" />
-
-          {/* Nav links */}
-          <NavTabs />
-
-          {/* Gap + divider */}
-          <div className="mx-5 h-4 w-px bg-[rgba(221,184,146,0.3)]" />
-
-          {/* Login + Try Demo with sliding pill */}
-          <ActionLinks onScrollDemo={scrollToDemo} />
-
-          {/* Gap + divider */}
-          <div className="mx-4 h-4 w-px bg-[rgba(221,184,146,0.3)]" />
-
-          {/* Sign up CTA */}
-          <Link
-            href="/signup"
-            className="rounded-full bg-[var(--mahogany)] px-5 py-1.5 font-display text-[13px] font-semibold text-[var(--cream)] transition-colors hover:bg-[var(--rust)]"
+          <div
+            className={cn(
+              'flex h-12 w-full items-center rounded-full backdrop-blur-[16px]',
+              'border transition-all duration-300',
+              'px-4',
+              scrolled
+                ? 'border-[rgba(221,184,146,0.5)] bg-[rgba(255,253,249,0.95)] shadow-[0_4px_28px_rgba(127,85,57,0.12)]'
+                : 'border-[rgba(221,184,146,0.28)] bg-[rgba(255,253,249,0.82)]',
+              'dark:bg-[rgba(10,6,3,0.88)] dark:border-[rgba(221,184,146,0.2)]',
+            )}
           >
-            Sign up
-          </Link>
-        </div>
+            {/* Logo — left */}
+            <Link href="/" className="flex shrink-0 items-center">
+              <Logo />
+            </Link>
+
+            {/* Divider */}
+            <div className="mx-4 h-4 w-px shrink-0 bg-[rgba(221,184,146,0.3)]" />
+
+            {/* Nav links — centered */}
+            <div className="flex flex-1 justify-center">
+              <NavTabs />
+            </div>
+
+            {/* Divider */}
+            <div className="mx-4 h-4 w-px shrink-0 bg-[rgba(221,184,146,0.3)]" />
+
+            {/* Login + Try Demo — right */}
+            <ActionLinks onScrollDemo={scrollToDemo} />
+
+            {/* Divider */}
+            <div className="mx-3 h-4 w-px shrink-0 bg-[rgba(221,184,146,0.3)]" />
+
+            {/* Sign up CTA — far right */}
+            <Link
+              href="/signup"
+              className="shrink-0 rounded-full bg-[var(--mahogany)] px-5 py-1.5 font-display text-[13px] font-semibold text-[var(--cream)] transition-colors hover:bg-[var(--rust)]"
+            >
+              Sign up
+            </Link>
+          </div>
+        </motion.div>
       </header>
 
       {/* ── Mobile top bar ── */}
