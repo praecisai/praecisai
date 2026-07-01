@@ -78,7 +78,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
                   layout
                   className={cn(
                     "h-1.5 w-6 rounded-full transition-colors duration-500",
-                    i < callsRemaining ? "bg-[var(--mahogany)]" : "bg-[var(--caramel)] opacity-50"
+                    i < callsRemaining ? "bg-[#25D366]" : "bg-[var(--caramel)] opacity-50"
                   )}
                 />
               ))}

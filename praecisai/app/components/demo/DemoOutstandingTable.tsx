@@ -578,8 +578,11 @@ export default function DemoOutstandingTable({
             );
           }
 
-          const quotaExhausted = callsUsed >= callsAllowed;
-          const waQuotaExhausted = whatsappUsed >= whatsappAllowed;
+          // 🚧 TEMP: quota checks disabled — all buttons show enabled
+          // const quotaExhausted = callsUsed >= callsAllowed;
+          // const waQuotaExhausted = whatsappUsed >= whatsappAllowed;
+          const quotaExhausted = false;
+          const waQuotaExhausted = false;
           const { voiceSent, whatsappSent } = row.original;
 
           const handleCallClick = () => {
