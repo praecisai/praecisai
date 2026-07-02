@@ -87,6 +87,25 @@ const NAME_TOKEN_MAP: Record<string, string> = {
   associates: 'असोसिएट्स', international: 'इंटरनेशनल', agency: 'एजेंसी', group: 'ग्रुप',
 };
 
+// Curated Devanagari for common Indian business cities (case-insensitive).
+const CITY_MAP: Record<string, string> = {
+  mumbai: 'मुंबई', pune: 'पुणे', delhi: 'दिल्ली', 'new delhi': 'नई दिल्ली',
+  bangalore: 'बेंगलुरु', bengaluru: 'बेंगलुरु', hyderabad: 'हैदराबाद',
+  ahmedabad: 'अहमदाबाद', surat: 'सूरत', chennai: 'चेन्नई', kolkata: 'कोलकाता',
+  jaipur: 'जयपुर', lucknow: 'लखनऊ', kanpur: 'कानपुर', nagpur: 'नागपुर',
+  indore: 'इंदौर', bhopal: 'भोपाल', patna: 'पटना', vadodara: 'वडोदरा',
+  ludhiana: 'लुधियाना', agra: 'आगरा', nashik: 'नासिक', rajkot: 'राजकोट',
+  coimbatore: 'कोयंबटूर', kochi: 'कोच्चि', chandigarh: 'चंडीगढ़',
+  gurgaon: 'गुरुग्राम', gurugram: 'गुरुग्राम', noida: 'नोएडा',
+};
+
+async function transliterateCityToDevanagari(city: string): Promise<string> {
+  if (!city) return '';
+  const key = city.trim().toLowerCase();
+  if (CITY_MAP[key]) return CITY_MAP[key];
+  return transliterateNameToDevanagari(city);
+}
+
 async function transliterateNameToDevanagari(name: string): Promise<string> {
   const proper = toProperCase(name);
   const tokens = proper.split(/\s+/).filter(Boolean);
@@ -147,13 +166,12 @@ DO THESE THINGS:
 2. Briefly mention you had spoken before (once).
 3. Ask warmly for a rough/expected date. Approximate is completely fine.
 
-SPOKEN LINES (speak in Devanagari, short 4–7 word sentences, in this order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
 "Sir, मैं बस एक follow-up के लिए call कर रही हूँ।"
 "पिछली बार हमारी बात हुई थी।"
-"इसलिए एक छोटा सा update लेना था।"
+"अगर approximate date भी हो, तो चलेगा।"
 "बता दीजिए, roughly कब तक payment हो जाएगी?"
-"मैं वही note कर लेती हूँ।"
-"अगर exact date नहीं पता, तो approximate भी चलेगा।"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — confirm calculated date and close. STOP. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
@@ -162,46 +180,44 @@ If still no date — close warmly.`,
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
 
-TONE: firm but respectful — accounts department is asking you for an update. Still a request, never a demand, never a threat.
+TONE: firm but respectful — accounts team is asking you for an update. Always a request, never a demand or threat.
 
-DO THESE THINGS:
-1. Tell customer {due_amount_hindi} is pending.
-2. Mention accounts department is asking you for an update on this payment.
-3. Request an expected payment date so you can update them. Invite them to share any issue.
+MANDATORY ORDER — deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. Accounts team is asking you for an update on this payment.
+3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPOKEN LINES (speak in Devanagari, short 4–7 word sentences, in this order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
 "Sir, मेरी तरफ से एक request थी।"
 "Accounts team मुझसे इस payment का update पूछ रही है।"
-"अगर possible हो, एक expected payment date बता दीजिए।"
-"मैं वही update कर दूँगी।"
-"अगर कोई issue है, तो बिल्कुल बता सकते हैं।"
+"अगर possible हो, क्या आप बता सकते हैं, roughly कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe — confirm calculated date and close. STOP.
-If truly vague — ask once more for a rough date.
-If still no date — close warmly.
-
-NEVER mention legal action. NEVER threaten. NEVER sound rude or frustrated.
-DO NOT mention seniors or boss pressure — that is Escalation only.`,
+If customer gives ANY timeframe — capture it and close. If truly vague — ask once more for a rough date.
+NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
 SEGMENT: Escalation
 
-This is the highest recovery stage. TONE: warm, humble, genuinely requesting. The customer should feel that internal follow-up is really happening — WITHOUT any threat, legal mention, or rudeness. Speak respectfully throughout.
+Highest recovery stage. TONE: warm, humble, genuinely requesting — internal follow-up is really happening, but NO threat, NO legal mention, NO rudeness. Always remain humble.
 
-DO THESE THINGS:
-1. Tell customer {due_amount_hindi} is pending.
-2. Gently and respectfully convey that accounts team and seniors are following up on this account and you have to give them an update.
-3. Request warmly for a rough/expected payment date. Accept ANY commitment — full, partial, any date — gratefully.
+MANDATORY ORDER — deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. Accounts team and seniors are asking about this account's status; you must give them an update.
+3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPOKEN LINES (speak in Devanagari, short 4–7 word sentences, in this order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
 "Sir, मेरी तरफ से सिर्फ एक humble request है।"
 "Accounts team और seniors इस account का status पूछ रहे हैं।"
 "मुझे उन्हें एक update देना होता है।"
-"अगर possible हो, बता दीजिए, roughly कब तक payment clear हो जाएगी।"
-"अगर कोई genuine issue है, तो वो भी मैं note कर लेती हूँ।"
+"अगर possible हो, बता दीजिए, roughly कब तक payment clear हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-NEVER threaten. NEVER mention legal action. NEVER pressure. ALWAYS remain humble.
-If customer cannot commit — stay empathetic, never argue. Accept warmly and close.`,
+If customer gives ANY commitment — accept warmly and close. NEVER threaten or pressure.`,
 };
 
 function buildSegmentInstructions(segment: string): string {
@@ -394,15 +410,18 @@ export class DemoService {
     if (isWhatsapp) { /* placeholder */ }
 
     if (isCall) {
-      // Convert the party name to Devanagari so Sarvam Bulbul pronounces it naturally.
-      const customerNameSpoken = await transliterateNameToDevanagari(dto.partyName);
+      // Convert the party name and city to Devanagari so Sarvam Bulbul pronounces them naturally.
+      const [customerNameSpoken, businessCitySpoken] = await Promise.all([
+        transliterateNameToDevanagari(dto.partyName),
+        transliterateCityToDevanagari(lead.city || ''),
+      ]);
 
       await this.callingQueue.add('outbound-calls', {
         demoLeadId: lead.id,
         phoneNumber: lead.phone,
         context: {
           business_name: lead.business_name,
-          business_city: lead.city || '',
+          business_city: businessCitySpoken,
           customer_name: customerNameSpoken,
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
           due_amount_hindi: dueAmountHindi,
