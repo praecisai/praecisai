@@ -49,6 +49,42 @@ function amountToHindi(amount: number): string {
   return `लगभग ${lakhs} लाख रुपये`;
 }
 
+// ─── Hindi cardinal number words (1-99) — for speaking counts like "days overdue" ──
+const HINDI_CARDINALS: Record<number, string> = {
+  1: 'एक', 2: 'दो', 3: 'तीन', 4: 'चार', 5: 'पाँच',
+  6: 'छह', 7: 'सात', 8: 'आठ', 9: 'नौ', 10: 'दस',
+  11: 'ग्यारह', 12: 'बारह', 13: 'तेरह', 14: 'चौदह', 15: 'पंद्रह',
+  16: 'सोलह', 17: 'सत्रह', 18: 'अठारह', 19: 'उन्नीस', 20: 'बीस',
+  21: 'इक्कीस', 22: 'बाईस', 23: 'तेईस', 24: 'चौबीस', 25: 'पच्चीस',
+  26: 'छब्बीस', 27: 'सत्ताईस', 28: 'अट्ठाईस', 29: 'उनतीस', 30: 'तीस',
+  31: 'इकतीस', 32: 'बत्तीस', 33: 'तैंतीस', 34: 'चौंतीस', 35: 'पैंतीस',
+  36: 'छत्तीस', 37: 'सैंतीस', 38: 'अड़तीस', 39: 'उनतालीस', 40: 'चालीस',
+  41: 'इकतालीस', 42: 'बयालीस', 43: 'तैंतालीस', 44: 'चौंतालीस', 45: 'पैंतालीस',
+  46: 'छियालीस', 47: 'सैंतालीस', 48: 'अड़तालीस', 49: 'उनचास', 50: 'पचास',
+  51: 'इक्यावन', 52: 'बावन', 53: 'तिरपन', 54: 'चौवन', 55: 'पचपन',
+  56: 'छप्पन', 57: 'सत्तावन', 58: 'अट्ठावन', 59: 'उनसठ', 60: 'साठ',
+  61: 'इकसठ', 62: 'बासठ', 63: 'तिरसठ', 64: 'चौंसठ', 65: 'पैंसठ',
+  66: 'छियासठ', 67: 'सड़सठ', 68: 'अड़सठ', 69: 'उनहत्तर', 70: 'सत्तर',
+  71: 'इकहत्तर', 72: 'बहत्तर', 73: 'तिहत्तर', 74: 'चौहत्तर', 75: 'पचहत्तर',
+  76: 'छिहत्तर', 77: 'सतहत्तर', 78: 'अठहत्तर', 79: 'उनासी', 80: 'अस्सी',
+  81: 'इक्यासी', 82: 'बयासी', 83: 'तिरासी', 84: 'चौरासी', 85: 'पचासी',
+  86: 'छियासी', 87: 'सत्तासी', 88: 'अट्ठासी', 89: 'नवासी', 90: 'नब्बे',
+  91: 'इक्यानवे', 92: 'बानवे', 93: 'तिरानवे', 94: 'चौरानवे', 95: 'पंचानवे',
+  96: 'छियानवे', 97: 'सत्तानवे', 98: 'अट्ठानवे', 99: 'निन्यानवे',
+};
+
+// Sarvam Bulbul reads bare digits ("95") in English rather than Hindi words —
+// any count spoken on a call must go through this, never interpolated raw.
+function numberToHindiWords(num: number): string {
+  const n = Math.round(num);
+  if (n <= 0) return 'शून्य';
+  if (n <= 99) return HINDI_CARDINALS[n];
+  const hundreds = Math.floor(n / 100);
+  const remainder = n % 100;
+  const hundredsWord = `${HINDI_CARDINALS[hundreds]} सौ`;
+  return remainder === 0 ? hundredsWord : `${hundredsWord} ${HINDI_CARDINALS[remainder]}`;
+}
+
 // ─── Proper case for TTS — converts "PATEL ENTERPRISES" to "Patel Enterprises"
 // All-caps names sound robotic when TTS reads them. Proper case sounds natural.
 function toProperCase(name: string): string {
@@ -170,12 +206,12 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "Sir, मैं बस एक follow-up के लिए call कर रही हूँ।"
 "पिछली बार हमारी बात हुई थी।"
 "अगर approximate date भी हो, तो चलेगा।"
-"बता दीजिए, roughly कब तक payment हो जाएगी?"
+"बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — confirm calculated date and close. STOP. Do not probe further.
+If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
-If still no date — close warmly.`,
+If still no date — say EXACTLY: "कोई बात नहीं sir, हम समझते हैं। {business_name} की तरफ से, आपका दिन शुभ हो।"`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
@@ -190,12 +226,12 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
-"Sir, मेरी तरफ से एक request थी।"
+"Sir, मेरी तरफ से, एक request थी।"
 "Accounts team मुझसे इस payment का update पूछ रही है।"
-"अगर possible हो, क्या आप बता सकते हैं, roughly कब तक payment हो जाएगी?"
+"अगर possible हो, क्या आप बता सकते हैं, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe — capture it and close. If truly vague — ask once more for a rough date.
+If customer gives ANY timeframe — capture it, then say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. If truly vague — ask once more for a rough date.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -211,17 +247,21 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
-"Sir, मेरी तरफ से सिर्फ एक humble request है।"
+"Sir, मेरी तरफ से, सिर्फ एक humble request है।"
 "Accounts team और seniors इस account का status पूछ रहे हैं।"
 "मुझे उन्हें एक update देना होता है।"
-"अगर possible हो, बता दीजिए, roughly कब तक payment clear हो जाएगी?"
+"अगर possible हो, बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY commitment — accept warmly and close. NEVER threaten or pressure.`,
+If customer gives ANY commitment — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. NEVER threaten or pressure.`,
 };
 
-function buildSegmentInstructions(segment: string): string {
-  return SEGMENT_INSTRUCTIONS[segment] ?? SEGMENT_INSTRUCTIONS['Soft Reminder'];
+// Resolves {business_name} here rather than leaving it for Bolna's template pass —
+// this string becomes the VALUE of {segment_instructions}, so a nested {business_name}
+// inside it is not guaranteed to survive Bolna's substitution on the outer prompt.
+function buildSegmentInstructions(segment: string, businessName: string): string {
+  const template = SEGMENT_INSTRUCTIONS[segment] ?? SEGMENT_INSTRUCTIONS['Soft Reminder'];
+  return template.replace(/\{business_name\}/g, businessName);
 }
 
 // IST greeting based on time of call — server runs UTC, IST = UTC+5:30
@@ -361,7 +401,7 @@ export class DemoService {
         : [];
 
     const histSummary = buildCallHistorySummary(callHistory, dto.segment);
-    const segmentInstructions = buildSegmentInstructions(dto.segment);
+    const segmentInstructions = buildSegmentInstructions(dto.segment, lead.business_name);
 
     // Rule 1: Multi-invoice — use total across all bills, not just current bill
     const isMultiInvoice =
@@ -370,7 +410,7 @@ export class DemoService {
     const effectiveDays = isMultiInvoice ? (dto.maxDaysForParty ?? dto.daysOverdue) : dto.daysOverdue;
 
     const multiInvoiceNote = isMultiInvoice
-      ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${effectiveDays} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
+      ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${numberToHindiWords(effectiveDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
       : '';
 
     // Rule 5: Partial payment — acknowledge what was paid, then mention remainder
@@ -384,7 +424,7 @@ export class DemoService {
 
     // If overdue > 90 days, build a natural mention for the agent to use
     const daysMention = effectiveDays > 90
-      ? `यह payment ${effectiveDays} दिन से pending है।`
+      ? `यह payment ${numberToHindiWords(effectiveDays)} दिन से pending है।`
       : '';
 
     const run = await this.demoLeadRepo.createRun({
