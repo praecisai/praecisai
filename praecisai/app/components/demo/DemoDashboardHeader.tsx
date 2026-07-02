@@ -50,7 +50,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
           {/* WhatsApp Counter */}
           <div className="flex flex-col items-end">
             <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
-              {whatsappRemaining} WhatsApp actions remaining
+              4 WhatsApp actions remaining
             </span>
             <div className="mt-1 flex gap-1.5">
               {whatsappDots.map((_, i) => (
@@ -65,8 +65,8 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
           
           {/* Call Counter */}
           <div className="flex flex-col items-end">
-            <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
-              {callsRemaining} Call actions remaining
+            <span className="font-body text-[11px] font-semibold text-white">
+              4 Call actions remaining
             </span>
             <div className="mt-1 flex gap-1.5">
               {callsDots.map((_, i) => (
