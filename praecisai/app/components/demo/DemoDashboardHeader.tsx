@@ -57,10 +57,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
                 <motion.div
                   key={`wa-${i}`}
                   layout
-                  className={cn(
-                    "h-1.5 w-6 rounded-full transition-colors duration-500",
-                    i < whatsappRemaining ? "bg-[#25D366]" : "bg-[var(--caramel)] opacity-50"
-                  )}
+                  className="h-1.5 w-6 rounded-full bg-[#25D366]"
                 />
               ))}
             </div>
@@ -76,10 +73,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
                 <motion.div
                   key={`call-${i}`}
                   layout
-                  className={cn(
-                    "h-1.5 w-6 rounded-full transition-colors duration-500",
-                    i < callsRemaining ? "bg-[#25D366]" : "bg-[var(--caramel)] opacity-50"
-                  )}
+                  className="h-1.5 w-6 rounded-full bg-[#25D366]"
                 />
               ))}
             </div>

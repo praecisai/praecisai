@@ -312,10 +312,11 @@ export class DemoService {
     const isWhatsapp = dto.demoType === 'WHATSAPP';
     const isCall = dto.demoType === 'VOICE_CALL';
 
-    if (isWhatsapp && lead.whatsapp_used >= lead.whatsapp_allowed)
-      throw new BadRequestException('WhatsApp demo limit reached');
-    if (isCall && lead.calls_used >= lead.calls_allowed)
-      throw new BadRequestException('Call demo limit reached');
+    // 🚧 TEMP: quota guards disabled for testing
+    // if (isWhatsapp && lead.whatsapp_used >= lead.whatsapp_allowed)
+    //   throw new BadRequestException('WhatsApp demo limit reached');
+    // if (isCall && lead.calls_used >= lead.calls_allowed)
+    //   throw new BadRequestException('Call demo limit reached');
 
     // Sensitive situation cooldown — 18 days, overrides everything
     if (isCall) {
