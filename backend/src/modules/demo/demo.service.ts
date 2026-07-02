@@ -354,13 +354,13 @@ export class DemoService {
     const effectiveDays = isMultiInvoice ? (dto.maxDaysForParty ?? dto.daysOverdue) : dto.daysOverdue;
 
     const multiInvoiceNote = isMultiInvoice
-      ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${effectiveDays} din se pending hai. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "kai bills pending hain aapke". Do NOT mention any specific bill number.`
+      ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${effectiveDays} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
       : '';
 
     // Rule 5: Partial payment — acknowledge what was paid, then mention remainder
     const partialPaymentNote =
       dto.previousPaidAmount && dto.totalOriginalAmount
-        ? `Partial payment context: Customer had already paid ${amountToHindi(dto.previousPaidAmount)} earlier against this account (original was ${amountToHindi(dto.totalOriginalAmount)}). Acknowledge this warmly first: "Aapne pehle ${amountToHindi(dto.previousPaidAmount)} diye the — bahut shukriya ji." Phir bolo: "Abhi bhi ${amountToHindi(dto.dueAmount)} pending hai." Do NOT mention bill number.`
+        ? `Partial payment context: Customer had already paid ${amountToHindi(dto.previousPaidAmount)} earlier against this account (original was ${amountToHindi(dto.totalOriginalAmount)}). Acknowledge this warmly first: "आपने पहले ${amountToHindi(dto.previousPaidAmount)} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${amountToHindi(dto.dueAmount)} pending है।" Do NOT mention bill number.`
         : '';
 
     // Compute Hindi amount for the effective due (total if multi-invoice, single if not)
@@ -368,7 +368,7 @@ export class DemoService {
 
     // If overdue > 90 days, build a natural mention for the agent to use
     const daysMention = effectiveDays > 90
-      ? `90 din se zyada ho gaye hain — aur abhi ${effectiveDays} din ho gaye hain.`
+      ? `यह payment ${effectiveDays} दिन से pending है।`
       : '';
 
     const run = await this.demoLeadRepo.createRun({
