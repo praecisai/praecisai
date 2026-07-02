@@ -5,6 +5,7 @@ import { RunDemoDto } from './dto/run-demo.dto';
 import { JwtService } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import OpenAI from 'openai';
 
 // ─── Hindi number words for multiples of 5 (in thousands) — 5 to 95 ──────────
 const THOUSAND_WORDS: Record<number, string> = {
@@ -58,6 +59,68 @@ function toProperCase(name: string): string {
     .join(' ');
 }
 
+// ─── Name → Devanagari transliteration for natural TTS ───────────────────────
+// Sarvam Bulbul v2 is an Indic (Hindi) TTS. Roman-script names inside a Hindi
+// context get mangled (e.g. "Walavalkar" read as disjoint syllables). Feeding the
+// name in Devanagari makes the voice pronounce it the way an Indian speaker would.
+// A small local map covers the most common surnames/company words at zero cost;
+// anything else uses a fast gpt-4o-mini transliteration, falling back to proper-case
+// Roman if the LLM is unavailable or returns nothing usable.
+let _openaiClient: OpenAI | null | undefined;
+function getOpenAI(): OpenAI | null {
+  if (_openaiClient !== undefined) return _openaiClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  _openaiClient = apiKey ? new OpenAI({ apiKey }) : null;
+  return _openaiClient;
+}
+
+// Guaranteed-correct Devanagari for very common name tokens (case-insensitive).
+const NAME_TOKEN_MAP: Record<string, string> = {
+  sharma: 'शर्मा', gupta: 'गुप्ता', patel: 'पटेल', singh: 'सिंह', kumar: 'कुमार',
+  verma: 'वर्मा', agarwal: 'अग्रवाल', jain: 'जैन', mehta: 'मेहता', shah: 'शाह',
+  reddy: 'रेड्डी', nair: 'नायर', iyer: 'अय्यर', yadav: 'यादव', mishra: 'मिश्रा',
+  tiwari: 'तिवारी', pandey: 'पांडे', chauhan: 'चौहान', rathore: 'राठौड़', bhatt: 'भट्ट',
+  rao: 'राव', shetty: 'शेट्टी', menon: 'मेनन', joshi: 'जोशी', kulkarni: 'कुलकर्णी',
+  patil: 'पाटिल', naik: 'नाईक', khan: 'ख़ान', merchant: 'मर्चेंट', fernandes: 'फर्नांडिस',
+  enterprises: 'एंटरप्राइजेज', distributors: 'डिस्ट्रीब्यूटर्स', traders: 'ट्रेडर्स',
+  industries: 'इंडस्ट्रीज', solutions: 'सॉल्यूशंस', brothers: 'ब्रदर्स',
+  associates: 'असोसिएट्स', international: 'इंटरनेशनल', agency: 'एजेंसी', group: 'ग्रुप',
+};
+
+async function transliterateNameToDevanagari(name: string): Promise<string> {
+  const proper = toProperCase(name);
+  const tokens = proper.split(/\s+/).filter(Boolean);
+
+  // Fast path: every token is a known common name/company word.
+  if (tokens.every(t => NAME_TOKEN_MAP[t.toLowerCase()])) {
+    return tokens.map(t => NAME_TOKEN_MAP[t.toLowerCase()]).join(' ');
+  }
+
+  const client = getOpenAI();
+  if (!client) return proper;
+
+  try {
+    const res = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0,
+      max_tokens: 60,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You transliterate Indian personal and business names from Roman script into Devanagari for a Hindi text-to-speech engine. Output ONLY the Devanagari transliteration — no translation, no explanation, no quotes, no extra text. Preserve every word including surnames and company words (Enterprises, Traders, Industries, LLP, Pvt Ltd). Use the natural Hindi pronunciation an Indian speaker would use.',
+        },
+        { role: 'user', content: proper },
+      ],
+    });
+    const out = res.choices[0]?.message?.content?.trim();
+    // Must contain Devanagari to be trustworthy; else fall back to Roman.
+    return out && /[ऀ-ॿ]/.test(out) ? out : proper;
+  } catch {
+    return proper;
+  }
+}
+
 // ─── Segment-specific call scripts ───────────────────────────────────────────
 // Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
@@ -77,49 +140,64 @@ NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentenc
   'Follow-up': `
 SEGMENT: Follow-up
 
+TONE: friendly, gentle reminder — you had contact before, this is just a soft follow-up. Never firm, never pressuring.
+
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
-2. Mention you had reached out before (once, briefly).
-3. Ask for a date — week, specific date, anything. Use a polite request tone: "please ek date bata dijiye taaki main note kar sakun."
+2. Briefly mention you had spoken before (once).
+3. Ask warmly for a rough/expected date. Approximate is completely fine.
 
-If customer gives ANY timeframe (ek hafte, kal, 2-3 din) — confirm calculated date and close. STOP. Do not probe further.
+SPOKEN LINES (speak in Devanagari, use naturally — never dump all at once):
+"Sir, last time भी हमारी बात हुई थी, बस एक follow-up था।"
+"Please बता दीजिए, roughly कब तक payment clear हो जाएगी?"
+"मैं वही note कर लेती हूँ।"
+"अगर exact date नहीं पता, तो approximate भी चलेगा।"
+
+If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — confirm calculated date and close. STOP. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
 If still no date — close warmly.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
 
+TONE: firm but respectful — accounts department is asking you for an update. Still a request, never a demand, never a threat.
+
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
-2. Mention you have tried reaching out multiple times.
-3. Ask for a date firmly but respectfully — "please ek date confirm kar dijiye, taaki main aage update de sakun."
-4. You can mention accounts team is following up and asking for an update.
+2. Mention accounts department is asking you for an update on this payment.
+3. Request an expected payment date so you can update them. Invite them to share any issue.
+
+SPOKEN LINES (speak in Devanagari, use naturally):
+"Sir, accounts department मुझसे इस payment का update पूछ रहा है।"
+"मेरी request है, please एक expected payment date बता दीजिए।"
+"मैं वही update कर दूँगी।"
+"अगर कोई issue है, वो भी बता सकते हैं।"
 
 If customer gives ANY timeframe — confirm calculated date and close. STOP.
 If truly vague — ask once more for a rough date.
 If still no date — close warmly.
 
-DO NOT mention boss pressure or seniors — that is Escalation only.`,
+DO NOT mention seniors or boss pressure — that is Escalation only.`,
 
   'Escalation': `
 SEGMENT: Escalation
 
-TONE: Warm, pleading, genuinely requesting — as if there is pressure from seniors and you want to help resolve this before it goes further.
+This is the highest recovery stage. TONE: warm, humble, genuinely requesting. The customer should feel that internal follow-up is really happening — WITHOUT any threat, legal mention, or rudeness. Speak respectfully throughout.
 
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
-2. Mention seniors are now asking about this account — use the word "personally" only ONCE in the entire call, in this one line only.
-3. Request warmly — never repeat "personally" again after this point.
-4. Accept ANY commitment — full amount, partial, any date, any timeframe — gratefully.
+2. Gently and respectfully convey that accounts team and seniors are following up on this account and you have to give them an update.
+3. Request warmly for a rough/expected payment date. Accept ANY commitment — full, partial, any date — gratefully.
 
-SAMPLE LINES (use only ONE of these, never combine):
-"Sir, mere seniors ab is account ke baare mein puch rahe hain."
-"Sir, main bilkul nahi chahti yeh aage badhe — aap hamare valued client hain."
-"Chahe thoda bhi ho jaaye aaj, please ek arrangement kar dijiye."
+SPOKEN LINES (speak in Devanagari, use naturally — pick what fits, never dump all):
+"Sir, मेरी आपसे सिर्फ एक humble request है।"
+"Sir, accounts team की तरफ से मुझे regular follow-up आ रहा है।"
+"Sir, seniors भी इस account का status पूछ रहे हैं।"
+"मुझे उन्हें एक update देना होता है।"
+"Please sir, आप roughly बता पाएंगे कब तक payment clear हो जाएगी?"
+"अगर कोई issue है तो बिल्कुल बता दीजिए।"
 
-HARD RULE: Never say "personally" more than once in the entire call.
-
-If customer gives ANY commitment — accept warmly and close immediately.`,
+If customer cannot commit — stay empathetic, never argue, never pressure. Accept warmly and close.`,
 };
 
 function buildSegmentInstructions(segment: string): string {
@@ -311,13 +389,16 @@ export class DemoService {
     if (isWhatsapp) { /* placeholder */ }
 
     if (isCall) {
+      // Convert the party name to Devanagari so Sarvam Bulbul pronounces it naturally.
+      const customerNameSpoken = await transliterateNameToDevanagari(dto.partyName);
+
       await this.callingQueue.add('outbound-calls', {
         demoLeadId: lead.id,
         phoneNumber: lead.phone,
         context: {
           business_name: lead.business_name,
           business_city: lead.city || '',
-          customer_name: toProperCase(dto.partyName),
+          customer_name: customerNameSpoken,
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
           due_amount_hindi: dueAmountHindi,
           days_overdue: effectiveDays.toString(),

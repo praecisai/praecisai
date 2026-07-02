@@ -319,8 +319,9 @@ export default function DemoOutstandingTable({
   };
 
   const executeAction = async () => {
-    if (modalState.type === 'WHATSAPP' && whatsappUsed >= whatsappAllowed) return;
-    if (modalState.type === 'VOICE_CALL' && callsUsed >= callsAllowed) return;
+    // 🚧 TEMP: quota guards disabled
+    // if (modalState.type === 'WHATSAPP' && whatsappUsed >= whatsappAllowed) return;
+    // if (modalState.type === 'VOICE_CALL' && callsUsed >= callsAllowed) return;
 
     setIsSubmitting(true);
     const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
@@ -647,9 +648,11 @@ export default function DemoOutstandingTable({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  const isExhausted =
-    (modalState.type === 'WHATSAPP' && whatsappUsed >= whatsappAllowed) ||
-    (modalState.type === 'VOICE_CALL' && callsUsed >= callsAllowed);
+  // 🚧 TEMP: always false so modal never shows "limit reached"
+  // const isExhausted =
+  //   (modalState.type === 'WHATSAPP' && whatsappUsed >= whatsappAllowed) ||
+  //   (modalState.type === 'VOICE_CALL' && callsUsed >= callsAllowed);
+  const isExhausted = false;
   const targetRow = modalState.rowId ? data.find((r) => r.id === modalState.rowId) : null;
 
   return (
