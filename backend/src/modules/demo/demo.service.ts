@@ -248,7 +248,8 @@ The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they ne
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
 "Sir, मेरी तरफ से, एक छोटी सी request है।"
-"Accounts team और seniors इस account का status पूछ रहे हैं।"
+"Accounts team मुझसे update पूछ रही है।"
+"Seniors भी status जानना चाहते हैं।"
 "मुझे उनको एक update देना है।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
