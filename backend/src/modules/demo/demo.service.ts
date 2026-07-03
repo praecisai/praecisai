@@ -365,6 +365,94 @@ export class DemoService {
     return this.demoLeadRepo.findRunsByLeadId(payload.sub);
   }
 
+  // ─── Bolna credits for the demo dashboard ──────────────────────────────────
+  // Bolna's /me endpoint returns the wallet in US cents (e.g. -43.07 = -$0.43
+  // on the dashboard; verified against the dashboard on 2026-07-04). Same unit
+  // as total_cost on executions.
+  private creditsCache: { data: object; fetchedAt: number } | null = null;
+
+  async getCredits(token: string) {
+    // Admin-only: platform balances are shown only on the owner's own demo
+    // dashboard, matched by lead phone (last 10 digits, prefix-insensitive).
+    const payload = this.jwtService.verify(token);
+    const lead = await this.demoLeadRepo.findById(payload.sub);
+    const adminPhone = (process.env.DEMO_ADMIN_PHONE || '9653665909').replace(/\D/g, '').slice(-10);
+    const leadPhone = (lead?.phone || '').replace(/\D/g, '').slice(-10);
+    if (!leadPhone || leadPhone !== adminPhone) {
+      throw new UnauthorizedException('Credits are not available for this dashboard');
+    }
+
+    if (this.creditsCache && Date.now() - this.creditsCache.fetchedAt < 60_000) {
+      return this.creditsCache.data;
+    }
+
+    const headers = { Authorization: `Bearer ${process.env.BOLNA_API_KEY}` };
+    const meRes = await fetch('https://api.bolna.dev/me', { headers });
+    if (!meRes.ok) throw new BadRequestException('Could not fetch Bolna credits');
+    const me = await meRes.json();
+    const balanceUsd = Math.round(me.wallet) / 100;
+
+    // Average per-call cost from recent executions (total_cost is in US cents)
+    let avgCallCostUsd: number | null = null;
+    try {
+      const exRes = await fetch(
+        `https://api.bolna.dev/v2/agent/${process.env.BOLNA_AGENT_ID}/executions?page_size=5`,
+        { headers },
+      );
+      if (exRes.ok) {
+        const ex = await exRes.json();
+        const items: any[] = Array.isArray(ex) ? ex : (ex?.data ?? []);
+        const costs = items
+          .map((e) => e?.total_cost)
+          .filter((c): c is number => typeof c === 'number' && c > 0);
+        if (costs.length) {
+          avgCallCostUsd = costs.reduce((s, c) => s + c, 0) / costs.length / 100;
+        }
+      }
+    } catch {
+      // estimate is optional — balance alone is still useful
+    }
+
+    // Deepgram balance (STT bills the connected Deepgram account directly).
+    // Sarvam has no balance API — its credits are dashboard-only.
+    let deepgramUsd: number | null = null;
+    const dgKey = process.env.DEEPGRAM_API_KEY;
+    if (dgKey) {
+      try {
+        const dgHeaders = { Authorization: `Token ${dgKey}` };
+        const projRes = await fetch('https://api.deepgram.com/v1/projects', { headers: dgHeaders });
+        if (projRes.ok) {
+          const projects = (await projRes.json())?.projects ?? [];
+          if (projects[0]?.project_id) {
+            const balRes = await fetch(
+              `https://api.deepgram.com/v1/projects/${projects[0].project_id}/balances`,
+              { headers: dgHeaders },
+            );
+            if (balRes.ok) {
+              const balances: any[] = (await balRes.json())?.balances ?? [];
+              deepgramUsd =
+                Math.round(balances.reduce((s, b) => s + (Number(b?.amount) || 0), 0) * 100) / 100;
+            }
+          }
+        }
+      } catch {
+        // Deepgram balance is optional
+      }
+    }
+
+    const data = {
+      balanceUsd,
+      avgCallCostUsd: avgCallCostUsd !== null ? Math.round(avgCallCostUsd * 1000) / 1000 : null,
+      estCallsLeft:
+        avgCallCostUsd !== null && avgCallCostUsd > 0
+          ? Math.max(0, Math.floor(balanceUsd / avgCallCostUsd))
+          : null,
+      deepgramUsd,
+    };
+    this.creditsCache = { data, fetchedAt: Date.now() };
+    return data;
+  }
+
   async runDemo(token: string, dto: RunDemoDto) {
     const payload = this.jwtService.verify(token);
     const lead = await this.demoLeadRepo.findById(payload.sub);

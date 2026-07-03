@@ -8,6 +8,7 @@ import DemoDashboardHeader from '../../components/demo/DemoDashboardHeader';
 import DemoExhaustedBanner from '../../components/demo/DemoExhaustedBanner';
 import DemoStatCards from '../../components/demo/DemoStatCards';
 import DemoOutstandingTable from '../../components/demo/DemoOutstandingTable';
+import DemoCreditsBadge from '../../components/demo/DemoCreditsBadge';
 
 export type DemoLead = {
   id: string;
@@ -26,6 +27,7 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   const [pastRuns, setPastRuns] = useState<Array<{ party_name: string; demo_type: string; status: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creditsRefresh, setCreditsRefresh] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +60,9 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   }, [token, router]);
 
   const handleActionComplete = (type: 'WHATSAPP' | 'VOICE_CALL') => {
+    // Refresh the credits badge ~90s later, after the call finishes and Bolna
+    // deducts its cost (backend also caches for 60s, so earlier is pointless).
+    setTimeout(() => setCreditsRefresh((n) => n + 1), 90_000);
     setLead((prev) => {
       if (!prev) return prev;
       const newWhatsappUsed = prev.whatsappUsed + (type === 'WHATSAPP' ? 1 : 0);
@@ -117,11 +122,12 @@ export default function DemoDashboardClient({ token }: { token: string }) {
       {lead.status === 'EXHAUSTED' && <DemoExhaustedBanner />}
 
       <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8">
-        <div className="mb-6 rounded-xl border border-[var(--caramel)] bg-[var(--sand)] px-6 py-4 flex items-center gap-3">
+        <div className="mb-6 rounded-xl border border-[var(--caramel)] bg-[var(--sand)] px-6 py-4 flex items-center gap-3 flex-wrap">
           <AlertTriangle className="h-5 w-5 text-[var(--rust)] shrink-0" />
-          <p className="font-body text-sm font-medium text-[var(--walnut)]">
+          <p className="font-body text-sm font-medium text-[var(--walnut)] flex-1 min-w-[240px]">
             <span className="font-bold text-[var(--dark-brown)]">This is sample data for demonstration.</span> Your real outstanding report will look exactly like this once imported.
           </p>
+          <DemoCreditsBadge token={token} refreshKey={creditsRefresh} />
         </div>
 
         <DemoStatCards />

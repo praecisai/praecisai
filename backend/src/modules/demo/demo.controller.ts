@@ -26,4 +26,9 @@ export class DemoController {
   async getRuns(@Param('token') token: string) {
     return this.demoService.getRunsForLead(token);
   }
+
+  @Get(':token/credits')
+  async getCredits(@Param('token') token: string) {
+    return this.demoService.getCredits(token);
+  }
 }
