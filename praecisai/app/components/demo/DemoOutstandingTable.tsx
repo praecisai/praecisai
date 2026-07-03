@@ -330,14 +330,25 @@ export default function DemoOutstandingTable({
       const row = data.find((r) => r.id === modalState.rowId);
       if (!row) return;
 
-      // Case 1: Compute multi-invoice totals for same party (exclude past calls and paid rows)
+      // Case 1: Compute multi-invoice totals for same party (exclude past calls and paid rows).
+      // The same bill can appear twice in the demo data (Case 5: original row + after-partial-
+      // payment row, same billNo) — only DISTINCT bills count toward the multi-invoice total,
+      // and each bill contributes its remaining (lowest) amount, not the sum of its rows.
       const partyRows = data.filter((r) => r.partyName === row.partyName && !r.isPaidGracePeriod && !r.isPastCall);
-      const totalDueForParty = partyRows.reduce((sum, r) => sum + r.dueAmount, 0);
-      const maxDaysForParty = Math.max(...partyRows.map((r) => r.daysOutstanding));
+      const billRemaining = new Map<string, number>();
+      const billMaxDays = new Map<string, number>();
+      for (const r of partyRows) {
+        const prevAmt = billRemaining.get(r.billNo);
+        billRemaining.set(r.billNo, prevAmt === undefined ? r.dueAmount : Math.min(prevAmt, r.dueAmount));
+        billMaxDays.set(r.billNo, Math.max(billMaxDays.get(r.billNo) ?? 0, r.daysOutstanding));
+      }
+      const distinctBillCount = billRemaining.size;
+      const totalDueForParty = Array.from(billRemaining.values()).reduce((sum, v) => sum + v, 0);
+      const maxDaysForParty = Math.max(...Array.from(billMaxDays.values()));
 
       // Segment uses max days across all bills so agent tone matches worst-case overdue
-      const effectiveDaysForSegment = partyRows.length > 1 ? maxDaysForParty : row.daysOutstanding;
-      const effectiveAmountForSegment = partyRows.length > 1 ? totalDueForParty : row.dueAmount;
+      const effectiveDaysForSegment = distinctBillCount > 1 ? maxDaysForParty : row.daysOutstanding;
+      const effectiveAmountForSegment = distinctBillCount > 1 ? totalDueForParty : row.dueAmount;
       const segment = getSegment(effectiveDaysForSegment, effectiveAmountForSegment).label;
 
       // Case 5: Partial payment — either flagged via originalAmount OR detected via same bill no. with higher amount row
@@ -361,8 +372,8 @@ export default function DemoOutstandingTable({
           segment,
           previousPaidAmount,
           totalOriginalAmount,
-          totalDueForParty: partyRows.length > 1 ? totalDueForParty : undefined,
-          maxDaysForParty: partyRows.length > 1 ? maxDaysForParty : undefined,
+          totalDueForParty: distinctBillCount > 1 ? totalDueForParty : undefined,
+          maxDaysForParty: distinctBillCount > 1 ? maxDaysForParty : undefined,
         }),
       });
 
