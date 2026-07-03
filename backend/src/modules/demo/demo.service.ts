@@ -188,8 +188,8 @@ ONLY DO THESE TWO THINGS — NOTHING ELSE:
 
 THAT IS ALL. No pressure. No probing. No firmness.
 
-If customer gives ANY answer (date, week, month, anything) — say "ठीक है जी, note कर लिया। शुक्रिया।" and close immediately.
-If customer gives no answer — say "कोई बात नहीं जी। हम फिर touch में रहेंगे।" and close.
+If customer gives ANY answer (date, week, month, anything) — say "ठीक है जी, note कर लिया।" and say NOTHING more. The platform ends the call.
+If customer gives no answer — say "कोई बात नहीं जी। हम फिर touch में रहेंगे।" and say NOTHING more.
 NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
 
   'Follow-up': `
@@ -203,15 +203,15 @@ DO THESE THINGS:
 3. Ask warmly for a rough/expected date. Approximate is completely fine.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
-"Sir, मैं बस एक follow-up के लिए call कर रही हूँ।"
+"Sir, यह एक छोटा सा follow-up call है।"
 "पिछली बार हमारी बात हुई थी।"
 "अगर approximate date भी हो, तो चलेगा।"
 "बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. Do not probe further.
+If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ।" Then say NOTHING more. The platform ends the call. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
-If still no date — say EXACTLY: "कोई बात नहीं sir, हम समझते हैं। {business_name} की तरफ से, आपका दिन शुभ हो।"`,
+If still no date — say EXACTLY: "कोई बात नहीं sir, हम समझते हैं।" Then say NOTHING more.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
@@ -231,7 +231,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, क्या आप बता सकते हैं, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe — capture it, then say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. If truly vague — ask once more for a rough date.
+If customer gives ANY timeframe — capture it, then say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ।" Then say NOTHING more. The platform ends the call. If truly vague — ask once more for a rough date.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -253,7 +253,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY commitment — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then STOP. NEVER threaten or pressure.`,
+If customer gives ANY commitment — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ।" Then say NOTHING more. The platform ends the call. NEVER threaten or pressure.`,
 };
 
 // Resolves {business_name} here rather than leaving it for Bolna's template pass —
