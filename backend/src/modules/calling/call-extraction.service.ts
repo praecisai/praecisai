@@ -25,7 +25,7 @@ const USER_PROMPT = `Extract the following from the call transcript:
   "follow_up_notes": "<string or null>",
   "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
   "talk_ratio": <0-100 integer — % of call the agent spoke, or null>,
-  "is_sensitive": <true if death/medical emergency/hospital mentioned, else false>
+  "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy — including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam" — else false>
 }
 
 Disposition guide:

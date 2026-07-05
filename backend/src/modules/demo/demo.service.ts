@@ -188,8 +188,8 @@ ONLY DO THESE TWO THINGS — NOTHING ELSE:
 
 THAT IS ALL. No pressure. No probing. No firmness.
 
-If customer gives ANY answer (date, week, month, anything) — say EXACTLY "ठीक है जी, note कर लिया। {business_name} की तरफ से, आपका दिन शुभ हो।" then say NOTHING more, no matter what the customer says.
-If customer gives no answer — say EXACTLY "कोई बात नहीं जी। हम फिर touch में रहेंगे। {business_name} की तरफ से, आपका दिन शुभ हो।" then say NOTHING more.
+If customer gives ANY answer (date, week, month, anything) — say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer — say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
 NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
 
   'Follow-up': `
@@ -209,9 +209,9 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then say NOTHING more, no matter what the customer says. Do not probe further.
+If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
-If still no date — say EXACTLY: "कोई बात नहीं sir, हम समझते हैं। {business_name} की तरफ से, आपका दिन शुभ हो।" Then say NOTHING more.`,
+If still no date — say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
@@ -231,7 +231,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe — capture it, then say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+If customer gives ANY timeframe — capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -254,7 +254,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY commitment — say EXACTLY: "बिल्कुल sir। मैं note कर लेती हूँ। {business_name} की तरफ से, आपका दिन शुभ हो।" Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+If customer gives ANY commitment — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
 };
 
 // Resolves {business_name} here rather than leaving it for Bolna's template pass —
