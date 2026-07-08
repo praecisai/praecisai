@@ -196,6 +196,11 @@ async function transliterateNameToDevanagari(name: string): Promise<string> {
 
 // ─── Segment-specific call scripts ───────────────────────────────────────────
 // Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
+// Shared handling for outright refusal or a promise more than two months away.
+// Checked BEFORE the normal "any timeframe → close" line, else "तीन महीने" would
+// close instantly as just another timeframe.
+const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close. Ask gently, ONCE, humbly: "जी, मैं समझ सकती हूँ। कोई खास reason है, या मैं आपकी बात seniors से करवा दूँ?" Then handle their reply: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. After this ONE gentle attempt, never push again — just say "कोई बात नहीं जी, हम समझते हैं। Thank you so much."`;
+
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
   'Soft Reminder': `
 SEGMENT: Soft Reminder
@@ -225,7 +230,8 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe (एक हफ्ते, कल, दो-तीन दिन) — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने) — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
 If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
 If still no date — say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
 
@@ -247,7 +253,8 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY timeframe — capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months — capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -269,7 +276,8 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
-If customer gives ANY commitment — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
 };
 
 // Resolves {business_name} here rather than leaving it for Bolna's template pass —
@@ -288,7 +296,7 @@ function getISTGreeting(): string {
   if (istHour >= 5 && istHour < 12) return 'Good morning';
   if (istHour >= 12 && istHour < 17) return 'Good afternoon';
   if (istHour >= 17 && istHour < 21) return 'Good evening';
-  return 'Hello';
+  return 'नमस्ते जी'; // night — avoid literal "Hello" (canvas greeting already opens with Hello)
 }
 
 function buildCallHistorySummary(
