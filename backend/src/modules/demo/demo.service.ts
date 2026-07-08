@@ -295,8 +295,7 @@ function getISTGreeting(): string {
   const istHour = Math.floor(istMinutes / 60) % 24;
   if (istHour >= 5 && istHour < 12) return 'Good morning';
   if (istHour >= 12 && istHour < 17) return 'Good afternoon';
-  if (istHour >= 17 && istHour < 21) return 'Good evening';
-  return 'नमस्ते जी'; // night — avoid literal "Hello" (canvas greeting already opens with Hello)
+  return 'Good evening'; // 5 PM to 5 AM
 }
 
 function buildCallHistorySummary(
