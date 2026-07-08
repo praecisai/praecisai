@@ -95,6 +95,24 @@ function toProperCase(name: string): string {
     .join(' ');
 }
 
+// ─── Hindi ordinal days + date formatting for spoken dates ───────────────────
+const DAY_ORDINALS: Record<number, string> = {
+  1: 'पहली', 2: 'दूसरी', 3: 'तीसरी', 4: 'चौथी', 5: 'पाँचवीं', 6: 'छठी',
+  7: 'सातवीं', 8: 'आठवीं', 9: 'नौवीं', 10: 'दसवीं', 11: 'ग्यारहवीं', 12: 'बारहवीं',
+  13: 'तेरहवीं', 14: 'चौदहवीं', 15: 'पंद्रहवीं', 16: 'सोलहवीं', 17: 'सत्रहवीं',
+  18: 'अठारहवीं', 19: 'उन्नीसवीं', 20: 'बीसवीं', 21: 'इक्कीसवीं', 22: 'बाईसवीं',
+  23: 'तेईसवीं', 24: 'चौबीसवीं', 25: 'पच्चीसवीं', 26: 'छब्बीसवीं', 27: 'सत्ताईसवीं',
+  28: 'अट्ठाईसवीं', 29: 'उनतीसवीं', 30: 'तीसवीं', 31: 'इकतीसवीं',
+};
+const HINDI_MONTHS = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई',
+  'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+
+// Format a Date as spoken Hindi: "[month] की [ordinal] तारीख" (IST).
+function formatHindiDate(d: Date): string {
+  const ist = new Date(d.getTime() + 330 * 60000);
+  return `${HINDI_MONTHS[ist.getUTCMonth()]} की ${DAY_ORDINALS[ist.getUTCDate()]} तारीख`;
+}
+
 // ─── Name → Devanagari transliteration for natural TTS ───────────────────────
 // Sarvam Bulbul v2 is an Indic (Hindi) TTS. Roman-script names inside a Hindi
 // context get mangled (e.g. "Walavalkar" read as disjoint syllables). Feeding the
@@ -500,9 +518,12 @@ export class DemoService {
       : '';
 
     // Rule 5: Partial payment — acknowledge what was paid, then mention remainder
+    // Approximate "when was the previous partial payment made" — demo uses ~20 days
+    // ago from the call date (we do not store the real partial-payment date).
+    const prevPayDateHindi = formatHindiDate(new Date(Date.now() - 20 * 86400000));
     const partialPaymentNote =
       dto.previousPaidAmount && dto.totalOriginalAmount
-        ? `Partial payment context: Customer had already paid ${amountToHindi(dto.previousPaidAmount)} earlier against this account (original was ${amountToHindi(dto.totalOriginalAmount)}). Acknowledge this warmly first: "आपने पहले ${amountToHindi(dto.previousPaidAmount)} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${amountToHindi(dto.dueAmount)} pending है।" Do NOT mention bill number.`
+        ? `Partial payment context: Customer had already paid ${amountToHindi(dto.previousPaidAmount)} earlier against this account (original was ${amountToHindi(dto.totalOriginalAmount)}). Acknowledge this warmly first: "आपने पहले ${amountToHindi(dto.previousPaidAmount)} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${amountToHindi(dto.dueAmount)} pending है।" Do NOT mention bill number. If the customer asks WHEN they made the previous payment, say warmly "जी, आपको लगभग बीस पच्चीस दिन हो गए हैं।" If they insist on an exact date, say "लगभग ${prevPayDateHindi} के आसपास।"`
         : '';
 
     // Compute Hindi amount for the effective due (total if multi-invoice, single if not)
