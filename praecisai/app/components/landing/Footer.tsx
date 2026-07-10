@@ -8,7 +8,7 @@ const productLinks = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Features',     href: '#features' },
   { label: 'Reports',      href: '#reports' },
-  { label: 'Pricing',      href: '#pricing' },
+  // { label: 'Pricing',      href: '#pricing' },
 ];
 
 const companyLinks = [
