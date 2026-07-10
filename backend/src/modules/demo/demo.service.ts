@@ -535,10 +535,16 @@ export class DemoService {
     // Compute Hindi amount for the effective due (total if multi-invoice, single if not)
     const dueAmountHindi = amountToHindi(effectiveDueAmount);
 
-    // If overdue > 90 days, build a natural mention for the agent to use
-    const daysMention = effectiveDays > 90
-      ? `यह payment ${numberToHindiWords(effectiveDays)} दिन से pending है।`
-      : '';
+    // Always mention how long the payment is pending, approximately ("लगभग") —
+    // months once a month has passed, days (rounded to the nearest 5) before that.
+    let daysMention = '';
+    if (effectiveDays >= 30) {
+      const months = Math.round(effectiveDays / 30);
+      daysMention = `यह payment लगभग ${numberToHindiWords(months)} महीने से pending है।`;
+    } else if (effectiveDays > 0) {
+      const approxDays = Math.max(5, Math.round(effectiveDays / 5) * 5);
+      daysMention = `यह payment लगभग ${numberToHindiWords(approxDays)} दिन से pending है।`;
+    }
 
     const run = await this.demoLeadRepo.createRun({
       demo_lead: { connect: { id: lead.id } },
