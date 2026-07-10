@@ -579,11 +579,10 @@ export class DemoService {
         demoLeadId: lead.id,
         phoneNumber: lead.phone,
         context: {
-          // Hardcoded so every demo call is branded as Praecis AI, regardless of the
-          // prospect's own business name. This value is spoken by Meena (Sarvam Bulbul TTS),
-          // so if it is ever mispronounced, switch to the phonetic spelling 'Praysis AI'
-          // to force the PRAY-sis reading.
-          business_name: 'Praecis AI',
+          // Hardcoded demo brand, regardless of the prospect's own business name.
+          // This value is spoken by Meena (ElevenLabs TTS) everywhere {business_name}
+          // appears in the canvas.
+          business_name: 'Aeromen Clothing',
           business_city: businessCitySpoken,
           customer_name: customerNameSpoken,
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
