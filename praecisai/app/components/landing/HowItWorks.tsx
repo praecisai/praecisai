@@ -88,25 +88,17 @@ export default function HowItWorks() {
 
               {/* Step number + icon row */}
               <div className="mb-7 flex items-center justify-between">
-                <motion.span
-                  initial={{ scale: 0, rotate: -180 }}
-                  whileInView={{ scale: 1, rotate: 0 }}
-                  viewport={viewportOnce}
-                  transition={{ delay: 0.1 + index * 0.2, type: 'spring', stiffness: 200, damping: 12 }}
+                <span
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
                 >
                   {step.number}
-                </motion.span>
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  whileInView={{ scale: 1, opacity: 1 }}
-                  viewport={viewportOnce}
-                  transition={{ delay: 0.2 + index * 0.2, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                </span>
+                <div
                   className="flex h-12 w-12 items-center justify-center rounded-xl text-[var(--mahogany)]"
                   style={{ backgroundColor: step.iconBg }}
                 >
                   <step.icon size={24} stroke={1.75} />
-                </motion.div>
+                </div>
               </div>
 
               <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
