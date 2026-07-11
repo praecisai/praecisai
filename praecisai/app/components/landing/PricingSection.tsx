@@ -2,103 +2,135 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { IconCheck, IconArrowRight, IconShieldCheck } from '@tabler/icons-react';
+import {
+  IconCheck,
+  IconArrowRight,
+  IconShieldCheck,
+  IconBrandWhatsapp,
+  IconPhone,
+  IconInfoCircle,
+} from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import AnimatedHeading from './AnimatedHeading';
 
-const features = [
-  'Unlimited parties',
-  'WhatsApp campaigns',
-  'AI voice calls (Hindi)',
-  'PDF statements',
-  'Smart segmentation',
-  'Promise tracker',
-  'Owner weekly report',
-  'Dashboard',
+const platformFeatures = [
+  'Unlimited debtor parties',
+  'Smart AI segmentation',
+  'PDF statements generation',
+  'Promise-to-pay tracker',
+  'Owner weekly digest report',
+  'Live recovery dashboard',
   'Import any Excel format',
-  'Dedicated onboarding',
+  'Dedicated onboarding support',
+];
+
+const addOnCards = [
+  {
+    icon: IconBrandWhatsapp,
+    title: 'WhatsApp Messaging',
+    subtitle: 'Per message / campaign',
+    color: 'var(--mahogany)',
+    bg: 'var(--surface-warm)',
+    description:
+      'Automated WhatsApp reminders, payment links, and PDF statements sent directly to your debtors. Pay only for what you send.',
+    note: 'Pricing shared during onboarding',
+  },
+  {
+    icon: IconPhone,
+    title: 'AI Voice Calls',
+    subtitle: 'Per call / minute',
+    color: 'var(--mahogany)',
+    bg: 'var(--surface-warm)',
+    description:
+      'AI-powered Hindi voice calls that follow up on outstanding dues — human-sounding, fully automated, 24 × 7.',
+    note: 'Pricing shared during onboarding',
+  },
 ];
 
 export default function PricingSection() {
   return (
     <section id="pricing" className="bg-[var(--cream)] px-5 py-28 sm:px-8 sm:py-36 text-center">
       <motion.div
-        className="mx-auto w-full max-w-2xl text-center"
+        className="mx-auto w-full max-w-5xl"
         variants={sectionVariants}
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}
       >
-        {/* Heading */}
+        {/* Label */}
         <motion.p
           variants={itemVariants}
           className="mb-4 text-center font-body text-xs font-semibold uppercase tracking-[0.12em] text-[var(--rust)]"
         >
           Pricing
         </motion.p>
+
+        {/* Heading */}
         <AnimatedHeading
-          text="Simple, honest pricing"
+          text="Simple, transparent pricing"
           className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
         />
         <motion.p
           variants={itemVariants}
-          className="mx-auto mt-5 max-w-md text-center font-body text-[15px] leading-relaxed text-[var(--walnut)]"
+          className="mx-auto mt-5 max-w-lg text-center font-body text-[15px] leading-relaxed text-[var(--walnut)]"
         >
-          One plan. Everything included. No hidden fees.
+          One platform fee. Usage-based messaging and calling on top. No surprises.
         </motion.p>
 
-        {/* Pricing card */}
+        {/* ── Main pricing cards row ── */}
         <motion.div
           variants={itemVariants}
-          className="relative mt-14 overflow-visible"
+          className="mt-14 grid gap-6 md:grid-cols-2"
         >
-          {/* Early access badge */}
-          <div className="flex justify-center">
-            <span className="relative z-10 mb-[-1px] rounded-t-xl bg-[var(--mahogany)] px-5 py-2 font-body text-xs font-semibold text-[var(--cream)] shadow-[0_-4px_16px_rgba(127,85,57,0.2)]">
-              Early Access - Limited Spots
-            </span>
-          </div>
-
-          <div className="spotlight-card overflow-hidden rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.12)]">
-            {/* Price header */}
-            <div className="bg-[var(--surface-warm)] px-8 py-10 text-center sm:px-10">
-              <p className="font-display text-[52px] font-bold leading-none text-[var(--dark-brown)]">
-                ₹4,999
-                <span className="font-body text-[18px] font-normal text-[var(--walnut)]"> / month</span>
-              </p>
-              <span className="mt-5 inline-block rounded-full border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-1.5 font-body text-[13px] text-[var(--mahogany)]">
-                Equivalent to 1 recovered invoice
+          {/* ── Card 1: Monthly ── */}
+          <div className="relative flex flex-col overflow-hidden rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.12)]">
+            {/* Badge */}
+            <div className="absolute inset-x-0 top-0 flex justify-center">
+              <span className="rounded-b-xl bg-[var(--mahogany)] px-5 py-1.5 font-body text-[11px] font-semibold uppercase tracking-widest text-[var(--cream)]">
+                Monthly Platform
               </span>
-              <p className="mx-auto mt-6 max-w-md font-body text-[14px] leading-relaxed text-[var(--walnut)]">
-                Full platform access. WhatsApp campaigns, voice calls, PDF statements,
-                smart segmentation, dashboard, reports, and everything in between.
-              </p>
             </div>
 
-            {/* Feature list */}
-            <div className="px-8 pb-0 pt-8 sm:px-10">
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {features.map((feature) => (
-                  <div key={feature} className="flex items-center gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--mahogany)]">
-                      <IconCheck size={11} className="text-[var(--cream)]" stroke={3} />
-                    </div>
-                    <span className="font-body text-[14px] text-[var(--dark-brown)]">{feature}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Flat rate note */}
-              <div className="mt-8 flex items-center gap-3 rounded-xl bg-[var(--sand)] px-5 py-4">
-                <IconShieldCheck size={20} className="shrink-0 text-[var(--mahogany)]" stroke={1.75} />
-                <p className="font-body text-[13px] text-[var(--dark-brown)]/80">
-                  No per-message charges. No per-call fees. Flat monthly. Cancel anytime.
+            <div className="flex flex-1 flex-col px-8 pb-8 pt-14 sm:px-10">
+              {/* Price */}
+              <div className="mb-2 text-center">
+                <p className="font-display text-[56px] font-bold leading-none text-[var(--dark-brown)]">
+                  ₹5,000
+                  <span className="font-body text-[18px] font-normal text-[var(--walnut)]">
+                    {' '}/ month
+                  </span>
+                </p>
+                <p className="mt-2 font-body text-[13px] text-[var(--walnut)]">
+                  Billed monthly · Cancel anytime
                 </p>
               </div>
 
+              {/* Divider */}
+              <div className="my-6 h-px bg-[var(--caramel)]/30" />
+
+              {/* Features */}
+              <p className="mb-4 text-left font-body text-[12px] font-semibold uppercase tracking-wider text-[var(--rust)]">
+                Everything included
+              </p>
+              <ul className="flex flex-col gap-3">
+                {platformFeatures.map((feat) => (
+                  <li key={feat} className="flex items-center gap-2.5">
+                    <div className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[var(--mahogany)]">
+                      <IconCheck size={10} className="text-[var(--cream)]" stroke={3} />
+                    </div>
+                    <span className="font-body text-[13.5px] leading-snug text-[var(--dark-brown)]">
+                      {feat}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
               {/* CTA */}
-              <div className="pb-10 pt-7">
+              <div className="mt-8">
                 <Link
                   href="#demo"
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-6 py-4 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
@@ -106,12 +138,121 @@ export default function PricingSection() {
                   Start free pilot
                   <IconArrowRight size={18} stroke={2} />
                 </Link>
-                <p className="mt-4 text-center font-body text-[12px] text-[var(--walnut)]">
-                  14-day free pilot · No credit card required
+                <p className="mt-3 text-center font-body text-[12px] text-[var(--walnut)]">
+                  14-day free pilot · No credit card needed
                 </p>
               </div>
             </div>
           </div>
+
+          {/* ── Card 2: One-time Setup ── */}
+          <div className="relative flex flex-col overflow-hidden rounded-2xl border border-[var(--caramel)]/60 bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.07)]">
+            {/* Badge */}
+            <div className="absolute inset-x-0 top-0 flex justify-center">
+              <span className="rounded-b-xl bg-[var(--caramel)] px-5 py-1.5 font-body text-[11px] font-semibold uppercase tracking-widest text-[var(--dark-brown)]">
+                One-time Setup
+              </span>
+            </div>
+
+            <div className="flex flex-1 flex-col px-8 pb-8 pt-14 sm:px-10">
+              {/* Price */}
+              <div className="mb-2 text-center">
+                <p className="font-display text-[56px] font-bold leading-none text-[var(--dark-brown)]">
+                  ₹50,000
+                  <span className="font-body text-[18px] font-normal text-[var(--walnut)]">
+                    {' '}one-time
+                  </span>
+                </p>
+                <p className="mt-2 font-body text-[13px] text-[var(--walnut)]">
+                  Paid once · Lifetime access to setup
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="my-6 h-px bg-[var(--caramel)]/30" />
+
+              {/* What's included */}
+              <p className="mb-4 text-left font-body text-[12px] font-semibold uppercase tracking-wider text-[var(--rust)]">
+                What's included
+              </p>
+              <ul className="flex flex-col gap-3">
+                {[
+                  'Full platform setup & configuration',
+                  'Data migration & Excel import setup',
+                  'Custom workflow configuration',
+                  'Team training & onboarding sessions',
+                  'WhatsApp Business API integration',
+                  'AI voice call system setup',
+                  '7-day post-launch hand-holding support',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <div className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border border-[var(--caramel)] bg-[var(--sand)]">
+                      <IconCheck size={10} className="text-[var(--mahogany)]" stroke={3} />
+                    </div>
+                    <span className="font-body text-[13.5px] leading-snug text-[var(--dark-brown)]">
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Note */}
+              <div className="mt-8 flex items-start gap-3 rounded-xl bg-[var(--sand)] px-5 py-4">
+                <IconShieldCheck size={18} className="mt-0.5 shrink-0 text-[var(--mahogany)]" stroke={1.75} />
+                <p className="font-body text-[13px] leading-relaxed text-[var(--dark-brown)]/80">
+                  Setup fee is a one-time investment. Once paid, you only pay the monthly platform fee going forward.
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ── Add-ons: WhatsApp + Calling ── */}
+        <motion.div variants={itemVariants} className="mt-8">
+          <p className="mb-5 text-center font-body text-[12px] font-semibold uppercase tracking-widest text-[var(--rust)]">
+            Usage-based add-ons
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2">
+            {addOnCards.map(({ icon: Icon, title, subtitle, description, note }) => (
+              <div
+                key={title}
+                className="flex flex-col gap-4 rounded-2xl border border-[var(--caramel)]/50 bg-[var(--surface-warm)] px-7 py-6 text-left shadow-[0_4px_20px_rgba(127,85,57,0.07)]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--mahogany)]/10">
+                    <Icon size={20} className="text-[var(--mahogany)]" stroke={1.75} />
+                  </div>
+                  <div>
+                    <p className="font-display text-[15px] font-semibold text-[var(--dark-brown)]">
+                      {title}
+                    </p>
+                    <p className="font-body text-[12px] text-[var(--walnut)]">{subtitle}</p>
+                  </div>
+                </div>
+                <p className="font-body text-[13.5px] leading-relaxed text-[var(--walnut)]">
+                  {description}
+                </p>
+                <div className="flex items-center gap-2 rounded-lg bg-[var(--sand)] px-4 py-2.5">
+                  <IconInfoCircle size={14} className="shrink-0 text-[var(--mahogany)]" stroke={2} />
+                  <p className="font-body text-[12px] text-[var(--dark-brown)]/70">{note}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ── Bottom trust note ── */}
+        <motion.div
+          variants={itemVariants}
+          className="mt-8 flex items-center justify-center gap-2.5 text-center"
+        >
+          <IconShieldCheck size={16} className="text-[var(--mahogany)]" stroke={1.75} />
+          <p className="font-body text-[13px] text-[var(--walnut)]">
+            No hidden charges. No lock-in contracts. Transparent billing always.
+          </p>
         </motion.div>
       </motion.div>
     </section>

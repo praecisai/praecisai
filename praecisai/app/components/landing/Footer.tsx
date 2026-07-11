@@ -8,7 +8,7 @@ const productLinks = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Features',     href: '#features' },
   { label: 'Reports',      href: '#reports' },
-  // { label: 'Pricing',      href: '#pricing' },
+  { label: 'Pricing',      href: '#pricing' },
 ];
 
 const companyLinks = [
@@ -94,7 +94,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="https://wa.me/919876543210"
+                  href="https://wa.me/917304862949"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 font-body text-[14px] text-[var(--walnut)] transition-colors hover:text-[#F5EBE0]"

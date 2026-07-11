@@ -68,7 +68,7 @@ export default function Home() {
       <ReportsSection />
       <CapabilitiesSection />
       <StatsSection />
-      {/* <PricingSection /> */}
+      <PricingSection />
       <TestimonialsSection />
       <FounderSection />
       <FaqSection />
