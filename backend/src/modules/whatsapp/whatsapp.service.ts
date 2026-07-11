@@ -1,12 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-
-// STUB: WhatsApp Cloud API integration not yet implemented
-// Logs are stored for future use when API is integrated
+import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
+import { AisensyService } from './aisensy.service';
+import { StorageService } from '../storage/storage.service';
+import { getSegment } from '../../common/utils/segment.util';
 
 @Injectable()
 export class WhatsappService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(WhatsappService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private statementPdf: StatementPdfService,
+    private aisensy: AisensyService,
+    private storage: StorageService,
+  ) {}
 
   async getLogs(businessId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
@@ -26,4 +34,107 @@ export class WhatsappService {
       data: { business_id: businessId, ...dto },
     });
   }
+
+  /**
+   * Send the outstanding-statement PDF to a real customer over WhatsApp.
+   * Segment is always recalculated from the invoices via segment.util —
+   * never trusted from the caller. Logged to WhatsAppLog either way.
+   */
+  async sendStatementToCustomer(businessId: string, customerId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, business_id: businessId },
+      include: {
+        business: { select: { name: true } },
+        invoices: {
+          where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
+          orderBy: { invoice_date: 'asc' },
+        },
+      },
+    });
+
+    if (!customer) throw new NotFoundException('Customer not found');
+    if (!customer.phone) throw new BadRequestException('Customer has no phone number');
+    if (customer.invoices.length === 0)
+      throw new BadRequestException('Customer has no outstanding invoices');
+
+    const invoices: StatementInvoice[] = customer.invoices.map((inv) => ({
+      billNo: inv.invoice_number,
+      billDate: formatIndianDate(inv.invoice_date),
+      billAmount: inv.amount || inv.due_amount,
+      dueAmount: inv.due_amount,
+      daysOverdue: inv.days_overdue,
+      status: getSegment(inv.days_overdue, inv.due_amount),
+    }));
+
+    const totalDue = invoices.reduce((s, i) => s + i.dueAmount, 0);
+    const maxDays = Math.max(...invoices.map((i) => i.daysOverdue));
+    const segment = getSegment(maxDays, totalDue);
+    const agentName = customer.invoices.find((i) => i.sales_agent)?.sales_agent ?? undefined;
+
+    const pdfBuffer = await this.statementPdf.generate({
+      partyName: customer.customer_name,
+      city: customer.city ?? undefined,
+      agentName,
+      segment,
+      invoices,
+      business: { name: customer.business.name },
+    });
+
+    const pdfUrl = await this.storage.uploadStatementPdf(
+      `${businessId}/${customerId}`,
+      pdfBuffer,
+    );
+
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const pdfFilename = `${customer.customer_name}_Statement_${dd}-${mm}-${now.getFullYear()}.pdf`;
+
+    const logMessage = `Statement PDF (${segment}) — Rs.${totalDue.toLocaleString('en-IN')} across ${invoices.length} invoice(s)`;
+
+    try {
+      await this.aisensy.sendStatement({
+        segment,
+        destinationPhone: customer.phone,
+        partyName: customer.customer_name,
+        totalDue,
+        invoiceCount: invoices.length,
+        pdfUrl,
+        pdfFilename,
+      });
+    } catch (err) {
+      await this.prisma.whatsAppLog.create({
+        data: {
+          business_id: businessId,
+          customer_id: customerId,
+          message: logMessage,
+          delivery_status: 'FAILED',
+        },
+      });
+      throw err;
+    }
+
+    await this.prisma.whatsAppLog.create({
+      data: {
+        business_id: businessId,
+        customer_id: customerId,
+        message: logMessage,
+        delivery_status: 'SENT',
+      },
+    });
+
+    return {
+      success: true,
+      segment,
+      totalDue,
+      invoiceCount: invoices.length,
+      message: `WhatsApp statement sent to ${customer.customer_name}`,
+    };
+  }
+}
+
+function formatIndianDate(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
 }

@@ -359,6 +359,21 @@ export default function DemoOutstandingTable({
       const previousPaidAmount = effectiveOriginal ? effectiveOriginal - row.dueAmount : undefined;
       const totalOriginalAmount = effectiveOriginal;
 
+      // WhatsApp statement PDF: one row per distinct open bill of this party,
+      // each with its remaining due and its own segment status
+      const invoices = Array.from(billRemaining.entries()).map(([billNo, remaining]) => {
+        const billRow = partyRows.find((r) => r.billNo === billNo)!;
+        const days = billMaxDays.get(billNo) ?? billRow.daysOutstanding;
+        return {
+          billNo,
+          billDate: billRow.billDate,
+          billAmount: billRow.originalAmount ?? Math.max(...partyRows.filter((r) => r.billNo === billNo).map((r) => r.dueAmount)),
+          dueAmount: remaining,
+          daysOverdue: days,
+          status: getSegment(days, remaining).label || 'Pending',
+        };
+      });
+
       const res = await fetch(`${backendUrl}/api/v1/demo-leads/${token}/run-demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -374,6 +389,9 @@ export default function DemoOutstandingTable({
           totalOriginalAmount,
           totalDueForParty: distinctBillCount > 1 ? totalDueForParty : undefined,
           maxDaysForParty: distinctBillCount > 1 ? maxDaysForParty : undefined,
+          city: row.city,
+          agentName: row.agentName,
+          invoices: modalState.type === 'WHATSAPP' ? invoices : undefined,
         }),
       });
 
@@ -398,7 +416,10 @@ export default function DemoOutstandingTable({
 
       onActionComplete(modalState.type!);
       setModalState({ isOpen: false, type: null, rowId: null, isBulk: false });
-      alert(`📞 ${resData.data?.message || resData.message || 'Calling you now — answer your phone!'}`);
+      const fallbackMsg = modalState.type === 'WHATSAPP'
+        ? 'WhatsApp statement sent — check your WhatsApp!'
+        : 'Calling you now — answer your phone!';
+      alert(`${modalState.type === 'WHATSAPP' ? '💬' : '📞'} ${resData.data?.message || resData.message || fallbackMsg}`);
     } catch (e: any) {
       alert(`❌ ${e.message}`);
     } finally {

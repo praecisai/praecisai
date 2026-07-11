@@ -26,6 +26,10 @@ export class DemoLeadRepository {
     return this.prisma.demoRun.create({ data });
   }
 
+  async updateRun(id: string, data: Prisma.DemoRunUpdateInput) {
+    return this.prisma.demoRun.update({ where: { id }, data });
+  }
+
   async findRunsByLeadId(leadId: string) {
     return this.prisma.demoRun.findMany({
       where: { demo_lead_id: leadId },

@@ -61,6 +61,11 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   ANTHROPIC_API_KEY?: string;
+
+  // WhatsApp statement messages via AiSensy campaign API
+  @IsOptional()
+  @IsString()
+  AISENSY_API_KEY?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

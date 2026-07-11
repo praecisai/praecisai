@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Query, Param } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { BusinessId } from '../../common/decorators/current-user.decorator';
@@ -16,5 +16,11 @@ export class WhatsappController {
   @Post('logs')
   createLog(@BusinessId() businessId: string, @Body() dto: any) {
     return this.whatsappService.createLog(businessId, dto);
+  }
+
+  // Send the outstanding-statement PDF to a customer via AiSensy
+  @Post('send-statement/:customerId')
+  sendStatement(@BusinessId() businessId: string, @Param('customerId') customerId: string) {
+    return this.whatsappService.sendStatementToCustomer(businessId, customerId);
   }
 }

@@ -6,6 +6,8 @@ import { DemoService } from './demo.service';
 import { DemoLeadRepository } from './demo-lead.repository';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { CallingModule } from '../calling/calling.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { CallingModule } from '../calling/calling.module';
       inject: [ConfigService],
     }),
     CallingModule,
+    WhatsappModule,
+    StorageModule,
   ],
   controllers: [DemoController],
   providers: [DemoService, DemoLeadRepository],

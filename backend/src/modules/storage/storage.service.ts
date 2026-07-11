@@ -8,6 +8,7 @@ export class StorageService {
   private readonly logger = new Logger(StorageService.name);
   private _supabase: SupabaseClient | null = null;
   private readonly BUCKET = 'imports';
+  private readonly STATEMENTS_BUCKET = 'statements';
 
   constructor(private config: ConfigService) {}
 
@@ -41,6 +42,39 @@ export class StorageService {
 
     const { data } = this.supabase.storage.from(this.BUCKET).getPublicUrl(key);
     return data.publicUrl;
+  }
+
+  /**
+   * Upload a statement PDF to the private `statements` bucket and return a
+   * signed URL. The URL only needs to live long enough for WhatsApp/AiSensy
+   * to fetch the media at send time (it re-hosts the file after that).
+   */
+  async uploadStatementPdf(
+    ownerId: string,
+    buffer: Buffer,
+    expirySeconds = 24 * 60 * 60,
+  ): Promise<string> {
+    const key = `${ownerId}/${uuidv4()}.pdf`;
+
+    const { error } = await this.supabase.storage
+      .from(this.STATEMENTS_BUCKET)
+      .upload(key, buffer, { contentType: 'application/pdf', upsert: false });
+
+    if (error) {
+      this.logger.error(`Statement upload failed: ${error.message}`);
+      throw new BadRequestException(`Statement upload failed: ${error.message}`);
+    }
+
+    const { data, error: signError } = await this.supabase.storage
+      .from(this.STATEMENTS_BUCKET)
+      .createSignedUrl(key, expirySeconds);
+
+    if (signError || !data?.signedUrl) {
+      this.logger.error(`Statement signed URL failed: ${signError?.message}`);
+      throw new BadRequestException('Could not create statement link');
+    }
+
+    return data.signedUrl;
   }
 
   async downloadFile(fileUrl: string): Promise<Buffer> {

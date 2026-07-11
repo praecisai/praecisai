@@ -2,6 +2,9 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { DemoLeadRepository } from './demo-lead.repository';
 import { CreateDemoLeadDto } from './dto/create-demo-lead.dto';
 import { RunDemoDto } from './dto/run-demo.dto';
+import { StatementPdfService } from '../whatsapp/statement-pdf.service';
+import { AisensyService } from '../whatsapp/aisensy.service';
+import { StorageService } from '../storage/storage.service';
 import { JwtService } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -322,6 +325,9 @@ export class DemoService {
     private readonly demoLeadRepo: DemoLeadRepository,
     private readonly jwtService: JwtService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
+    private readonly statementPdf: StatementPdfService,
+    private readonly aisensy: AisensyService,
+    private readonly storage: StorageService,
   ) {}
 
   async createLead(dto: CreateDemoLeadDto) {
@@ -565,8 +571,56 @@ export class DemoService {
       status: exhausted ? 'EXHAUSTED' : 'SIGNED_UP',
     });
 
-    // TODO: WhatsApp Cloud API integration
-    if (isWhatsapp) { /* placeholder */ }
+    // WhatsApp: statement PDF (colored by segment) + AiSensy template message
+    if (isWhatsapp) {
+      try {
+        const invoices =
+          dto.invoices && dto.invoices.length > 0
+            ? dto.invoices
+            : [
+                {
+                  billNo: dto.billNo,
+                  billDate: '',
+                  billAmount: dto.totalOriginalAmount ?? dto.dueAmount,
+                  dueAmount: dto.dueAmount,
+                  daysOverdue: dto.daysOverdue,
+                  status: dto.segment,
+                },
+              ];
+
+        const pdfBuffer = await this.statementPdf.generate({
+          partyName: dto.partyName,
+          city: dto.city,
+          agentName: dto.agentName,
+          segment: dto.segment,
+          invoices,
+        });
+
+        const pdfUrl = await this.storage.uploadStatementPdf(`demo/${lead.id}`, pdfBuffer);
+
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const pdfFilename = `${dto.partyName}_Statement_${dd}-${mm}-${now.getFullYear()}.pdf`;
+
+        const totalDue = invoices.reduce((s, i) => s + i.dueAmount, 0);
+
+        await this.aisensy.sendStatement({
+          segment: dto.segment,
+          destinationPhone: dto.mobileNumber || lead.phone,
+          partyName: dto.partyName,
+          totalDue,
+          invoiceCount: invoices.length,
+          pdfUrl,
+          pdfFilename,
+        });
+
+        await this.demoLeadRepo.updateRun(run.id, { status: 'SENT' });
+      } catch (err) {
+        await this.demoLeadRepo.updateRun(run.id, { status: 'FAILED' });
+        throw err;
+      }
+    }
 
     if (isCall) {
       // Convert the party name and city to Devanagari so Sarvam Bulbul pronounces them naturally.
@@ -603,7 +657,9 @@ export class DemoService {
     return {
       success: true,
       demoRunId: run.id,
-      message: 'Call queued — your phone should ring shortly',
+      message: isWhatsapp
+        ? 'WhatsApp statement sent — check your WhatsApp'
+        : 'Call queued — your phone should ring shortly',
       whatsappRemaining: updatedLead.whatsapp_allowed - updatedLead.whatsapp_used,
       callsRemaining: updatedLead.calls_allowed - updatedLead.calls_used,
     };
