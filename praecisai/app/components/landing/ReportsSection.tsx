@@ -82,7 +82,7 @@ export default function ReportsSection() {
   );
 
   return (
-    <section id="reports" className="bg-[var(--cream)] px-5 py-28 sm:px-8 sm:py-36 text-center">
+    <section id="reports" className="bg-[var(--cream)] px-4 py-16 sm:px-8 sm:py-36 text-center">
       <motion.div
         className="mx-auto w-full max-w-7xl"
         variants={sectionVariants}
@@ -135,7 +135,7 @@ export default function ReportsSection() {
         </motion.div>
 
         {/* Report cards */}
-        <motion.div layout className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div layout className="mt-8 sm:mt-12 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">
             {filteredReports.map((report) => (
               <motion.div
@@ -145,21 +145,21 @@ export default function ReportsSection() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                className="spotlight-card rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7"
+                className="spotlight-card rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-7 text-left"
               >
                 {/* Icon + frequency row */}
                 <div className="mb-5 flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--sand)]">
-                    <report.icon className="h-6 w-6 text-[var(--mahogany)]" stroke={1.5} />
+                  <div className="flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[var(--sand)]">
+                    <report.icon className="h-4 w-4 sm:h-6 sm:w-6 text-[var(--mahogany)]" stroke={1.5} />
                   </div>
                   <span className="rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-2.5 py-1 font-body text-[10px] font-semibold uppercase tracking-wide text-[var(--walnut)]">
                     {report.frequency}
                   </span>
                 </div>
-                <h3 className="font-display text-[16px] font-semibold text-[var(--dark-brown)]">
+                <h3 className="mt-2 sm:mt-0 font-display text-[13px] sm:text-[16px] font-semibold text-[var(--dark-brown)]">
                   {report.title}
                 </h3>
-                <p className="mt-2.5 font-body text-[13px] leading-[1.7] text-[var(--walnut)]">
+                <p className="mt-1.5 sm:mt-2.5 font-body text-[11px] sm:text-[13px] leading-[1.6] text-[var(--walnut)]">
                   {report.description}
                 </p>
               </motion.div>

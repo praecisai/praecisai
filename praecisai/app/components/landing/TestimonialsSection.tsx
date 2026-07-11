@@ -38,7 +38,7 @@ const testimonials = [
 
 export default function TestimonialsSection() {
   return (
-    <section id="testimonials" className="bg-[var(--sand)] px-5 py-28 sm:px-8 sm:py-36 text-center">
+    <section id="testimonials" className="bg-[var(--sand)] px-4 py-16 sm:px-8 sm:py-36 text-center">
       <motion.div
         className="mx-auto w-full max-w-6xl"
         variants={sectionVariants}
@@ -60,13 +60,13 @@ export default function TestimonialsSection() {
         />
 
         {/* Testimonial grid */}
-        <div className="mt-16 grid gap-6 sm:grid-cols-2">
+        <div className="mt-8 sm:mt-16 grid grid-cols-2 gap-3 sm:gap-6">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
               variants={itemVariants}
               transition={{ delay: index * 0.1 }}
-              className="spotlight-card flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-7 sm:p-8"
+              className="spotlight-card flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-8"
             >
               {/* Quote icon */}
               <div>
@@ -82,21 +82,21 @@ export default function TestimonialsSection() {
                     stroke={1.5}
                   />
                 </div>
-                <p className="font-body text-[15px] leading-[1.75] text-[var(--dark-brown)]">
+                <p className="font-body text-[11px] sm:text-[15px] leading-[1.65] sm:leading-[1.75] text-[var(--dark-brown)]">
                   &ldquo;{testimonial.quote}&rdquo;
                 </p>
               </div>
 
               {/* Author */}
-              <div className="mt-8 flex items-center gap-3 border-t border-[rgba(221,184,146,0.4)] pt-6">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--sand)] font-display text-sm font-bold text-[var(--mahogany)]">
+              <div className="mt-4 sm:mt-8 flex items-center gap-2 sm:gap-3 border-t border-[rgba(221,184,146,0.4)] pt-4 sm:pt-6">
+                <div className="flex h-8 w-8 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-[var(--sand)] font-display text-xs sm:text-sm font-bold text-[var(--mahogany)]">
                   {testimonial.initials}
                 </div>
                 <div>
-                  <p className="font-display text-[14px] font-semibold text-[var(--dark-brown)]">
+                  <p className="font-display text-[12px] sm:text-[14px] font-semibold text-[var(--dark-brown)]">
                     {testimonial.name}
                   </p>
-                  <p className="font-body text-[12px] text-[var(--walnut)]">
+                  <p className="font-body text-[10px] sm:text-[12px] text-[var(--walnut)]">
                     {testimonial.company}
                   </p>
                 </div>

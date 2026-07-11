@@ -69,7 +69,7 @@ const trustPoints = [
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="bg-[var(--cream)] px-5 py-28 sm:px-8 sm:py-36 text-center">
+    <section id="features" className="bg-[var(--cream)] px-4 py-16 sm:px-8 sm:py-36 text-center">
       <motion.div
         className="mx-auto w-full max-w-7xl"
         variants={sectionVariants}
@@ -97,27 +97,28 @@ export default function FeaturesSection() {
         </motion.p>
 
         {/* Feature grid */}
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 sm:mt-16 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
               variants={scaleIn}
               transition={{ delay: index * 0.08 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.14)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
-              className="spotlight-card group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 transition-shadow duration-200"
+              className="spotlight-card group rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-8 transition-shadow duration-200"
             >
               <motion.div
                 whileHover={{ scale: 1.12, rotate: [0, -5, 5, 0] }}
                 transition={{ duration: 0.4 }}
                 className="mx-auto mb-5 flex items-center justify-center rounded-xl"
-                style={{ backgroundColor: feature.iconBg, width: '52px', height: '52px' }}
+                style={{ backgroundColor: feature.iconBg, width: '40px', height: '40px' }}
               >
-                <feature.icon size={24} className="text-[var(--mahogany)]" stroke={1.5} />
+                <feature.icon size={20} className="text-[var(--mahogany)] sm:hidden" stroke={1.5} />
+                <feature.icon size={24} className="text-[var(--mahogany)] hidden sm:block" stroke={1.5} />
               </motion.div>
-              <h3 className="font-display text-[17px] font-semibold text-[var(--dark-brown)]">
+              <h3 className="font-display text-[13px] sm:text-[17px] font-semibold text-[var(--dark-brown)]">
                 {feature.title}
               </h3>
-              <p className="mt-3 font-body text-[14px] leading-[1.75] text-[var(--walnut)]">
+              <p className="mt-2 sm:mt-3 font-body text-[11px] sm:text-[14px] leading-[1.6] sm:leading-[1.75] text-[var(--walnut)]">
                 {feature.description}
               </p>
             </motion.div>

@@ -63,13 +63,14 @@ function AnimatedStat({
   }, [isInView, value]);
 
   return (
-    <div ref={ref} className="flex flex-1 flex-col items-center px-8 py-12 text-center">
-      <span className="font-display font-bold text-[var(--cream)]"
-        style={{ fontSize: 'clamp(2.25rem, 5vw, 3.25rem)' }}
+    <div ref={ref} className="flex flex-1 flex-col items-center px-3 py-6 sm:px-8 sm:py-12 text-center">
+      <span
+        className="whitespace-nowrap font-display font-bold text-[var(--cream)]"
+        style={{ fontSize: 'clamp(1.3rem, 4vw, 3.25rem)' }}
       >
         {prefix}{display}{suffix}
       </span>
-      <p className="mt-4 max-w-[200px] font-body text-[13px] leading-[1.6] text-[var(--sand)]">
+      <p className="mt-2 sm:mt-4 max-w-[120px] sm:max-w-[200px] font-body text-[10px] sm:text-[13px] leading-[1.6] text-[var(--sand)]">
         {label}
       </p>
     </div>
@@ -78,7 +79,7 @@ function AnimatedStat({
 
 export default function StatsSection() {
   return (
-    <section className="bg-[var(--mahogany)] px-5 py-24 sm:px-8 sm:py-28 text-center">
+    <section className="bg-[var(--mahogany)] px-3 py-12 sm:px-8 sm:py-28 text-center">
       <motion.div
         className="mx-auto w-full max-w-5xl"
         variants={sectionVariants}
@@ -88,7 +89,7 @@ export default function StatsSection() {
       >
         <motion.div
           variants={itemVariants}
-          className="flex flex-col divide-y divide-[rgba(237,224,212,0.12)] sm:flex-row sm:divide-x sm:divide-y-0"
+          className="flex flex-row divide-x divide-[rgba(237,224,212,0.12)]"
         >
           {stats.map((stat) => (
             <AnimatedStat

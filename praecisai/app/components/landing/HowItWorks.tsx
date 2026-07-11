@@ -39,7 +39,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-y border-[rgba(221,184,146,0.35)] bg-[var(--surface-warm)] px-5 py-28 sm:px-8 sm:py-36 text-center"
+      className="border-y border-[rgba(221,184,146,0.35)] bg-[var(--surface-warm)] px-4 py-16 sm:px-8 sm:py-36 text-center"
     >
       <motion.div
         className="mx-auto w-full max-w-7xl"
@@ -62,14 +62,18 @@ export default function HowItWorks() {
         />
 
         {/* Step cards */}
-        <div className="relative mt-20 grid gap-8 lg:grid-cols-3">
+        <div className="relative mt-8 sm:mt-20 grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
           {steps.map((step, index) => (
             <motion.div
               key={step.number}
               variants={scaleIn}
               transition={{ delay: index * 0.2 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
-              className="spotlight-card relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-8 sm:p-10 transition-shadow duration-200"
+              className={`spotlight-card relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-10 transition-shadow duration-200${
+                index === steps.length - 1 && steps.length % 2 === 1
+                  ? ' col-span-2 sm:col-span-1 mx-auto w-[calc(50%-6px)] sm:w-auto'
+                  : ''
+              }`}
             >
               {/* Arrow connector (desktop only) */}
               {index < steps.length - 1 && (
@@ -87,7 +91,7 @@ export default function HowItWorks() {
               )}
 
               {/* Step number + icon row */}
-              <div className="mb-7 flex items-center justify-between">
+              <div className="mb-4 sm:mb-7 flex items-center justify-between">
                 <span
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
                 >
@@ -101,10 +105,10 @@ export default function HowItWorks() {
                 </div>
               </div>
 
-              <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
+              <h3 className="font-display text-[13px] sm:text-xl font-semibold text-[var(--dark-brown)]">
                 {step.title}
               </h3>
-              <p className="mt-4 font-body text-[14px] leading-[1.75] text-[var(--walnut)]">
+              <p className="mt-2 sm:mt-4 font-body text-[11px] sm:text-[14px] leading-[1.65] text-[var(--walnut)]">
                 {step.description}
               </p>
               <div className="mt-7 flex flex-wrap gap-2">
