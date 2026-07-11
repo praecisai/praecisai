@@ -286,7 +286,7 @@ function SkeletonThree() {
 function SkeletonFour() {
   return (
     <div className="flex flex-1 items-center justify-center py-4">
-      <div className="translate-x-4 sm:translate-x-8">
+      <div className="sm:translate-x-8 scale-[0.72] sm:scale-100 origin-center">
         <Globe />
       </div>
     </div>

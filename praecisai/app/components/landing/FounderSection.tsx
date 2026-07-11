@@ -20,17 +20,17 @@ export default function FounderSection() {
         {/* Photos column */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-row flex-wrap justify-center gap-10 lg:flex-col lg:items-start lg:gap-12"
+          className="flex flex-row flex-wrap justify-center gap-6 sm:gap-10 lg:flex-col lg:items-start lg:gap-12"
         >
           {/* Ravi Prajapati */}
           <div className="flex flex-col items-center lg:items-start">
             <div className="relative">
               <div className="absolute -bottom-2 -right-2 h-full w-full rounded-2xl bg-[var(--caramel)] opacity-40" />
-              <div className="relative flex h-[160px] w-[160px] items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--sand)] to-[var(--caramel)]">
-                <span className="font-display text-[42px] font-bold text-[var(--mahogany)]">R</span>
+              <div className="relative flex h-[120px] w-[120px] sm:h-[160px] sm:w-[160px] items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--sand)] to-[var(--caramel)]">
+                <span className="font-display text-[32px] sm:text-[42px] font-bold text-[var(--mahogany)]">R</span>
               </div>
             </div>
-            <h3 className="mt-5 font-display text-[20px] font-semibold text-[var(--dark-brown)]">Ravi Prajapati</h3>
+            <h3 className="mt-4 font-display text-[16px] sm:text-[20px] font-semibold text-[var(--dark-brown)]">Ravi Prajapati</h3>
             <p className="mt-0.5 font-body text-[13px] text-[var(--walnut)]">Founder & CEO, PraecisAI</p>
             <a
               href="https://linkedin.com"
@@ -47,11 +47,11 @@ export default function FounderSection() {
           <div className="flex flex-col items-center lg:items-start">
             <div className="relative">
               <div className="absolute -bottom-2 -right-2 h-full w-full rounded-2xl bg-[var(--caramel)] opacity-40" />
-              <div className="relative flex h-[160px] w-[160px] items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--sand)] to-[var(--caramel)]">
-                <span className="font-display text-[42px] font-bold text-[var(--mahogany)]">V</span>
+              <div className="relative flex h-[120px] w-[120px] sm:h-[160px] sm:w-[160px] items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--sand)] to-[var(--caramel)]">
+                <span className="font-display text-[32px] sm:text-[42px] font-bold text-[var(--mahogany)]">V</span>
               </div>
             </div>
-            <h3 className="mt-5 font-display text-[20px] font-semibold text-[var(--dark-brown)]">Viraj Walavalkar</h3>
+            <h3 className="mt-4 font-display text-[16px] sm:text-[20px] font-semibold text-[var(--dark-brown)]">Viraj Walavalkar</h3>
             <p className="mt-0.5 font-body text-[13px] text-[var(--walnut)]">CTO, PraecisAI</p>
             <a
               href="https://linkedin.com"
@@ -73,13 +73,13 @@ export default function FounderSection() {
           >
             Built to completely eliminate the revenue leak of manual follow-ups.
           </h2>
-          <p className="mt-6 font-body text-[16px] leading-[1.8] text-[var(--walnut)]">
+          <p className="mt-5 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
             We observed businesses losing significant capital not because their customers refused to pay, but simply because follow-ups were inconsistent. A manual call gets missed, an agent forgets, and basic text messages lack the professional authority required for escalation.
           </p>
-          <p className="mt-5 font-body text-[16px] leading-[1.8] text-[var(--walnut)]">
+          <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
             PraecisAI was engineered to automate this entire cycle. By blending intelligent AI voice calls with branded statements and WhatsApp campaigns, we ensure you recover your outstanding accounts predictably—without adding headcount to your collections team.
           </p>
-          <p className="mt-5 font-body text-[16px] leading-[1.8] text-[var(--walnut)]">
+          <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
             Designed specifically for distributors, manufacturers, and traders across India. We built a platform that rigorously protects your client relationships while ensuring your cash flow remains uninterrupted.
           </p>
           <div className="mt-7 inline-flex items-center gap-2.5 rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-5 py-2.5">

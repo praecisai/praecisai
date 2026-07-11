@@ -215,7 +215,7 @@ export default function HeroSection() {
         {/* Headline — line 1 char-by-char, line 2 whole-phrase for gradient to work */}
         <h1
           className="mx-auto max-w-4xl text-center font-display font-bold leading-[1.1] tracking-[-0.03em] text-[var(--dark-warm)]"
-          style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)' }}
+          style={{ fontSize: 'clamp(1.75rem, 6vw, 4.5rem)' }}
         >
           {/* Line 1 */}
           <span className="block">
@@ -249,7 +249,7 @@ export default function HeroSection() {
         {/* Subheadline */}
         <motion.p
           variants={itemVariants}
-          className="mx-auto mt-9 max-w-[560px] text-center font-body text-[17px] leading-[1.75] text-[var(--walnut)]"
+          className="mx-auto mt-6 sm:mt-9 max-w-[560px] text-center font-body text-[14px] sm:text-[17px] leading-[1.7] sm:leading-[1.75] text-[var(--walnut)]"
         >
           Upload your outstanding Excel once. PraecisAI makes AI Hindi voice calls,
           sends WhatsApp reminders, and delivers branded PDFs — automatically — so
@@ -259,7 +259,7 @@ export default function HeroSection() {
         {/* CTA Buttons */}
         <motion.div
           variants={itemVariants}
-          className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          className="mt-8 sm:mt-12 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row"
         >
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Link

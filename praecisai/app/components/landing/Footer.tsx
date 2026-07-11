@@ -24,7 +24,7 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl">
 
         {/* Grid */}
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.8fr_1fr_1fr_1fr]">
+        <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1.8fr_1fr_1fr_1fr]">
 
           {/* Brand column */}
           <div>
@@ -38,6 +38,9 @@ export default function Footer() {
               Mumbai, India · praecisai.in
             </div>
           </div>
+
+          {/* Link columns — 2-col on mobile, individual on lg */}
+          <div className="grid grid-cols-2 gap-8 sm:contents">
 
           {/* Product */}
           <div>
@@ -104,6 +107,7 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
+          </div>
           </div>
         </div>
 
