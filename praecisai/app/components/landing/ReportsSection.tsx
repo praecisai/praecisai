@@ -178,7 +178,7 @@ export default function ReportsSection() {
               Experience the platform live
             </h3>
             <p className="mt-1 font-body text-[14px] text-[var(--walnut)] text-center sm:text-left">
-              Get 2 free AI actions (WhatsApp/Voice Call) on our interactive demo dashboard. No credit card required.
+              Try 2 live AI actions (WhatsApp/Voice Call) on our interactive demo dashboard.
             </p>
           </div>
           <div className="px-6 py-8 sm:px-10 sm:py-10">

@@ -13,6 +13,15 @@ import {
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import AnimatedHeading from './AnimatedHeading';
 
+function scrollToDemo(e: React.MouseEvent) {
+  e.preventDefault();
+  const el = document.getElementById('demo');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState(null, '', '#demo');
+  }
+}
+
 const platformFeatures = [
   'Unlimited debtor parties',
   'Smart AI segmentation',
@@ -131,15 +140,15 @@ export default function PricingSection() {
 
               {/* CTA */}
               <div className="mt-8">
-                <Link
-                  href="#demo"
+                <button
+                  onClick={scrollToDemo}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-6 py-4 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
                 >
-                  Start free pilot
+                  Try Demo
                   <IconArrowRight size={18} stroke={2} />
-                </Link>
+                </button>
                 <p className="mt-3 text-center font-body text-[12px] text-[var(--walnut)]">
-                  14-day free pilot · No credit card needed
+                  Speak to us about onboarding · No obligation
                 </p>
               </div>
             </div>
