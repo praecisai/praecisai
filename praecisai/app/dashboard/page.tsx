@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useDashboardStats } from '../../lib/api/hooks';
 import { TopHeader } from '../../components/layout/Sidebar';
 import { formatINR, formatNumber, getAgingColor } from '../../lib/utils/format';
@@ -21,7 +22,7 @@ function MetricCard({
 }) {
   if (loading) {
     return (
-      <div className="glass-card p-5 metric-card">
+      <div className="glass-card p-4 sm:p-5 metric-card">
         <div className="skeleton h-4 w-24 mb-3" />
         <div className="skeleton h-8 w-32 mb-2" />
         <div className="skeleton h-3 w-20" />
@@ -30,14 +31,14 @@ function MetricCard({
   }
 
   return (
-    <div className="glass-card p-5 metric-card">
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider">{title}</p>
-        <div className="p-2 rounded-lg" style={{ background: `${color}18` }}>
+    <div className="glass-card p-4 sm:p-5 metric-card min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider min-w-0">{title}</p>
+        <div className="p-2 rounded-lg flex-shrink-0" style={{ background: `${color}18` }}>
           <Icon size={16} style={{ color }} strokeWidth={1.75} />
         </div>
       </div>
-      <p className="text-2xl font-bold text-[var(--dark-brown)] count-animation">{value}</p>
+      <p className="text-xl sm:text-2xl font-bold text-[var(--dark-brown)] count-animation">{value}</p>
       {sub && <p className="text-xs text-[var(--walnut)] mt-1">{sub}</p>}
     </div>
   );
@@ -45,8 +46,22 @@ function MetricCard({
 
 const AGING_COLORS = ['#7F5539', '#9C6644', '#B08968', '#7F1D1D'];
 
+// Below 640px the pie legend moves under the chart so the pie isn't squeezed.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  return isMobile;
+}
+
 export default function DashboardPage() {
   const { data: stats, isLoading } = useDashboardStats();
+  const isMobile = useIsMobile();
 
   const agingData = stats?.aging_buckets?.map((b, i) => ({
     name: b.range,
@@ -66,9 +81,9 @@ export default function DashboardPage() {
     <div>
       <TopHeader title="Dashboard" subtitle="Your accounts receivable overview" />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         {/* Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             title="Total Outstanding"
             value={isLoading ? '...' : formatINR(stats?.total_outstanding ?? 0)}
@@ -189,15 +204,17 @@ export default function DashboardPage() {
             {isLoading ? (
               <div className="skeleton h-40 w-full rounded-lg" />
             ) : segmentData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={180}>
+              <ResponsiveContainer width="100%" height={isMobile ? 220 : 180}>
                 <PieChart>
-                  <Pie data={segmentData} cx="40%" cy="50%" outerRadius={70} dataKey="value" paddingAngle={2}>
+                  <Pie data={segmentData} cx={isMobile ? '50%' : '40%'} cy={isMobile ? '42%' : '50%'} outerRadius={isMobile ? 60 : 70} dataKey="value" paddingAngle={2}>
                     {segmentData.map((_, i) => (
                       <Cell key={i} fill={SEGMENT_COLORS[i % SEGMENT_COLORS.length]} />
                     ))}
                   </Pie>
                   <Legend
-                    layout="vertical" align="right" verticalAlign="middle"
+                    layout={isMobile ? 'horizontal' : 'vertical'}
+                    align={isMobile ? 'center' : 'right'}
+                    verticalAlign={isMobile ? 'bottom' : 'middle'}
                     formatter={(v) => <span style={{ fontSize: '11px', color: 'var(--walnut)' }}>{v}</span>}
                   />
                   <Tooltip

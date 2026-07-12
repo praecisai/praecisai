@@ -187,6 +187,64 @@ export function useSaveTemplate() {
   });
 }
 
+// ─── Recovery actions (AI call + WhatsApp statement) ──────────────────────────
+
+export function useCallCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (customerId: string) => api.post(`/calling/call-customer/${customerId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
+  });
+}
+
+export function useSendWhatsAppStatement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (customerId: string) => api.post(`/whatsapp/send-statement/${customerId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
+  });
+}
+
+export function useCallSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (segment: string) => api.post('/calling/call-segment', { segment }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
+  });
+}
+
+export function useSendSegmentStatements() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (segment: string) => api.post('/whatsapp/send-segment', { segment }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
+  });
+}
+
+export function useUpdateBusiness() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name?: string; segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }> }) =>
+      api.patch('/business/me', data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] });
+      qc.invalidateQueries({ queryKey: ['outstandings'] });
+    },
+  });
+}
+
+export function useUpdateCustomerPhone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, phone }: { customerId: string; phone: string }) =>
+      api.patch(`/customers/${customerId}`, { phone }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['outstandings'] });
+    },
+  });
+}
+
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 
 export function useCampaigns(page = 1, limit = 20) {
@@ -204,6 +262,17 @@ export function useCreateCampaign() {
   return useMutation({
     mutationFn: (data: any) => api.post('/campaigns', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['campaigns'] }),
+  });
+}
+
+export function useDeleteCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/campaigns/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }
 

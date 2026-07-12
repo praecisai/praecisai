@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
-import { useMe } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Bell, Database } from 'lucide-react';
+import { useMe, useUpdateBusiness } from '../../../lib/api/hooks';
+import { Settings, Users, Shield, Bell } from 'lucide-react';
+import { toast } from 'sonner';
 
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
@@ -12,29 +13,90 @@ const TABS = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
-const DEFAULT_SEGMENT_RULES = [
-  { range: '0–60 days', segment: 'Soft Reminder', color: '#3b82f6' },
-  { range: '61–120 days', segment: 'Follow-up', color: '#f59e0b' },
-  { range: '121–180 days', segment: 'Strong Follow-up', color: '#f97316' },
-  { range: '181+ days', segment: 'Escalation', color: '#ef4444' },
+const SEGMENT_META = [
+  { segment: 'Soft Reminder', color: 'var(--recovery-green)', desc: 'Gentle first reminder — no pressure' },
+  { segment: 'Follow-up', color: '#B8860B', desc: 'Friendly follow-up asking for a rough date' },
+  { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful — accounts team update' },
+  { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved — humble but urgent' },
 ];
+
+const DEFAULT_BOUNDS = [60, 120, 180];
+
+function boundsFromRules(rules: any): number[] {
+  if (!Array.isArray(rules) || rules.length !== 4) return DEFAULT_BOUNDS;
+  const sorted = [...rules].sort((a, b) => a.min_days - b.min_days);
+  const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days];
+  return bounds.every((b) => typeof b === 'number') ? (bounds as number[]) : DEFAULT_BOUNDS;
+}
+
+function rulesFromBounds(bounds: number[]) {
+  return [
+    { min_days: 0, max_days: bounds[0], segment: 'Soft Reminder' },
+    { min_days: bounds[0] + 1, max_days: bounds[1], segment: 'Follow-up' },
+    { min_days: bounds[1] + 1, max_days: bounds[2], segment: 'Strong Follow-up' },
+    { min_days: bounds[2] + 1, max_days: null, segment: 'Escalation' },
+  ];
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('business');
   const { data: user } = useMe();
+  const updateBusiness = useUpdateBusiness();
+
+  const [businessName, setBusinessName] = useState('');
+  const [bounds, setBounds] = useState<number[]>(DEFAULT_BOUNDS);
+
+  useEffect(() => {
+    if (user?.business?.name) setBusinessName(user.business.name);
+    setBounds(boundsFromRules(user?.business?.segment_rules));
+  }, [user?.business?.name, user?.business?.segment_rules]);
+
+  const boundsValid = bounds[0] >= 1 && bounds[1] > bounds[0] && bounds[2] > bounds[1];
+
+  const saveBusiness = async () => {
+    try {
+      await updateBusiness.mutateAsync({ name: businessName.trim() });
+      toast.success('Business settings saved', {
+        description: `On calls, Meena will say “${spokenName}”.`,
+      });
+    } catch (e: any) {
+      toast.error('Could not save business settings', { description: e.message });
+    }
+  };
+
+  const saveSegments = async () => {
+    if (!boundsValid) return;
+    try {
+      await updateBusiness.mutateAsync({ segment_rules: rulesFromBounds(bounds) });
+      toast.success('Segment rules saved', {
+        description: 'All customers were re-segmented with the new day ranges.',
+      });
+    } catch (e: any) {
+      toast.error('Could not save segment rules', { description: e.message });
+    }
+  };
+
+  const spokenName = businessName.replace(/\s+(llp|ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '').trim();
+
+  const ranges = [
+    `0 – ${bounds[0]} days`,
+    `${bounds[0] + 1} – ${bounds[1]} days`,
+    `${bounds[1] + 1} – ${bounds[2]} days`,
+    `${bounds[2] + 1}+ days`,
+  ];
 
   return (
     <div>
       <TopHeader title="Settings" subtitle="Configure your business settings" />
-      <div className="p-6 flex gap-5">
+      <div className="p-4 sm:p-6 flex flex-col lg:flex-row gap-5">
         {/* Sidebar tabs */}
-        <div className="w-48 flex-shrink-0 space-y-0.5">
+        <div className="w-full lg:w-48 flex-shrink-0 flex lg:flex-col gap-1 lg:gap-0 lg:space-y-0.5 overflow-x-auto pb-1 lg:pb-0">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setActiveTab(id)}
-              className={`sidebar-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
-                activeTab === id ? 'active text-blue-400' : 'text-slate-400 hover:text-white'
+              className={`sidebar-item whitespace-nowrap lg:w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
+                activeTab === id ? 'active text-[var(--mahogany)]' : 'text-[var(--walnut)] hover:text-[var(--mahogany)]'
               }`}>
-              <Icon size={15} className={activeTab === id ? 'text-blue-400' : 'text-slate-500'} />
+              <Icon size={15} className={activeTab === id ? 'text-[var(--mahogany)]' : 'text-[var(--walnut)]'} />
               {label}
             </button>
           ))}
@@ -44,26 +106,37 @@ export default function SettingsPage() {
         <div className="flex-1 min-w-0">
           {activeTab === 'business' && (
             <div className="glass-card p-6 space-y-5">
-              <h3 className="font-semibold text-white">Business Settings</h3>
+              <h3 className="font-semibold text-[var(--dark-brown)]">Business Settings</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Business Name</label>
-                  <input className="input-dark" defaultValue={user?.business?.name ?? ''} />
+                  <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Business Name</label>
+                  <input
+                    className="input-dark"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                  />
+                  <p className="text-xs text-[var(--walnut)] mt-1.5">
+                    Shown on statement PDFs as written. On AI calls, legal suffixes are dropped automatically —
+                    Meena will say &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;.
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Plan</label>
+                  <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Plan</label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-white">{user?.business?.plan ?? 'FREE'}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Current</span>
+                    <span className="text-sm text-[var(--dark-brown)]">{user?.business?.plan ?? 'FREE'}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--sand)', color: 'var(--mahogany)', border: '1px solid var(--caramel)' }}>Current</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Business ID</label>
-                  <p className="text-xs font-mono text-slate-500 bg-[var(--surface-warm)]/3 px-3 py-2 rounded-lg">{user?.business_id ?? '—'}</p>
+                  <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Business ID</label>
+                  <p className="text-xs font-mono text-[var(--walnut)] px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>{user?.business_id ?? '—'}</p>
                 </div>
-                <button className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-                  style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
-                  Save Changes
+                <button
+                  onClick={saveBusiness}
+                  disabled={updateBusiness.isPending || businessName.trim().length < 2}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+                  {updateBusiness.isPending ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -71,62 +144,94 @@ export default function SettingsPage() {
 
           {activeTab === 'users' && (
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-white mb-4">Users & Roles</h3>
+              <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Users & Roles</h3>
               <div className="space-y-3">
                 {[
-                  { role: 'BUSINESS_OWNER', desc: 'Full access to all features', color: '#a78bfa' },
-                  { role: 'MANAGER', desc: 'Manage agents, view all data, configure campaigns', color: '#60a5fa' },
-                  { role: 'RECOVERY_AGENT', desc: 'View assigned customers, log interactions', color: '#34d399' },
-                ].map(({ role, desc, color }) => (
-                  <div key={role} className="flex items-start gap-3 p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: color }} />
+                  { role: 'BUSINESS_OWNER', desc: 'Full access to all features' },
+                  { role: 'MANAGER', desc: 'Manage agents, view all data, configure campaigns' },
+                  { role: 'RECOVERY_AGENT', desc: 'View assigned customers, log interactions' },
+                ].map(({ role, desc }) => (
+                  <div key={role} className="flex items-start gap-3 p-4 rounded-lg" style={{ background: 'var(--sand)' }}>
+                    <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: 'var(--mahogany)' }} />
                     <div>
-                      <p className="text-sm font-medium text-white">{role}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                      <p className="text-sm font-medium text-[var(--dark-brown)]">{role}</p>
+                      <p className="text-xs text-[var(--walnut)] mt-0.5">{desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-4">User management via the Users API. RBAC enforced on all endpoints.</p>
+              <p className="text-xs text-[var(--walnut)] mt-4">User management via the Users API. RBAC enforced on all endpoints.</p>
             </div>
           )}
 
           {activeTab === 'segments' && (
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-white mb-1">Segment Rules</h3>
-              <p className="text-xs text-slate-400 mb-5">These rules determine how customers are categorized. Recalculated on every import.</p>
+              <h3 className="font-semibold text-[var(--dark-brown)] mb-1">Segment Rules</h3>
+              <p className="text-xs text-[var(--walnut)] mb-5">
+                Day ranges decide each customer&apos;s segment — which controls the AI call script, the WhatsApp
+                template and the statement colour. Edit the upper bound of the first three segments; saving
+                re-segments every customer instantly.
+              </p>
               <div className="space-y-3">
-                {DEFAULT_SEGMENT_RULES.map(({ range, segment, color }) => (
-                  <div key={segment} className="flex items-center gap-4 p-3 rounded-lg glass-card">
+                {SEGMENT_META.map(({ segment, color, desc }, i) => (
+                  <div key={segment} className="flex flex-wrap items-center gap-3 sm:gap-4 p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{range}</p>
-                      <p className="text-xs text-slate-400">{segment}</p>
+                      <p className="text-sm font-medium text-[var(--dark-brown)]">{segment}</p>
+                      <p className="text-xs text-[var(--walnut)]">{desc}</p>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${color}15`, color }}>
-                      Default
-                    </span>
+                    <div className="flex items-center gap-2 text-sm text-[var(--walnut)]">
+                      {i < 3 ? (
+                        <>
+                          <span>{i === 0 ? 0 : bounds[i - 1] + 1} –</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={bounds[i]}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value) || 0;
+                              setBounds((b) => b.map((x, j) => (j === i ? v : x)));
+                            }}
+                            className="input-dark w-20 text-center"
+                          />
+                          <span>days</span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-medium" style={{ color }}>{ranges[3]}</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-4">Custom rules per business coming in the next release.</p>
+              {!boundsValid && (
+                <p className="text-xs mt-3" style={{ color: '#C62828' }}>
+                  Each boundary must be larger than the previous one.
+                </p>
+              )}
+              <button
+                onClick={saveSegments}
+                disabled={updateBusiness.isPending || !boundsValid}
+                className="mt-5 px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+                {updateBusiness.isPending ? 'Saving…' : 'Save Segment Rules'}
+              </button>
             </div>
           )}
 
           {activeTab === 'notifications' && (
             <div className="glass-card p-6">
-              <h3 className="font-semibold text-white mb-4">Notifications</h3>
+              <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Notifications</h3>
               <div className="space-y-3">
                 {['Import completed', 'Campaign finished', 'Promise-to-pay due', 'Weekly summary digest'].map((n) => (
-                  <div key={n} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <span className="text-sm text-white">{n}</span>
-                    <div className="w-9 h-5 rounded-full bg-blue-500/30 relative cursor-pointer">
-                      <div className="w-4 h-4 rounded-full bg-blue-400 absolute top-0.5 right-0.5" />
+                  <div key={n} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
+                    <span className="text-sm text-[var(--dark-brown)]">{n}</span>
+                    <div className="w-9 h-5 rounded-full relative cursor-pointer" style={{ background: 'var(--caramel)' }}>
+                      <div className="w-4 h-4 rounded-full absolute top-0.5 right-0.5" style={{ background: 'var(--mahogany)' }} />
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-4">Notification delivery via email/SMS - coming soon.</p>
+              <p className="text-xs text-[var(--walnut)] mt-4">Notification delivery via email/SMS — coming soon.</p>
             </div>
           )}
         </div>

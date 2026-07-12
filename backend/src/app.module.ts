@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
@@ -23,8 +23,6 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { PdcModule } from './modules/pdc/pdc.module';
 import { HealthModule } from './modules/health/health.module';
-import { TenantMiddleware } from './common/middleware/tenant.middleware';
-
 import { validate } from './config/env.validation';
 
 @Module({
@@ -78,10 +76,7 @@ import { validate } from './config/env.validation';
     HealthModule,
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(TenantMiddleware)
-      .forRoutes({ path: 'api/v1/*path', method: RequestMethod.ALL });
-  }
-}
+// Tenant resolution (request.businessId) happens inside JwtAuthGuard —
+// Nest middleware runs before guards, so the old TenantMiddleware could
+// never see the authenticated user and was silently a no-op.
+export class AppModule {}

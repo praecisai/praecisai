@@ -25,6 +25,7 @@ export type TargetField =
   | 'invoice_number'
   | 'invoice_date'
   | 'sales_agent'
+  | 'bill_amount'
   | 'due_amount'
   | 'days_overdue'
   | 'phone'
@@ -43,8 +44,9 @@ const FIELD_ALIASES: Record<TargetField, string[]> = {
   invoice_number: ['Bill No.', 'Invoice No.', 'Invoice Number', 'Bill Number', 'Inv No', 'Bill No'],
   invoice_date: ['Bill Date', 'Invoice Date', 'Date', 'Inv Date', 'Bill Dt'],
   sales_agent: ['Agent Name', 'Salesman', 'Rep Name', 'Sales Rep', 'Agent', 'Executive'],
+  bill_amount: ['Bill Amount', 'Bill Amt', 'Invoice Amount', 'Bill Amt (Rs.)', 'Gross Amount', 'Invoice Amt'],
   due_amount: ['Due Amount (₹)', 'Outstanding Amount', 'Balance Due', 'Amount Due', 'Due Amt', 'Outstanding', 'Due Amount', 'Balance'],
-  days_overdue: ['Days Outstanding', 'Overdue Days', 'Aging Days', 'Days Overdue', 'Outstanding Days', 'Aging'],
+  days_overdue: ['Days Outstanding', 'Overdue Days', 'Aging Days', 'Days Overdue', 'Outstanding Days', 'Aging', 'Due', 'Due Days'],
   phone: ['Mobile No.', 'Phone', 'Contact', 'Mobile', 'Phone No', 'Mobile Number', 'Contact No'],
   call_status: ['Call Status', 'Status', 'Call State'],
 };
@@ -125,13 +127,21 @@ export class ImportService {
     const ext = history.file_name.split('.').pop()?.toLowerCase() ?? 'xlsx';
 
     const rows = this.parseFile(fileBuffer, ext);
-    const previewRows = rows.slice(0, 5);
 
-    const previewed = previewRows.map((row, index) => {
-      const mapped = this.applyMapping(row, mappings);
-      const errors = this.validateRow(mapped, index + 1);
-      return { row_index: index + 1, mapped, raw: row, errors };
-    });
+    // Preview real data rows — skip subtotal rows, apply the same
+    // party/city split the import will do
+    const previewed: Array<{ row_index: number; mapped: any; raw: any; errors: any[] }> = [];
+    for (let i = 0; i < rows.length && previewed.length < 5; i++) {
+      const mapped = this.applyMapping(rows[i], mappings);
+      if (mapped.customer_name && this.isTotalsRow(String(mapped.customer_name))) continue;
+      if (mapped.customer_name && !String(mapped.city ?? '').trim()) {
+        const split = this.splitPartyCity(String(mapped.customer_name));
+        mapped.customer_name = split.name;
+        if (split.city) mapped.city = split.city;
+      }
+      const errors = this.validateRow(mapped, i + 1);
+      previewed.push({ row_index: i + 1, mapped, raw: rows[i], errors });
+    }
 
     const totalErrors = previewed.flatMap((p) => p.errors);
 
@@ -143,6 +153,10 @@ export class ImportService {
   }
 
   // ─── STEP 3: Execute full import ────────────────────────────────────────────
+  // Bulk pipeline: everything is transformed in memory first, then written in
+  // a handful of set-based queries. The previous per-row version issued 3-4
+  // DB roundtrips per row (~1 hour for a 3,000-row Tally export over a remote
+  // Supabase connection).
 
   async execute(
     businessId: string,
@@ -162,138 +176,167 @@ export class ImportService {
     const ext = history.file_name.split('.').pop()?.toLowerCase() ?? 'xlsx';
     const rows = this.parseFile(fileBuffer, ext);
 
-    let imported = 0;
     let failed = 0;
+    let skipped = 0;
     const errors: any[] = [];
-    const customerIds = new Set<string>();
 
-    let customersCreated = 0;
-    let customersUpdated = 0;
-    let invoicesCreated = 0;
+    // ── Phase 1: transform + validate every row in memory ────────────────────
+    interface ParsedRow {
+      name: string;
+      phone: string | null;
+      city: string | null;
+      invoiceNumber: string;
+      invoiceDate: Date;
+      billAmount: number | null;
+      dueAmount: number;
+      daysOverdue: number;
+      agent: string | null;
+    }
+    const parsedRows: ParsedRow[] = [];
 
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
       const rowNum = i + 1;
+      const mapped = this.applyMapping(rows[i], mappings);
 
-      try {
-        const mapped = this.applyMapping(row, mappings);
-        const rowErrors = this.validateRow(mapped, rowNum);
+      // Skip subtotal/grand-total rows silently — they are not data
+      if (mapped.customer_name && this.isTotalsRow(String(mapped.customer_name))) {
+        skipped++;
+        continue;
+      }
 
-        if (rowErrors.some((e) => e.field === 'customer_name' || e.field === 'invoice_number')) {
-          failed++;
-          errors.push(...rowErrors);
-          continue;
-        }
+      // Split "PARTY -CITY" suffix when the file has no city column
+      if (mapped.customer_name && !String(mapped.city ?? '').trim()) {
+        const split = this.splitPartyCity(String(mapped.customer_name));
+        mapped.customer_name = split.name;
+        if (split.city) mapped.city = split.city;
+      }
 
-        // Parse values
-        const dueAmount = parseFloat(String(mapped.due_amount ?? '0').replace(/[^0-9.\-]/g, '')) || 0;
-        const daysOverdue = parseInt(String(mapped.days_overdue ?? '0')) || 0;
-        const phone = mapped.phone ? normalizePhone(mapped.phone) : null;
-        const invoiceDate = mapped.invoice_date
-          ? parseIndianDate(String(mapped.invoice_date))
-          : new Date();
-
-        // Skip credit notes (negative due amounts)
-        // Still import the row but mark status appropriately
-
-        // ── Upsert Customer ──────────────────────────────────────────────────
-        let customer: any;
-        if (phone) {
-          customer = await this.prisma.customer.upsert({
-            where: { phone_business_id: { phone, business_id: businessId } },
-            create: {
-              business_id: businessId,
-              customer_name: String(mapped.customer_name ?? '').trim(),
-              phone,
-              city: mapped.city ? String(mapped.city).trim() : null,
-            },
-            update: {
-              customer_name: String(mapped.customer_name ?? '').trim(),
-              city: mapped.city ? String(mapped.city).trim() : undefined,
-            },
-          });
-
-          // Track created vs updated
-          if (customer.created_at === customer.updated_at) {
-            customersCreated++;
-          } else {
-            customersUpdated++;
-          }
-        } else {
-          // No phone — find by name + business or create
-          const existing = await this.prisma.customer.findFirst({
-            where: {
-              business_id: businessId,
-              customer_name: { equals: String(mapped.customer_name ?? '').trim(), mode: 'insensitive' },
-            },
-          });
-
-          if (existing) {
-            customer = existing;
-            customersUpdated++;
-          } else {
-            customer = await this.prisma.customer.create({
-              data: {
-                business_id: businessId,
-                customer_name: String(mapped.customer_name ?? '').trim(),
-                city: mapped.city ? String(mapped.city).trim() : null,
-              },
-            });
-            customersCreated++;
-          }
-        }
-
-        customerIds.add(customer.id);
-
-        // ── Upsert Invoice ───────────────────────────────────────────────────
-        const invoiceNumber = String(mapped.invoice_number ?? '').trim();
-        if (invoiceNumber) {
-          const existingInvoice = await this.prisma.invoice.findUnique({
-            where: {
-              invoice_number_business_id: {
-                invoice_number: invoiceNumber,
-                business_id: businessId,
-              },
-            },
-          });
-
-          if (!existingInvoice) {
-            await this.prisma.invoice.create({
-              data: {
-                business_id: businessId,
-                customer_id: customer.id,
-                invoice_number: invoiceNumber,
-                invoice_date: invoiceDate ?? new Date(),
-                amount: Math.abs(dueAmount),
-                due_amount: dueAmount,
-                days_overdue: daysOverdue,
-                sales_agent: mapped.sales_agent ? String(mapped.sales_agent).trim() : null,
-                status: dueAmount <= 0 ? 'PAID' : daysOverdue > 0 ? 'OVERDUE' : 'PENDING',
-              },
-            });
-            invoicesCreated++;
-          }
-          // Deduplicate: skip if invoice already exists
-        }
-
-        imported++;
-      } catch (err: any) {
+      const rowErrors = this.validateRow(mapped, rowNum);
+      if (rowErrors.some((e) => e.field === 'customer_name' || e.field === 'invoice_number')) {
         failed++;
-        this.logger.error(`Row ${rowNum} failed: ${err.message}`);
-        errors.push({ row: rowNum, field: 'unknown', message: err.message });
+        errors.push(...rowErrors);
+        continue;
+      }
+
+      const dueAmount = parseFloat(String(mapped.due_amount ?? '0').replace(/[^0-9.\-]/g, '')) || 0;
+      const billAmountRaw = parseFloat(String(mapped.bill_amount ?? '').replace(/[^0-9.\-]/g, ''));
+
+      parsedRows.push({
+        name: String(mapped.customer_name ?? '').trim(),
+        phone: mapped.phone ? normalizePhone(mapped.phone) : null,
+        city: mapped.city ? String(mapped.city).trim() : null,
+        invoiceNumber: String(mapped.invoice_number ?? '').trim(),
+        invoiceDate:
+          (mapped.invoice_date ? parseIndianDate(String(mapped.invoice_date)) : null) ?? new Date(),
+        billAmount: isNaN(billAmountRaw) ? null : billAmountRaw,
+        dueAmount,
+        daysOverdue: parseInt(String(mapped.days_overdue ?? '0')) || 0,
+        agent: mapped.sales_agent ? String(mapped.sales_agent).trim() : null,
+      });
+    }
+
+    const imported = parsedRows.length;
+
+    // ── Phase 2: resolve customers (2 queries + 1 bulk insert) ────────────────
+    const existingCustomers = await this.prisma.customer.findMany({
+      where: { business_id: businessId },
+      select: { id: true, customer_name: true, phone: true, city: true },
+    });
+
+    const byPhone = new Map<string, { id: string; city: string | null }>();
+    const byName = new Map<string, { id: string; city: string | null }>();
+    for (const c of existingCustomers) {
+      if (c.phone) byPhone.set(c.phone, c);
+      byName.set(c.customer_name.trim().toLowerCase(), c);
+    }
+
+    const resolveExisting = (r: ParsedRow) =>
+      (r.phone && byPhone.get(r.phone)) || byName.get(r.name.toLowerCase()) || null;
+
+    // Distinct new customers (first occurrence wins)
+    const newByKey = new Map<string, ParsedRow>();
+    const matchedIds = new Set<string>();
+    for (const r of parsedRows) {
+      const existing = resolveExisting(r);
+      if (existing) {
+        matchedIds.add(existing.id);
+      } else {
+        const key = r.phone ?? r.name.toLowerCase();
+        if (!newByKey.has(key)) newByKey.set(key, r);
       }
     }
 
-    // ── Recalculate Outstanding for all affected customers ───────────────────
-    let outstandingUpdated = 0;
-    for (const customerId of customerIds) {
-      try {
-        await this.outstandingService.recalculateForCustomer(businessId, customerId);
-        outstandingUpdated++;
-      } catch (err: any) {
-        this.logger.error(`Outstanding recalc failed for ${customerId}: ${err.message}`);
-      }
+    const createdCustomers = newByKey.size
+      ? await this.prisma.customer.createManyAndReturn({
+          data: Array.from(newByKey.values()).map((r) => ({
+            business_id: businessId,
+            customer_name: r.name,
+            phone: r.phone,
+            city: r.city,
+          })),
+          skipDuplicates: true,
+        })
+      : [];
+
+    for (const c of createdCustomers) {
+      if (c.phone) byPhone.set(c.phone, c);
+      byName.set(c.customer_name.trim().toLowerCase(), c);
     }
+
+    const customersCreated = createdCustomers.length;
+    const customersUpdated = matchedIds.size;
+
+    // ── Phase 3: bulk-insert invoices (1 query + chunked createMany) ──────────
+    const existingInvoiceNumbers = new Set(
+      (
+        await this.prisma.invoice.findMany({
+          where: { business_id: businessId },
+          select: { invoice_number: true },
+        })
+      ).map((i) => i.invoice_number),
+    );
+
+    // Deduplicate within the file — first row of an invoice number wins
+    const invoiceByNumber = new Map<string, ParsedRow>();
+    for (const r of parsedRows) {
+      if (!invoiceByNumber.has(r.invoiceNumber)) invoiceByNumber.set(r.invoiceNumber, r);
+    }
+
+    const affectedCustomerIds = new Set<string>();
+    const invoiceData: any[] = [];
+    for (const r of invoiceByNumber.values()) {
+      const customer = resolveExisting(r);
+      if (!customer) continue; // cannot happen — created above
+      affectedCustomerIds.add(customer.id);
+      if (existingInvoiceNumbers.has(r.invoiceNumber)) continue;
+
+      invoiceData.push({
+        business_id: businessId,
+        customer_id: customer.id,
+        invoice_number: r.invoiceNumber,
+        invoice_date: r.invoiceDate,
+        amount: r.billAmount ?? Math.abs(r.dueAmount),
+        due_amount: r.dueAmount,
+        days_overdue: r.daysOverdue,
+        sales_agent: r.agent,
+        status: r.dueAmount <= 0 ? 'PAID' : r.daysOverdue > 0 ? 'OVERDUE' : 'PENDING',
+      });
+    }
+
+    let invoicesCreated = 0;
+    for (let i = 0; i < invoiceData.length; i += 500) {
+      const res = await this.prisma.invoice.createMany({
+        data: invoiceData.slice(i, i + 500),
+        skipDuplicates: true,
+      });
+      invoicesCreated += res.count;
+    }
+
+    // ── Phase 4: bulk outstanding recalc ──────────────────────────────────────
+    const outstandingUpdated = await this.outstandingService.bulkRecalculate(
+      businessId,
+      Array.from(affectedCustomerIds),
+    );
 
     // Save template if requested
     if (templateName) {
@@ -304,7 +347,7 @@ export class ImportService {
     await this.prisma.importHistory.update({
       where: { id: historyId },
       data: {
-        status: failed === rows.length ? 'FAILED' : 'COMPLETED',
+        status: imported === 0 && failed > 0 ? 'FAILED' : 'COMPLETED',
         records_total: rows.length,
         records_imported: imported,
         records_failed: failed,
@@ -317,6 +360,7 @@ export class ImportService {
       records_total: rows.length,
       records_imported: imported,
       records_failed: failed,
+      records_skipped: skipped,
       customers_created: customersCreated,
       customers_updated: customersUpdated,
       invoices_created: invoicesCreated,
@@ -371,6 +415,37 @@ export class ImportService {
     return history;
   }
 
+  /**
+   * Find the real header row. Tally/accounting exports often put a report
+   * title (and blank rows) above the column headers, so "row 1 = headers"
+   * breaks. Scores the first 15 rows by how many cells match a known field
+   * alias and picks the best row (needs at least 2 matches); falls back to
+   * the first non-empty row.
+   */
+  private findHeaderRowIndex(rows: any[][]): number {
+    const allAliases = Object.values(FIELD_ALIASES)
+      .flat()
+      .map((a) => a.toLowerCase());
+
+    let bestIdx = -1;
+    let bestScore = 0;
+
+    const limit = Math.min(rows.length, 15);
+    for (let i = 0; i < limit; i++) {
+      const cells = (rows[i] ?? []).map((c) => String(c ?? '').trim().toLowerCase());
+      const score = cells.filter((c) => c && allAliases.includes(c)).length;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx >= 0 && bestScore >= 2) return bestIdx;
+
+    // Fallback: first row that has any content
+    return rows.findIndex((r) => (r ?? []).some((c) => String(c ?? '').trim() !== ''));
+  }
+
   private extractHeadersAndCount(
     buffer: Buffer,
     ext: string,
@@ -385,8 +460,13 @@ export class ImportService {
 
     if (json.length === 0) return { headers: [], rowCount: 0 };
 
-    const headers = (json[0] as string[]).map((h) => String(h ?? '').trim()).filter(Boolean);
-    const rowCount = Math.max(0, json.length - 1);
+    const headerIdx = this.findHeaderRowIndex(json);
+    if (headerIdx < 0) return { headers: [], rowCount: 0 };
+
+    const headers = (json[headerIdx] as string[])
+      .map((h) => String(h ?? '').trim())
+      .filter(Boolean);
+    const rowCount = Math.max(0, json.length - headerIdx - 1);
 
     return { headers, rowCount };
   }
@@ -396,37 +476,79 @@ export class ImportService {
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
-    const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+    const grid = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+      header: 1,
       defval: '',
       raw: false,
       dateNF: 'DD/MM/YYYY',
-    });
+    }) as any[][];
 
-    return json.map((row) => {
+    if (grid.length === 0) return [];
+
+    const headerIdx = this.findHeaderRowIndex(grid);
+    if (headerIdx < 0) return [];
+
+    const headers = (grid[headerIdx] as any[]).map((h) => String(h ?? '').trim());
+
+    const records: Record<string, string>[] = [];
+    for (let i = headerIdx + 1; i < grid.length; i++) {
+      const row = grid[i] ?? [];
+      if (!row.some((c) => String(c ?? '').trim() !== '')) continue; // blank row
+
       const normalized: Record<string, string> = {};
-      for (const [k, v] of Object.entries(row)) {
-        normalized[String(k).trim()] = String(v ?? '').trim();
-      }
-      return normalized;
-    });
+      headers.forEach((h, col) => {
+        if (h) normalized[h] = String(row[col] ?? '').trim();
+      });
+      records.push(normalized);
+    }
+    return records;
+  }
+
+  /**
+   * Tally exports often embed the city in the party name as a suffix:
+   * "59 COLOURS                    -LUDHIANA". Split at the LAST " -"
+   * so names containing brackets/dashes stay intact.
+   */
+  private splitPartyCity(name: string): { name: string; city: string | null } {
+    const match = name.match(/^(.*\S)\s+-\s*([A-Za-z0-9 .()&'\/]+)$/);
+    if (match) {
+      return { name: match[1].trim(), city: match[2].trim() };
+    }
+    return { name: name.trim(), city: null };
+  }
+
+  /** Subtotal/grand-total rows from accounting exports — not real parties. */
+  private isTotalsRow(customerName: string): boolean {
+    return /^(PARTY|GRAND|SUB)?\s*TOTALS?$/i.test(customerName.trim());
   }
 
   private autoDetectMappings(headers: string[]): Array<{ target_field: TargetField; source_column: string; confidence: number }> {
     const results: Array<{ target_field: TargetField; source_column: string; confidence: number }> = [];
+    const claimed = new Set<string>();
 
+    // Pass 1 — exact alias matches claim their header
+    const fuzzyFields: [TargetField, string[]][] = [];
     for (const [field, aliases] of Object.entries(FIELD_ALIASES) as [TargetField, string[]][]) {
-      // Try exact match first
-      const exactMatch = headers.find((h) =>
-        aliases.some((a) => a.toLowerCase() === h.toLowerCase()),
+      const exactMatch = headers.find(
+        (h) => !claimed.has(h) && aliases.some((a) => a.toLowerCase() === h.toLowerCase()),
       );
 
       if (exactMatch) {
         results.push({ target_field: field, source_column: exactMatch, confidence: 1.0 });
-        continue;
+        claimed.add(exactMatch);
+      } else {
+        fuzzyFields.push([field, aliases]);
       }
+    }
 
-      // Fuzzy match
-      const fuse = new Fuse(headers, { includeScore: true, threshold: 0.4 });
+    // Pass 2 — fuzzy match only over headers no other field has claimed.
+    // High bar (0.65): a wrong auto-mapping (e.g. phone ← "BILL NO.") is far
+    // worse than leaving the field for the user to map manually.
+    for (const [field, aliases] of fuzzyFields) {
+      const available = headers.filter((h) => !claimed.has(h));
+      if (available.length === 0) break;
+
+      const fuse = new Fuse(available, { includeScore: true, threshold: 0.4 });
       let bestMatch: { source_column: string; confidence: number } | null = null;
 
       for (const alias of aliases) {
@@ -439,8 +561,9 @@ export class ImportService {
         }
       }
 
-      if (bestMatch && bestMatch.confidence > 0.5) {
+      if (bestMatch && bestMatch.confidence > 0.65) {
         results.push({ target_field: field, source_column: bestMatch.source_column, confidence: bestMatch.confidence });
+        claimed.add(bestMatch.source_column);
       }
     }
 

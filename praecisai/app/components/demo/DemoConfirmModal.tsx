@@ -34,9 +34,9 @@ export default function DemoConfirmModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-[var(--cream)] border border-[var(--caramel)] shadow-2xl"
+        className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--cream)] border border-[var(--caramel)] shadow-2xl"
       >
-        <div className="p-6">
+        <div className="p-5 sm:p-6">
           <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
             {title}
           </h3>

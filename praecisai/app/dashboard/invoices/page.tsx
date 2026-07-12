@@ -23,7 +23,7 @@ export default function InvoicesPage() {
   return (
     <div>
       <TopHeader title="Invoices" subtitle={`${total} total invoices`} />
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {/* Filters */}
         <div className="glass-card p-4">
           <div className="flex flex-wrap gap-3 items-center">
@@ -60,7 +60,8 @@ export default function InvoicesPage() {
 
         {/* Table */}
         <div className="glass-card overflow-hidden">
-          <table className="data-table w-full">
+          <div className="overflow-x-auto">
+          <table className="data-table w-full min-w-[720px]">
             <thead>
               <tr>
                 <th className="text-left">Invoice No.</th>
@@ -109,6 +110,7 @@ export default function InvoicesPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">

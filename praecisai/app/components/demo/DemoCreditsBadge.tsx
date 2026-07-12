@@ -39,7 +39,7 @@ export default function DemoCreditsBadge({ token, refreshKey }: { token: string;
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-body text-[12px] font-semibold',
+        'inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-full border px-4 py-1.5 font-body text-[12px] font-semibold',
         low
           ? 'border-red-300 bg-red-50 text-red-600'
           : mid

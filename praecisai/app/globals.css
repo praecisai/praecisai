@@ -442,3 +442,21 @@ body {
     @apply font-sans;
   }
 }
+/* ─── Sonner toasts — fixed warm cream + brown in BOTH themes ─────────────── */
+[data-sonner-toast] [data-title] {
+  color: #1c1008 !important;
+  font-weight: 600;
+}
+[data-sonner-toast] [data-description] {
+  color: #7f5539 !important;
+  opacity: 1 !important;
+}
+[data-sonner-toast][data-type='success'] [data-icon] {
+  color: #4a7c59 !important;
+}
+[data-sonner-toast][data-type='error'] [data-icon] {
+  color: #c62828 !important;
+}
+[data-sonner-toast][data-type='warning'] [data-icon] {
+  color: #e65100 !important;
+}

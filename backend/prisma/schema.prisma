@@ -99,10 +99,12 @@ enum PTPStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Business {
-  id         String         @id @default(uuid())
-  name       String
-  status     BusinessStatus @default(ACTIVE)
-  plan       BusinessPlan   @default(FREE)
+  id            String         @id @default(uuid())
+  name          String
+  status        BusinessStatus @default(ACTIVE)
+  plan          BusinessPlan   @default(FREE)
+  // Per-business segment day ranges; null = platform defaults
+  segment_rules Json?
   created_at DateTime       @default(now())
   updated_at DateTime       @updatedAt
 
@@ -270,6 +272,17 @@ model CallLog {
   duration_seconds Int?
   created_at       DateTime   @default(now())
 
+  // Bolna call tracking + post-call extraction (mirrors DemoRun fields)
+  retell_call_id           String?          @unique
+  call_summary             String?
+  disposition              CallDisposition?
+  call_sentiment           CallSentiment?
+  promise_date             DateTime?
+  key_objection            String?
+  language_used            CallLanguage?
+  is_sensitive             Boolean          @default(false)
+  sensitive_cooldown_until DateTime?
+
   // Relations
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
   customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
@@ -400,6 +413,17 @@ enum CallLanguage {
   ENGLISH
   MIXED
   UNKNOWN
+}
+
+// Emails permitted to use import/calling/WhatsApp while the product is in
+// closed testing. Managed directly in Supabase Table Editor — add a row to
+// grant access.
+model AllowedEmail {
+  email      String   @id
+  note       String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@map("allowed_emails")
 }
 
 model DemoLead {

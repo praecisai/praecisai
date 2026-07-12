@@ -1,7 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
-import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage } from '@prisma/client';
+import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus } from '@prisma/client';
 import { CallExtractionService } from './call-extraction.service';
+import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
+import {
+  amountToHindi,
+  numberToHindiWords,
+  buildSegmentInstructions,
+  buildCallHistorySummary,
+  getISTGreeting,
+  transliterateNameToDevanagari,
+  transliterateCityToDevanagari,
+  spokenBusinessName,
+} from '../../common/utils/call-script.util';
 
 @Injectable()
 export class CallingService {
@@ -10,7 +23,183 @@ export class CallingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly extractionService: CallExtractionService,
+    @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
   ) {}
+
+  // ─── Production: queue an AI recovery call to a real customer ─────────────
+  // Mirrors the demo flow's intelligence (multi-invoice totals, partial
+  // payment, call history, sensitive cooldown) but reads everything from the
+  // real Customer/Invoice/CallLog tables and records into CallLog.
+  async queueCustomerCall(businessId: string, customerId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, business_id: businessId },
+      include: {
+        business: { select: { name: true, segment_rules: true } },
+        invoices: {
+          where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
+          orderBy: { invoice_date: 'asc' },
+        },
+      },
+    });
+
+    if (!customer) throw new NotFoundException('Customer not found');
+    if (!customer.phone) throw new BadRequestException('Customer has no phone number — add one first');
+    if (customer.invoices.length === 0)
+      throw new BadRequestException('Customer has no outstanding invoices');
+
+    // Sensitive situation cooldown — death/medical emergency pauses calling
+    const sensitive = await this.prisma.callLog.findFirst({
+      where: {
+        customer_id: customerId,
+        is_sensitive: true,
+        sensitive_cooldown_until: { gte: new Date() },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    if (sensitive?.sensitive_cooldown_until) {
+      const daysLeft = Math.ceil(
+        (sensitive.sensitive_cooldown_until.getTime() - Date.now()) / 86400000,
+      );
+      throw new BadRequestException(
+        `This customer mentioned a sensitive situation. Calling paused for ${daysLeft} more day${daysLeft !== 1 ? 's' : ''} out of respect.`,
+      );
+    }
+
+    // 60-min same-customer cooldown — never ring the same person twice in a row
+    const recentCall = await this.prisma.callLog.findFirst({
+      where: {
+        customer_id: customerId,
+        created_at: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      },
+    });
+    if (recentCall) {
+      throw new BadRequestException(
+        'This customer was called within the last 60 minutes. Please wait before calling again.',
+      );
+    }
+
+    // Multi-invoice totals — speak the TOTAL due, oldest days drives the segment
+    const totalDue = customer.invoices.reduce((s, i) => s + i.due_amount, 0);
+    const maxDays = Math.max(...customer.invoices.map((i) => i.days_overdue));
+    const segment = getSegment(maxDays, totalDue, parseSegmentRules(customer.business.segment_rules));
+
+    const multiInvoiceNote =
+      customer.invoices.length > 1
+        ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(totalDue)}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(totalDue)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
+        : '';
+
+    // Partial payment — bill amount higher than remaining due means money came in
+    const totalBilled = customer.invoices.reduce((s, i) => s + (i.amount || i.due_amount), 0);
+    const previousPaid = Math.round(totalBilled - totalDue);
+    const partialPaymentNote =
+      previousPaid > 0
+        ? `Partial payment context: Customer had already paid ${amountToHindi(previousPaid)} earlier against this account (original was ${amountToHindi(totalBilled)}). Acknowledge this warmly first: "आपने पहले ${amountToHindi(previousPaid)} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${amountToHindi(totalDue)} pending है।" Do NOT mention bill number.`
+        : '';
+
+    // Call history from previous completed production calls
+    const history =
+      segment === 'Soft Reminder'
+        ? []
+        : await this.prisma.callLog.findMany({
+            where: {
+              customer_id: customerId,
+              call_status: CallStatus.COMPLETED,
+            },
+            select: { call_summary: true, disposition: true, promise_date: true },
+            orderBy: { created_at: 'asc' },
+          });
+    const histSummary = buildCallHistorySummary(history as any, segment);
+
+    const businessName = spokenBusinessName(customer.business.name);
+    const segmentInstructions = buildSegmentInstructions(segment, businessName);
+
+    let daysMention = '';
+    if (maxDays >= 30) {
+      const months = Math.round(maxDays / 30);
+      daysMention = `यह payment लगभग ${numberToHindiWords(months)} महीने से pending है।`;
+    } else if (maxDays > 0) {
+      const approxDays = Math.max(5, Math.round(maxDays / 5) * 5);
+      daysMention = `यह payment लगभग ${numberToHindiWords(approxDays)} दिन से pending है।`;
+    }
+
+    const [customerNameSpoken, businessCitySpoken] = await Promise.all([
+      transliterateNameToDevanagari(customer.customer_name),
+      transliterateCityToDevanagari(process.env.CALL_BUSINESS_CITY || 'Mumbai'),
+    ]);
+
+    const callLog = await this.prisma.callLog.create({
+      data: {
+        business_id: businessId,
+        customer_id: customerId,
+        call_status: CallStatus.PENDING,
+      },
+    });
+
+    await this.callingQueue.add('outbound-calls', {
+      callLogId: callLog.id,
+      businessId,
+      phoneNumber: customer.phone,
+      context: {
+        business_name: businessName,
+        business_city: businessCitySpoken,
+        customer_name: customerNameSpoken,
+        due_amount: totalDue.toLocaleString('en-IN'),
+        due_amount_hindi: amountToHindi(totalDue),
+        days_overdue: maxDays.toString(),
+        segment,
+        segment_instructions: segmentInstructions,
+        call_history_summary: histSummary,
+        multi_invoice_note: multiInvoiceNote,
+        partial_payment_note: partialPaymentNote,
+        handoff_number: process.env.BOLNA_HANDOFF_NUMBER || '',
+        greeting_time: getISTGreeting(),
+        days_mention: daysMention,
+      },
+    });
+
+    return {
+      success: true,
+      callLogId: callLog.id,
+      segment,
+      message: `Call queued to ${customer.customer_name} — their phone should ring shortly`,
+    };
+  }
+
+  // ─── Bulk: queue calls to every eligible customer in a segment ─────────────
+  // Eligible = ACTIVE outstanding in the segment AND a phone number on file.
+  // Per-customer guards (sensitive cooldown, 60-min gap) still apply — those
+  // customers are reported as skipped, not errors.
+  async queueSegmentCalls(businessId: string, segment: string) {
+    const outstandings = await this.prisma.outstanding.findMany({
+      where: { business_id: businessId, segment, status: 'ACTIVE' },
+      include: { customer: { select: { id: true, customer_name: true, phone: true } } },
+      take: 100,
+    });
+
+    const eligible = outstandings.filter((o) => o.customer?.phone);
+    const noPhone = outstandings.length - eligible.length;
+
+    let queued = 0;
+    const skipped: Array<{ customer: string; reason: string }> = [];
+
+    for (const o of eligible) {
+      try {
+        await this.queueCustomerCall(businessId, o.customer.id);
+        queued++;
+      } catch (err: any) {
+        skipped.push({ customer: o.customer.customer_name, reason: err.message });
+      }
+    }
+
+    return {
+      success: true,
+      segment,
+      queued,
+      no_phone: noPhone,
+      skipped,
+      message: `${queued} call(s) queued for ${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
+    };
+  }
 
   async handleWebhook(payload: any) {
     this.logger.log(`Bolna webhook status: ${payload.status} id: ${payload.id}`);
@@ -44,6 +233,10 @@ export class CallingService {
           where: { retell_call_id: callId },
           data: { call_recording_url: recordingUrl },
         });
+        await this.prisma.callLog.updateMany({
+          where: { retell_call_id: callId },
+          data: { recording_url: recordingUrl },
+        });
       }
 
     } else if (status === 'completed') {
@@ -54,6 +247,10 @@ export class CallingService {
           where: { retell_call_id: callId },
           data: { call_recording_url: recordingUrl },
         });
+        await this.prisma.callLog.updateMany({
+          where: { retell_call_id: callId },
+          data: { recording_url: recordingUrl },
+        });
       }
       await this.handleCallAnalyzed(callId, payload);
 
@@ -61,6 +258,10 @@ export class CallingService {
       await this.prisma.demoRun.updateMany({
         where: { retell_call_id: callId },
         data: { status: DemoRunStatus.FAILED },
+      });
+      await this.prisma.callLog.updateMany({
+        where: { retell_call_id: callId },
+        data: { call_status: CallStatus.FAILED },
       });
     }
   }
@@ -122,6 +323,54 @@ export class CallingService {
         call_sentiment: callSentiment,
       },
     });
+
+    // Production customer calls — same extraction, recorded on CallLog
+    const durationRaw =
+      payload.telephony_data?.duration ?? payload.conversation_duration;
+    const durationSeconds =
+      typeof durationRaw === 'number' ? Math.round(durationRaw) : parseInt(String(durationRaw)) || null;
+
+    await this.prisma.callLog.updateMany({
+      where: { retell_call_id: callId },
+      data: {
+        call_status: CallStatus.COMPLETED,
+        transcript: transcript || null,
+        duration_seconds: durationSeconds,
+        ...(extraction && {
+          call_summary: extraction.call_summary,
+          disposition: extraction.disposition as CallDisposition,
+          key_objection: extraction.key_objection,
+          language_used: extraction.language_used as CallLanguage,
+          is_sensitive: isSensitive,
+          sensitive_cooldown_until: sensitiveCooldownUntil,
+        }),
+        promise_date: promisedDate,
+        call_sentiment: callSentiment,
+      },
+    });
+
+    // Customer promised a payment date → record a Promise-to-Pay
+    if (promisedDate) {
+      const callLog = await this.prisma.callLog.findUnique({
+        where: { retell_call_id: callId },
+        select: { id: true, business_id: true, customer_id: true },
+      });
+      if (callLog) {
+        const outstanding = await this.prisma.outstanding.findUnique({
+          where: { customer_id: callLog.customer_id },
+          select: { total_due: true },
+        });
+        await this.prisma.promiseToPay.create({
+          data: {
+            business_id: callLog.business_id,
+            customer_id: callLog.customer_id,
+            promised_amount: promisedAmount ?? outstanding?.total_due ?? 0,
+            promised_date: promisedDate,
+            notes: extraction?.call_summary ?? 'Captured from AI call',
+          },
+        });
+      }
+    }
 
     if (isSensitive) {
       this.logger.warn(`Sensitive situation flagged for call ${callId} — cooldown applied`);

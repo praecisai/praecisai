@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { getSegment, getAgingBucket, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
+import { getSegment, getAgingBucket, parseSegmentRules } from '../../common/utils/segment.util';
 import { PdcService } from '../pdc/pdc.service';
 
 export class OutstandingFiltersDto {
@@ -59,9 +59,16 @@ export class OutstandingService {
     });
     const prevDue = prevOutstanding?.total_due ?? 0;
 
-    const invoices = await this.prisma.invoice.findMany({
-      where: { business_id: businessId, customer_id: customerId },
-    });
+    const [invoices, business] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: { business_id: businessId, customer_id: customerId },
+      }),
+      this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: { segment_rules: true },
+      }),
+    ]);
+    const rules = parseSegmentRules(business?.segment_rules);
 
     const totalDue = invoices.reduce((sum, inv) => {
       return inv.due_amount > 0 ? sum + inv.due_amount : sum;
@@ -71,7 +78,7 @@ export class OutstandingService {
       return inv.due_amount > 0 ? Math.max(max, inv.days_overdue) : max;
     }, 0);
 
-    const segment = getSegment(maxDaysOverdue, totalDue, DEFAULT_SEGMENT_RULES);
+    const segment = getSegment(maxDaysOverdue, totalDue, rules);
     const agingBucket = getAgingBucket(maxDaysOverdue);
     const status = totalDue === 0 ? 'CLEARED' : 'ACTIVE';
 
@@ -103,6 +110,95 @@ export class OutstandingService {
     }
 
     return result;
+  }
+
+  /**
+   * Set-based recalc for many customers at once (used by import).
+   * 2 reads + chunked parallel upserts instead of 4+ queries per customer.
+   * PDC cheque detection still runs, but only for the customers whose due
+   * actually decreased — on a fresh import that is nobody.
+   */
+  async bulkRecalculate(businessId: string, customerIds: string[]): Promise<number> {
+    if (customerIds.length === 0) return 0;
+
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      select: { segment_rules: true },
+    });
+    const rules = parseSegmentRules(business?.segment_rules);
+
+    const prev = await this.prisma.outstanding.findMany({
+      where: { business_id: businessId, customer_id: { in: customerIds } },
+      select: { customer_id: true, total_due: true },
+    });
+    const prevDueByCustomer = new Map(prev.map((o) => [o.customer_id, o.total_due]));
+
+    const grouped = await this.prisma.invoice.groupBy({
+      by: ['customer_id'],
+      where: {
+        business_id: businessId,
+        customer_id: { in: customerIds },
+        due_amount: { gt: 0 },
+      },
+      _sum: { due_amount: true },
+      _max: { days_overdue: true },
+    });
+    const totalsByCustomer = new Map(
+      grouped.map((g) => [
+        g.customer_id,
+        { totalDue: g._sum.due_amount ?? 0, maxDays: g._max.days_overdue ?? 0 },
+      ]),
+    );
+
+    const CHUNK = 25;
+    let updated = 0;
+    const decreased: Array<{ customerId: string; prevDue: number; newDue: number }> = [];
+
+    for (let i = 0; i < customerIds.length; i += CHUNK) {
+      const chunk = customerIds.slice(i, i + CHUNK);
+      await Promise.all(
+        chunk.map(async (customerId) => {
+          const totals = totalsByCustomer.get(customerId) ?? { totalDue: 0, maxDays: 0 };
+          const segment = getSegment(totals.maxDays, totals.totalDue, rules);
+          const agingBucket = getAgingBucket(totals.maxDays);
+          const status = totals.totalDue === 0 ? 'CLEARED' : 'ACTIVE';
+
+          await this.prisma.outstanding.upsert({
+            where: { customer_id: customerId },
+            create: {
+              business_id: businessId,
+              customer_id: customerId,
+              total_due: totals.totalDue,
+              aging_bucket: agingBucket,
+              segment,
+              status: status as any,
+            },
+            update: {
+              total_due: totals.totalDue,
+              aging_bucket: agingBucket,
+              segment,
+              status: status as any,
+            },
+          });
+          updated++;
+
+          const prevDue = prevDueByCustomer.get(customerId) ?? 0;
+          if (prevDue > 0 && totals.totalDue < prevDue) {
+            decreased.push({ customerId, prevDue, newDue: totals.totalDue });
+          }
+        }),
+      );
+    }
+
+    for (const d of decreased) {
+      try {
+        await this.pdcService.detectClearedCheques(businessId, d.customerId, d.prevDue, d.newDue);
+      } catch {
+        // non-blocking — PDC detection failure should not break import
+      }
+    }
+
+    return updated;
   }
 
   /**

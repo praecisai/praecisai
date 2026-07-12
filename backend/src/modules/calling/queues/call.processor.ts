@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { DemoRunStatus } from '@prisma/client';
+import { DemoRunStatus, CallStatus } from '@prisma/client';
 
 @Processor('outbound-calls', {
   concurrency: 1,
@@ -14,10 +14,12 @@ export class CallProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { demoLeadId, phoneNumber, context } = job.data;
+    const { demoLeadId, callLogId, phoneNumber, context } = job.data;
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
-    console.log(`Processing call for demoLead: ${demoLeadId} to ${formattedPhone} [${context.segment}]`);
+    console.log(
+      `Processing call for ${callLogId ? `callLog: ${callLogId}` : `demoLead: ${demoLeadId}`} to ${formattedPhone} [${context.segment}]`,
+    );
 
     try {
       const response = await fetch('https://api.bolna.dev/call', {
@@ -45,7 +47,7 @@ export class CallProcessor extends WorkerHost {
             greeting_time: context.greeting_time || 'Namaskar',
             days_mention: context.days_mention || '',
           },
-          metadata: { demo_lead_id: demoLeadId },
+          metadata: callLogId ? { call_log_id: callLogId } : { demo_lead_id: demoLeadId },
         }),
       });
 
@@ -59,16 +61,24 @@ export class CallProcessor extends WorkerHost {
       // Bolna returns execution_id as the call identifier
       const callId = call.execution_id || call.run_id || call.call_id || call.id;
 
-      const run = await this.prisma.demoRun.findFirst({
-        where: { demo_lead_id: demoLeadId, status: DemoRunStatus.PENDING },
-        orderBy: { created_at: 'desc' },
-      });
-
-      if (run) {
-        await this.prisma.demoRun.update({
-          where: { id: run.id },
-          data: { retell_call_id: callId, status: DemoRunStatus.SENDING },
+      if (callLogId) {
+        // Production customer call — link Bolna execution to the CallLog
+        await this.prisma.callLog.update({
+          where: { id: callLogId },
+          data: { retell_call_id: callId },
         });
+      } else {
+        const run = await this.prisma.demoRun.findFirst({
+          where: { demo_lead_id: demoLeadId, status: DemoRunStatus.PENDING },
+          orderBy: { created_at: 'desc' },
+        });
+
+        if (run) {
+          await this.prisma.demoRun.update({
+            where: { id: run.id },
+            data: { retell_call_id: callId, status: DemoRunStatus.SENDING },
+          });
+        }
       }
 
       console.log(`Call dispatched: ${callId}`);
@@ -76,19 +86,26 @@ export class CallProcessor extends WorkerHost {
     } catch (error) {
       console.error('Failed to dispatch call:', error);
 
-      const run = await this.prisma.demoRun.findFirst({
-        where: {
-          demo_lead_id: demoLeadId,
-          status: { in: [DemoRunStatus.PENDING, DemoRunStatus.SENDING] },
-        },
-        orderBy: { created_at: 'desc' },
-      });
-
-      if (run) {
-        await this.prisma.demoRun.update({
-          where: { id: run.id },
-          data: { status: DemoRunStatus.FAILED },
+      if (callLogId) {
+        await this.prisma.callLog.update({
+          where: { id: callLogId },
+          data: { call_status: CallStatus.FAILED },
         });
+      } else {
+        const run = await this.prisma.demoRun.findFirst({
+          where: {
+            demo_lead_id: demoLeadId,
+            status: { in: [DemoRunStatus.PENDING, DemoRunStatus.SENDING] },
+          },
+          orderBy: { created_at: 'desc' },
+        });
+
+        if (run) {
+          await this.prisma.demoRun.update({
+            where: { id: run.id },
+            data: { status: DemoRunStatus.FAILED },
+          });
+        }
       }
 
       throw error;

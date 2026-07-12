@@ -45,8 +45,8 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
       </div>
 
       {/* Right: Counter & Action */}
-      <div className="mt-4 flex items-center justify-between sm:mt-0 sm:justify-end sm:gap-6">
-        <div className="flex flex-row items-center gap-6">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 sm:mt-0 sm:justify-end sm:gap-6">
+        <div className="flex flex-row flex-wrap items-center gap-4 sm:gap-6">
           {/* WhatsApp Counter */}
           <div className="flex flex-col items-end">
             <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
@@ -83,7 +83,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
         <AnimatedThemeToggler />
         <Link
           href="/"
-          className="ml-2 flex items-center gap-2 rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-2 font-body text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
+          className="ml-0 sm:ml-2 flex items-center gap-2 whitespace-nowrap rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-3 sm:px-4 py-2 font-body text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
           title="Exit Demo"
         >
           <LogOut size={16} />

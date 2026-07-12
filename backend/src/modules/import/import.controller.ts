@@ -14,6 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportService, ColumnMapping } from './import.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { EmailAllowlistGuard } from '../../common/guards/email-allowlist.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessId } from '../../common/decorators/current-user.decorator';
 import { IsString, IsArray, IsOptional } from 'class-validator';
@@ -42,6 +43,7 @@ export class ImportController {
   // Step 1: Upload file
   @Post('upload')
   @Roles('MANAGER')
+  @UseGuards(EmailAllowlistGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
   upload(
     @BusinessId() businessId: string,
@@ -53,6 +55,7 @@ export class ImportController {
   // Step 2: Preview with mapping
   @Post('map')
   @Roles('MANAGER')
+  @UseGuards(EmailAllowlistGuard)
   preview(@BusinessId() businessId: string, @Body() dto: PreviewDto) {
     return this.importService.preview(businessId, dto.history_id, dto.mappings);
   }
@@ -60,6 +63,7 @@ export class ImportController {
   // Step 3: Execute full import
   @Post('execute')
   @Roles('MANAGER')
+  @UseGuards(EmailAllowlistGuard)
   execute(@BusinessId() businessId: string, @Body() dto: ExecuteDto) {
     return this.importService.execute(
       businessId,

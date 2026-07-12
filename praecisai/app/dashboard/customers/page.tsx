@@ -29,7 +29,7 @@ export default function CustomersPage() {
     <div>
       <TopHeader title="Customers" subtitle={`${total} total customers`} />
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {/* Filters bar */}
         <div className="glass-card p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -83,7 +83,7 @@ export default function CustomersPage() {
             <button
               onClick={applySearch}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}
+              style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
             >
               Search
             </button>
@@ -101,7 +101,8 @@ export default function CustomersPage() {
 
         {/* Table */}
         <div className="glass-card overflow-hidden">
-          <table className="data-table w-full">
+          <div className="overflow-x-auto">
+          <table className="data-table w-full min-w-[720px]">
             <thead>
               <tr>
                 <th className="text-left">Customer</th>
@@ -140,7 +141,7 @@ export default function CustomersPage() {
                   <td>
                     <Link href={`/dashboard/customers/${customer.id}`} className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
-                        style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+                        style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                         {customer.customer_name?.[0]?.toUpperCase()}
                       </div>
                       <div>
@@ -176,6 +177,7 @@ export default function CustomersPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (

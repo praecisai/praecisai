@@ -1,11 +1,31 @@
-import { Controller, Post, Body, Headers, HttpCode, Res } from '@nestjs/common';
+import { Controller, Post, Body, Headers, HttpCode, Res, Param, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { CallingService } from './calling.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { EmailAllowlistGuard } from '../../common/guards/email-allowlist.guard';
+import { BusinessId } from '../../common/decorators/current-user.decorator';
 import * as crypto from 'crypto';
 
 @Controller('calling')
 export class CallingController {
   constructor(private readonly callingService: CallingService) {}
+
+  // Queue an AI recovery call to a real customer (dashboard action)
+  @Post('call-customer/:customerId')
+  @UseGuards(JwtAuthGuard, EmailAllowlistGuard)
+  callCustomer(
+    @BusinessId() businessId: string,
+    @Param('customerId') customerId: string,
+  ) {
+    return this.callingService.queueCustomerCall(businessId, customerId);
+  }
+
+  // Bulk: queue calls to every eligible customer in a segment
+  @Post('call-segment')
+  @UseGuards(JwtAuthGuard, EmailAllowlistGuard)
+  callSegment(@BusinessId() businessId: string, @Body() body: { segment: string }) {
+    return this.callingService.queueSegmentCalls(businessId, body.segment);
+  }
 
   // RETELL DASHBOARD ACTION REQUIRED:
   // Set webhook URL to: https://praecisai-production.up.railway.app/api/v1/calling/webhook

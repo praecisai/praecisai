@@ -87,7 +87,7 @@ export default function PdcPage() {
     <div className="flex flex-col" style={{ background: 'var(--cream)', minHeight: '100%' }}>
       <TopHeader title="PDC Cheques" subtitle="Post-dated cheque tracking and calling cooldown management" />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -184,7 +184,7 @@ export default function PdcPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full font-body text-sm text-left">
+            <table className="w-full min-w-[820px] font-body text-sm text-left">
               <thead className="bg-[var(--sand)] text-[12px] font-semibold text-[var(--dark-brown)] border-b border-[var(--caramel)]">
                 <tr>
                   {['Party Name', 'Cheque No.', 'Date', 'Amount (₹)', 'Status', 'Cleared On', 'Actions'].map(h => (

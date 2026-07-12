@@ -25,7 +25,7 @@ export default function CustomerDetailPage() {
     return (
       <div>
         <TopHeader title="Customer Detail" />
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="glass-card p-6">
               <div className="skeleton h-5 w-48 mb-4" />
@@ -57,7 +57,7 @@ export default function CustomerDetailPage() {
   return (
     <div>
       <TopHeader title={customer.customer_name} subtitle={customer.city ?? 'No city'} />
-      <div className="p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
         {/* Back */}
         <Link href="/dashboard/customers"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
@@ -67,7 +67,7 @@ export default function CustomerDetailPage() {
         {/* Header card */}
         <div className="glass-card p-6 flex flex-col sm:flex-row items-start gap-5">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
             {customer.customer_name?.[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -117,7 +117,7 @@ export default function CustomerDetailPage() {
               <span className="text-xs text-slate-500">({customer.invoices?.length ?? 0})</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="data-table w-full">
+              <table className="data-table w-full min-w-[560px]">
                 <thead>
                   <tr>
                     <th className="text-left">Invoice No.</th>
@@ -180,18 +180,49 @@ export default function CustomerDetailPage() {
               </div>
             )}
 
-            {/* Recent interactions */}
+            {/* Recent AI calls — summary, disposition, sentiment, PTP, recording */}
             {(customer.call_logs ?? []).length > 0 && (
               <div className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <MessageSquare size={14} className="text-purple-400" />
+                  <MessageSquare size={14} className="text-[var(--mahogany)]" />
                   <h3 className="text-sm font-semibold text-white">Recent Calls</h3>
+                  <span className="text-xs text-slate-500">({customer.call_logs.length})</span>
                 </div>
-                {customer.call_logs.slice(0, 3).map((log: any) => (
-                  <div key={log.id} className="py-2 border-b border-white/4 last:border-0">
-                    <div className="flex justify-between items-center">
-                      <StatusBadge status={log.call_status} />
-                      <span className="text-xs text-slate-500">{formatDate(log.created_at)}</span>
+                {customer.call_logs.slice(0, 5).map((log: any) => (
+                  <div key={log.id} className="py-3 border-b border-white/4 last:border-0 space-y-1.5">
+                    <div className="flex justify-between items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={log.call_status} />
+                        {log.disposition && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wide font-semibold"
+                            style={{ background: 'var(--sand)', color: 'var(--mahogany)' }}>
+                            {log.disposition}
+                          </span>
+                        )}
+                        {log.call_sentiment && log.call_sentiment !== 'UNKNOWN' && (
+                          <span className="text-[10px] text-slate-500 uppercase">{log.call_sentiment.toLowerCase()}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        {formatDate(log.created_at)}
+                        {log.duration_seconds ? ` · ${Math.round(log.duration_seconds)}s` : ''}
+                      </span>
+                    </div>
+                    {log.call_summary && (
+                      <p className="text-xs text-slate-400 leading-snug">{log.call_summary}</p>
+                    )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {log.promise_date && (
+                        <span className="text-xs font-medium text-[var(--recovery-green)]">
+                          🤝 Promised: {formatDate(log.promise_date)}
+                        </span>
+                      )}
+                      {log.recording_url && (
+                        <a href={log.recording_url} target="_blank" rel="noreferrer"
+                          className="text-xs text-[var(--mahogany)] hover:underline">
+                          ▶ Recording
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}

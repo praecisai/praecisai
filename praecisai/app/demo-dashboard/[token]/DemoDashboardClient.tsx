@@ -121,8 +121,8 @@ export default function DemoDashboardClient({ token }: { token: string }) {
 
       {lead.status === 'EXHAUSTED' && <DemoExhaustedBanner />}
 
-      <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8">
-        <div className="mb-6 rounded-xl border border-[var(--caramel)] bg-[var(--sand)] px-6 py-4 flex items-center gap-3 flex-wrap">
+      <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-8">
+        <div className="mb-6 rounded-xl border border-[var(--caramel)] bg-[var(--sand)] px-4 sm:px-6 py-4 flex items-center gap-3 flex-wrap">
           <AlertTriangle className="h-5 w-5 text-[var(--rust)] shrink-0" />
           <p className="font-body text-sm font-medium text-[var(--walnut)] flex-1 min-w-[240px]">
             <span className="font-bold text-[var(--dark-brown)]">This is sample data for demonstration.</span> Your real outstanding report will look exactly like this once imported.

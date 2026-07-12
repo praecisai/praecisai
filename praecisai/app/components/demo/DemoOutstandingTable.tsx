@@ -732,7 +732,7 @@ export default function DemoOutstandingTable({
         />
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-body text-sm">
+          <table className="w-full min-w-[1000px] text-left font-body text-sm">
             <thead className="bg-[var(--sand)] text-[13px] font-semibold text-[var(--dark-brown)] border-b border-[var(--caramel)]">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>

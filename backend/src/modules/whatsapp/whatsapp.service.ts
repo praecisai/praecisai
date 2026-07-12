@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
 import { AisensyService } from './aisensy.service';
 import { StorageService } from '../storage/storage.service';
-import { getSegment } from '../../common/utils/segment.util';
+import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
 
 @Injectable()
 export class WhatsappService {
@@ -44,7 +44,7 @@ export class WhatsappService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true } },
+        business: { select: { name: true, segment_rules: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -57,18 +57,20 @@ export class WhatsappService {
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
 
+    const rules = parseSegmentRules(customer.business.segment_rules);
+
     const invoices: StatementInvoice[] = customer.invoices.map((inv) => ({
       billNo: inv.invoice_number,
       billDate: formatIndianDate(inv.invoice_date),
       billAmount: inv.amount || inv.due_amount,
       dueAmount: inv.due_amount,
       daysOverdue: inv.days_overdue,
-      status: getSegment(inv.days_overdue, inv.due_amount),
+      status: getSegment(inv.days_overdue, inv.due_amount, rules),
     }));
 
     const totalDue = invoices.reduce((s, i) => s + i.dueAmount, 0);
     const maxDays = Math.max(...invoices.map((i) => i.daysOverdue));
-    const segment = getSegment(maxDays, totalDue);
+    const segment = getSegment(maxDays, totalDue, rules);
     const agentName = customer.invoices.find((i) => i.sales_agent)?.sales_agent ?? undefined;
 
     const pdfBuffer = await this.statementPdf.generate({
@@ -129,6 +131,39 @@ export class WhatsappService {
       totalDue,
       invoiceCount: invoices.length,
       message: `WhatsApp statement sent to ${customer.customer_name}`,
+    };
+  }
+
+  // ─── Bulk: statement PDFs to every eligible customer in a segment ──────────
+  async sendSegmentStatements(businessId: string, segment: string) {
+    const outstandings = await this.prisma.outstanding.findMany({
+      where: { business_id: businessId, segment, status: 'ACTIVE' },
+      include: { customer: { select: { id: true, customer_name: true, phone: true } } },
+      take: 100,
+    });
+
+    const eligible = outstandings.filter((o) => o.customer?.phone);
+    const noPhone = outstandings.length - eligible.length;
+
+    let sent = 0;
+    const skipped: Array<{ customer: string; reason: string }> = [];
+
+    for (const o of eligible) {
+      try {
+        await this.sendStatementToCustomer(businessId, o.customer.id);
+        sent++;
+      } catch (err: any) {
+        skipped.push({ customer: o.customer.customer_name, reason: err.message });
+      }
+    }
+
+    return {
+      success: true,
+      segment,
+      sent,
+      no_phone: noPhone,
+      skipped,
+      message: `${sent} statement(s) sent for ${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 }

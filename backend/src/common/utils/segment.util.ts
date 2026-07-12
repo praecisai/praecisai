@@ -12,6 +12,33 @@ export const DEFAULT_SEGMENT_RULES: SegmentRule[] = [
 ];
 
 /**
+ * Parse a business's stored segment_rules JSON (from businesses.segment_rules).
+ * Falls back to the platform defaults when null/malformed — a bad value in the
+ * DB must never break segmentation.
+ */
+export function parseSegmentRules(raw: unknown): SegmentRule[] {
+  if (!Array.isArray(raw) || raw.length === 0) return DEFAULT_SEGMENT_RULES;
+
+  const rules: SegmentRule[] = [];
+  for (const r of raw) {
+    if (
+      typeof r !== 'object' || r === null ||
+      typeof (r as any).min_days !== 'number' ||
+      ((r as any).max_days !== null && typeof (r as any).max_days !== 'number') ||
+      typeof (r as any).segment !== 'string'
+    ) {
+      return DEFAULT_SEGMENT_RULES;
+    }
+    rules.push({
+      min_days: (r as any).min_days,
+      max_days: (r as any).max_days,
+      segment: (r as any).segment,
+    });
+  }
+  return rules;
+}
+
+/**
  * Pure function to calculate the segment for a customer's outstanding.
  * NEVER trust the segment from uploaded files — always recalculate.
  *
