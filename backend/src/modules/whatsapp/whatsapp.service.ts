@@ -40,7 +40,7 @@ export class WhatsappService {
    * Segment is always recalculated from the invoices via segment.util —
    * never trusted from the caller. Logged to WhatsAppLog either way.
    */
-  async sendStatementToCustomer(businessId: string, customerId: string) {
+  async sendStatementToCustomer(businessId: string, customerId: string, overridePhone?: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
@@ -53,7 +53,10 @@ export class WhatsappService {
     });
 
     if (!customer) throw new NotFoundException('Customer not found');
-    if (!customer.phone) throw new BadRequestException('Customer has no phone number');
+    // overridePhone is used by the inbound flow when the customer replies with
+    // a different WhatsApp number than the one on their party record.
+    const destinationPhone = overridePhone ?? customer.phone;
+    if (!destinationPhone) throw new BadRequestException('Customer has no phone number');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
 
@@ -97,7 +100,7 @@ export class WhatsappService {
     try {
       await this.aisensy.sendStatement({
         segment,
-        destinationPhone: customer.phone,
+        destinationPhone,
         partyName: customer.customer_name,
         totalDue,
         invoiceCount: invoices.length,
@@ -171,6 +174,100 @@ export class WhatsappService {
       message: `${sent} statement(s) sent for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
+
+  /**
+   * Handle an inbound WhatsApp message forwarded by AiSensy.
+   *
+   * Two cases we care about:
+   *  1. A customer whose party-record phone IS on WhatsApp messages us
+   *     ("bhej do") → send them their statement to the same number.
+   *  2. Stage-3 of the on-call flow: the customer's business number is NOT on
+   *     WhatsApp, so on the call they were told to reply from their real
+   *     WhatsApp number with (optionally) the number to use. Their reply comes
+   *     from an unknown WA number; we match it to the most recent call where
+   *     `whatsapp_requested` is still unfulfilled and send there.
+   *
+   * Single AiSensy account = single business, so we resolve the business from
+   * the matched customer / pending call rather than from the payload.
+   */
+  async handleInbound(payload: any) {
+    const senderRaw =
+      payload?.senderMobile ?? payload?.sender ?? payload?.mobile ??
+      payload?.from ?? payload?.waId ?? payload?.wa_id ?? '';
+    const text: string =
+      payload?.message ?? payload?.text ?? payload?.messageBody ??
+      payload?.body ?? payload?.button?.text ?? '';
+
+    const sender = normalizeDigits(senderRaw);
+    if (!sender) {
+      this.logger.warn(`Inbound WhatsApp with no sender: ${JSON.stringify(payload).slice(0, 300)}`);
+      return { handled: false, reason: 'no sender' };
+    }
+
+    // A 10-digit number inside the message = "send it to this number instead"
+    const providedNumber = extractIndianMobile(text);
+
+    // Case 2 first — a pending on-call request (matched by recency, not sender,
+    // because the sender's WA number won't be on file).
+    const pendingCall = await this.prisma.callLog.findFirst({
+      where: {
+        whatsapp_requested: true,
+        whatsapp_fulfilled: false,
+        created_at: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+      },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, business_id: true, customer_id: true },
+    });
+
+    // Case 1 — the sender IS a known customer (their WA number is on file)
+    const senderCustomer = await this.prisma.customer.findFirst({
+      where: { phone: { endsWith: sender.slice(-10) } },
+      select: { id: true, business_id: true },
+    });
+
+    const target = pendingCall ?? (senderCustomer
+      ? { id: null as string | null, business_id: senderCustomer.business_id, customer_id: senderCustomer.id }
+      : null);
+
+    if (!target) {
+      this.logger.log(`Inbound WhatsApp from ${sender} — no matching customer or pending request; ignored`);
+      return { handled: false, reason: 'no match' };
+    }
+
+    const destination = providedNumber ?? sender;
+
+    try {
+      await this.sendStatementToCustomer(target.business_id, target.customer_id, destination);
+      // Persist the working WhatsApp number so future sends reach them directly
+      await this.prisma.customer.update({
+        where: { id: target.customer_id },
+        data: { phone: destination.length === 10 ? `+91${destination}` : `+${destination}` },
+      });
+      if (pendingCall) {
+        await this.prisma.callLog.update({
+          where: { id: pendingCall.id },
+          data: { whatsapp_fulfilled: true },
+        });
+      }
+      this.logger.log(`Inbound WhatsApp → statement sent to ${destination} for customer ${target.customer_id}`);
+      return { handled: true, destination };
+    } catch (err: any) {
+      this.logger.error(`Inbound WhatsApp send failed: ${err?.message || err}`);
+      return { handled: false, reason: err?.message };
+    }
+  }
+}
+
+// Keep only digits; strip +, spaces, country prefixes handled by caller
+function normalizeDigits(raw: string | number): string {
+  return String(raw ?? '').replace(/\D/g, '');
+}
+
+// Find a 10-digit Indian mobile inside free text (ignores the 91 prefix)
+function extractIndianMobile(text: string): string | null {
+  if (!text) return null;
+  const m = text.replace(/\D/g, ' ').match(/(?:91)?([6-9]\d{9})/);
+  return m ? m[1] : null;
 }
 
 function formatIndianDate(d: Date): string {

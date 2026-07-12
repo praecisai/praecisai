@@ -10,6 +10,7 @@ export interface CallExtractionResult {
   language_used: 'HINDI' | 'ENGLISH' | 'MIXED' | 'UNKNOWN';
   talk_ratio: number | null;
   is_sensitive: boolean;
+  whatsapp_requested: boolean;
 }
 
 const SYSTEM_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
@@ -25,7 +26,8 @@ const USER_PROMPT = `Extract the following from the call transcript:
   "follow_up_notes": "<string or null>",
   "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
   "talk_ratio": <0-100 integer — % of call the agent spoke, or null>,
-  "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy — including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam" — else false>
+  "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy — including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam" — else false>,
+  "whatsapp_requested": <true if the customer asked for the outstanding / statement / bill details to be sent on WhatsApp, and the agent agreed to send it — including phrasing such as "outstanding WhatsApp कर दो", "statement भेज दो", "mujhe bhej dijiye", "WhatsApp pe bhejo", "details भेज दीजिए", "bhej do main check karke bataata hu" — else false>
 }
 
 Disposition guide:

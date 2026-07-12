@@ -283,6 +283,9 @@ model CallLog {
   language_used            CallLanguage?
   is_sensitive             Boolean          @default(false)
   sensitive_cooldown_until DateTime?
+  // Customer asked for the statement on WhatsApp during the call
+  whatsapp_requested       Boolean          @default(false)
+  whatsapp_fulfilled       Boolean          @default(false)
 
   // Relations
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)

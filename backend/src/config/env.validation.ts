@@ -66,6 +66,11 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   AISENSY_API_KEY?: string;
+
+  // Shared secret guarding the public AiSensy inbound webhook (?token=...)
+  @IsOptional()
+  @IsString()
+  AISENSY_INBOUND_TOKEN?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -5,10 +5,12 @@ import { CallingService } from './calling.service';
 import { CallProcessor } from './queues/call.processor';
 import { CallExtractionService } from './call-extraction.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
   imports: [
     PrismaModule,
+    WhatsappModule,
     BullModule.registerQueue({
       name: 'outbound-calls',
     }),

@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus } from '@prisma/client';
 import { CallExtractionService } from './call-extraction.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
 import {
   amountToHindi,
@@ -23,6 +24,7 @@ export class CallingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly extractionService: CallExtractionService,
+    private readonly whatsappService: WhatsappService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
   ) {}
 
@@ -354,26 +356,54 @@ export class CallingService {
       },
     });
 
-    // Customer promised a payment date → record a Promise-to-Pay
-    if (promisedDate) {
+    // Production-call follow-ups that need the CallLog (PTP + auto-WhatsApp)
+    const whatsappRequested = extraction?.whatsapp_requested ?? false;
+    if (promisedDate || whatsappRequested) {
       const callLog = await this.prisma.callLog.findUnique({
         where: { retell_call_id: callId },
         select: { id: true, business_id: true, customer_id: true },
       });
       if (callLog) {
-        const outstanding = await this.prisma.outstanding.findUnique({
-          where: { customer_id: callLog.customer_id },
-          select: { total_due: true },
-        });
-        await this.prisma.promiseToPay.create({
-          data: {
-            business_id: callLog.business_id,
-            customer_id: callLog.customer_id,
-            promised_amount: promisedAmount ?? outstanding?.total_due ?? 0,
-            promised_date: promisedDate,
-            notes: extraction?.call_summary ?? 'Captured from AI call',
-          },
-        });
+        // Customer promised a payment date → record a Promise-to-Pay
+        if (promisedDate) {
+          const outstanding = await this.prisma.outstanding.findUnique({
+            where: { customer_id: callLog.customer_id },
+            select: { total_due: true },
+          });
+          await this.prisma.promiseToPay.create({
+            data: {
+              business_id: callLog.business_id,
+              customer_id: callLog.customer_id,
+              promised_amount: promisedAmount ?? outstanding?.total_due ?? 0,
+              promised_date: promisedDate,
+              notes: extraction?.call_summary ?? 'Captured from AI call',
+            },
+          });
+        }
+
+        // On the call the customer asked for the statement on WhatsApp and
+        // Meena agreed → try to send it now to the number on file. If that
+        // number isn't on WhatsApp (delivery fails), the request stays
+        // `whatsapp_requested = true, fulfilled = false` so the inbound
+        // handler can complete it when the customer replies from their WA
+        // number (Stage 3 of FAQ 19).
+        if (whatsappRequested) {
+          let fulfilled = false;
+          try {
+            await this.whatsappService.sendStatementToCustomer(
+              callLog.business_id,
+              callLog.customer_id,
+            );
+            fulfilled = true;
+            this.logger.log(`Auto-sent WhatsApp statement for call ${callId} (customer requested on call)`);
+          } catch (err: any) {
+            this.logger.warn(`Auto WhatsApp after call ${callId} not delivered to file number — awaiting inbound reply: ${err?.message || err}`);
+          }
+          await this.prisma.callLog.update({
+            where: { id: callLog.id },
+            data: { whatsapp_requested: true, whatsapp_fulfilled: fulfilled },
+          });
+        }
       }
     }
 

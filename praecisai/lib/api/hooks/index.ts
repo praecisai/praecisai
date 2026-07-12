@@ -15,11 +15,11 @@ export function useDashboardStats() {
   });
 }
 
-export function useDashboardActivity() {
+export function useDashboardActivity(limit = 10) {
   return useQuery({
-    queryKey: ['dashboard', 'activity'],
+    queryKey: ['dashboard', 'activity', limit],
     queryFn: async () => {
-      const res = await api.get('/dashboard/activity?limit=10');
+      const res = await api.get(`/dashboard/activity?limit=${limit}`);
       return res.data.data;
     },
   });
