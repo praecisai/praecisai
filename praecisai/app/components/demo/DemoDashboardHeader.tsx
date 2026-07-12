@@ -65,7 +65,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
 
           {/* Call Counter */}
           <div className="flex flex-col items-end">
-            <span className="font-body text-[10px] sm:text-[11px] font-semibold text-white">
+            <span className="font-body text-[10px] sm:text-[11px] font-semibold text-[var(--dark-brown)]">
               4 Call actions remaining
             </span>
             <div className="mt-1 flex gap-1 sm:gap-1.5">

@@ -698,7 +698,7 @@ export default function DemoOutstandingTable({
           {SEGMENT_NOTES.map((s) => (
             <div key={s.label} className={cn('rounded-xl border px-4 py-3', CARD_BASE)}>
               <p className={cn('font-display text-[12px] font-bold mb-1', s.labelColor)}>{s.icon} {s.label}</p>
-              <p className="font-body text-[12px] leading-snug text-[var(--walnut)]">{s.note}</p>
+              <p className="font-body text-[12px] leading-snug" style={{ color: 'var(--mahogany)' }}>{s.note}</p>
             </div>
           ))}
         </div>
@@ -716,7 +716,7 @@ export default function DemoOutstandingTable({
                 <c.icon className="h-3.5 w-3.5" />
                 <p className="font-display text-[11px] font-bold">{c.label}</p>
               </div>
-              <p className="font-body text-[11px] leading-snug text-[var(--walnut)]">{c.note}</p>
+              <p className="font-body text-[11px] leading-snug" style={{ color: 'var(--mahogany)' }}>{c.note}</p>
             </div>
           ))}
         </div>
