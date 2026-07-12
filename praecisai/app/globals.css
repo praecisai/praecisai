@@ -226,12 +226,12 @@ body {
 }
 
 /* Segment badges — warm tinted */
-.badge-soft       { background: rgba(127,85,57,0.10);  color: var(--mahogany); border: 1px solid rgba(127,85,57,0.20); }
-.badge-followup   { background: rgba(221,184,146,0.18); color: var(--walnut);  border: 1px solid rgba(221,184,146,0.40); }
-.badge-strong     { background: rgba(156,102,68,0.12);  color: var(--rust);    border: 1px solid rgba(156,102,68,0.25); }
-.badge-escalation { background: rgba(127,29,29,0.10);   color: #7F1D1D;        border: 1px solid rgba(127,29,29,0.20); }
-.badge-cleared    { background: rgba(74,124,89,0.12);   color: var(--recovery-green); border: 1px solid rgba(74,124,89,0.25); }
-.badge-credit     { background: rgba(176,137,104,0.14); color: var(--walnut);  border: 1px solid rgba(176,137,104,0.28); }
+.badge-soft       { background: rgba(127,85,57,0.10);  color: var(--mahogany); border: 1px solid rgba(127,85,57,0.20);   white-space: nowrap; }
+.badge-followup   { background: rgba(221,184,146,0.18); color: var(--walnut);  border: 1px solid rgba(221,184,146,0.40); white-space: nowrap; }
+.badge-strong     { background: rgba(156,102,68,0.12);  color: var(--rust);    border: 1px solid rgba(156,102,68,0.25);  white-space: nowrap; }
+.badge-escalation { background: rgba(127,29,29,0.10);   color: #7F1D1D;        border: 1px solid rgba(127,29,29,0.20);   white-space: nowrap; }
+.badge-cleared    { background: rgba(74,124,89,0.12);   color: var(--recovery-green); border: 1px solid rgba(74,124,89,0.25); white-space: nowrap; }
+.badge-credit     { background: rgba(176,137,104,0.14); color: var(--walnut);  border: 1px solid rgba(176,137,104,0.28); white-space: nowrap; }
 
 /* Sidebar */
 .sidebar-item { transition: all 0.15s ease; }

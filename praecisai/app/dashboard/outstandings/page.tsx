@@ -142,7 +142,7 @@ export default function OutstandingsPage() {
             >
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: getAgingColor(b.bucket) }} />
-                <span className="text-[11px] sm:text-xs text-slate-400 font-medium">{b.bucket} days</span>
+                <span className="text-[11px] sm:text-xs text-slate-400 font-medium whitespace-nowrap">{b.bucket} days</span>
               </div>
               <p className="text-base sm:text-lg font-bold text-white">{formatINR(b.amount)}</p>
               <p className="text-[11px] sm:text-xs text-slate-500">{b.count} customers</p>
@@ -239,7 +239,7 @@ export default function OutstandingsPage() {
                   </td>
                   <td><SegmentBadge segment={row.segment} /></td>
                   <td>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: `${getAgingColor(row.aging_bucket)}20`, color: getAgingColor(row.aging_bucket) }}>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded whitespace-nowrap" style={{ background: `${getAgingColor(row.aging_bucket)}20`, color: getAgingColor(row.aging_bucket) }}>
                       {row.aging_bucket} days
                     </span>
                   </td>

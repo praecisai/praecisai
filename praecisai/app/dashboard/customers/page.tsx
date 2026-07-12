@@ -10,8 +10,40 @@ import { Search, Filter, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { CustomerFilters } from '../../../types';
 import { useDebounce } from '../../../lib/hooks/useDebounce';
+import { useUpdateCustomer } from '../../../lib/api/hooks';
+import { toast } from 'sonner';
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
+
+// Star toggle — click to mark/unmark a customer as VIP
+function VipToggle({ customerId, isVip, name }: { customerId: string; isVip: boolean; name: string }) {
+  const update = useUpdateCustomer(customerId);
+  return (
+    <button
+      title={isVip ? 'Remove VIP' : 'Mark as VIP'}
+      onClick={(e) => {
+        e.stopPropagation();
+        update.mutate(
+          { is_vip: !isVip },
+          {
+            onSuccess: () =>
+              toast.success(isVip ? `${name} removed from VIP` : `${name} marked as VIP ⭐`),
+            onError: (err: any) =>
+              toast.error('Could not update VIP status', { description: err.message }),
+          },
+        );
+      }}
+      disabled={update.isPending}
+      className="p-1 rounded transition-colors disabled:opacity-40 flex-shrink-0"
+    >
+      <Star
+        size={14}
+        className={isVip ? 'text-yellow-400' : 'text-[var(--walnut)] opacity-40 hover:opacity-100'}
+        fill={isVip ? 'currentColor' : 'none'}
+      />
+    </button>
+  );
+}
 
 export default function CustomersPage() {
   const [filters, setFilters] = useState<CustomerFilters>({ page: 1, limit: 20 });
@@ -131,20 +163,23 @@ export default function CustomersPage() {
               {!isLoading && customers.map((customer: any) => (
                 <tr key={customer.id} className="cursor-pointer hover:bg-[var(--surface-warm)]/2 transition-colors">
                   <td>
-                    <Link href={`/dashboard/customers/${customer.id}`} className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
-                        style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
-                        {customer.customer_name?.[0]?.toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white hover:text-blue-400 transition-colors">
-                          {customer.customer_name}
-                        </p>
-                        {customer.is_vip && (
-                          <span className="text-[10px] text-yellow-400">⭐ VIP</span>
-                        )}
-                      </div>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <VipToggle customerId={customer.id} isVip={!!customer.is_vip} name={customer.customer_name} />
+                      <Link href={`/dashboard/customers/${customer.id}`} className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
+                          style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+                          {customer.customer_name?.[0]?.toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white hover:text-[var(--mahogany)] transition-colors">
+                            {customer.customer_name}
+                          </p>
+                          {customer.is_vip && (
+                            <span className="text-[10px] text-yellow-400">⭐ VIP</span>
+                          )}
+                        </div>
+                      </Link>
+                    </div>
                   </td>
                   <td className="text-sm text-slate-400">{customer.city ?? '—'}</td>
                   <td className="text-sm text-slate-400 font-mono text-xs">{customer.phone ?? '—'}</td>

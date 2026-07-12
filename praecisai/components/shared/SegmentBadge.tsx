@@ -4,7 +4,7 @@ import { getSegmentClass } from '../../lib/utils/format';
 export function SegmentBadge({ segment }: { segment: string }) {
   const cls = getSegmentClass(segment as Segment);
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium badge-${cls}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap badge-${cls}`}>
       {segment}
     </span>
   );
@@ -29,7 +29,7 @@ export function StatusBadge({ status }: { status: string }) {
 
   const cls = colorMap[status] ?? 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
       {status}
     </span>
   );

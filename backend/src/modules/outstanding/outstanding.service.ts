@@ -1,14 +1,15 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { IsOptional } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getSegment, getAgingBucket, parseSegmentRules } from '../../common/utils/segment.util';
 import { PdcService } from '../pdc/pdc.service';
 
 export class OutstandingFiltersDto {
-  segment?: string;
-  aging_bucket?: string;
-  status?: string;
-  page?: number;
-  limit?: number;
+  @IsOptional() segment?: string;
+  @IsOptional() aging_bucket?: string;
+  @IsOptional() status?: string;
+  @IsOptional() page?: number;
+  @IsOptional() limit?: number;
 }
 
 @Injectable()
