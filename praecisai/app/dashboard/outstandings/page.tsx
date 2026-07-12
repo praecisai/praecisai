@@ -11,6 +11,7 @@ import {
   useSendSegmentStatements,
 } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
+import { Select } from '../../../components/ui/Select';
 import { SegmentBadge, StatusBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR, formatNumber, getAgingColor } from '../../../lib/utils/format';
 import { ChevronLeft, ChevronRight, Phone, MessageCircle } from 'lucide-react';
@@ -137,14 +138,14 @@ export default function OutstandingsPage() {
             <button
               key={b.bucket}
               onClick={() => setFilters((f: any) => ({ ...f, aging_bucket: f.aging_bucket === b.bucket ? undefined : b.bucket, page: 1 }))}
-              className={`glass-card p-4 text-left metric-card transition-all ${filters.aging_bucket === b.bucket ? 'ring-1 ring-[var(--mahogany)]' : ''}`}
+              className={`glass-card p-3 sm:p-4 text-left metric-card transition-all ${filters.aging_bucket === b.bucket ? 'ring-1 ring-[var(--mahogany)]' : ''}`}
             >
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: getAgingColor(b.bucket) }} />
-                <span className="text-xs text-slate-400 font-medium">{b.bucket} days</span>
+                <span className="text-[11px] sm:text-xs text-slate-400 font-medium">{b.bucket} days</span>
               </div>
-              <p className="text-lg font-bold text-white">{formatINR(b.amount)}</p>
-              <p className="text-xs text-slate-500">{b.count} customers</p>
+              <p className="text-base sm:text-lg font-bold text-white">{formatINR(b.amount)}</p>
+              <p className="text-[11px] sm:text-xs text-slate-500">{b.count} customers</p>
             </button>
           ))}
         </div>
@@ -152,18 +153,18 @@ export default function OutstandingsPage() {
         {/* Filters */}
         <div className="glass-card p-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <select className="input-dark text-sm" style={{ width: 'auto' }}
+            <Select
+              className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
-              onChange={(e) => setFilters((f: any) => ({ ...f, segment: e.target.value || undefined, page: 1 }))}>
-              <option value="">All Segments</option>
-              {SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select className="input-dark text-sm" style={{ width: 'auto' }}
+              onChange={(v) => setFilters((f: any) => ({ ...f, segment: v || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Segments' }, ...SEGMENTS.map((s) => ({ value: s, label: s }))]}
+            />
+            <Select
+              className="flex-1 min-w-[110px] sm:flex-none sm:w-36"
               value={filters.aging_bucket ?? ''}
-              onChange={(e) => setFilters((f: any) => ({ ...f, aging_bucket: e.target.value || undefined, page: 1 }))}>
-              <option value="">All Buckets</option>
-              {BUCKETS.map((b) => <option key={b} value={b}>{b} days</option>)}
-            </select>
+              onChange={(v) => setFilters((f: any) => ({ ...f, aging_bucket: v || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Buckets' }, ...BUCKETS.map((b) => ({ value: b, label: `${b} days` }))]}
+            />
             {(filters.segment || filters.aging_bucket) && (
               <button onClick={() => setFilters({ page: 1, limit: 20 })}
                 className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">

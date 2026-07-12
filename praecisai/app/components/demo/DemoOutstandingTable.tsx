@@ -23,7 +23,7 @@ function MobileInput({ value, onCommit }: { value: string; onCommit: (val: strin
       value={local}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={() => onCommit(local)}
-      className="w-28 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)] text-[13px]"
+      className="w-28 rounded border border-transparent px-2 py-1 focus:border-[var(--mahogany)] focus:outline-none focus:ring-1 focus:ring-[var(--mahogany)] bg-transparent hover:bg-[var(--surface-warm)] text-[12px] sm:text-[13px]"
     />
   );
 }
@@ -434,7 +434,7 @@ export default function DemoOutstandingTable({
         header: 'Party Name',
         cell: ({ row, getValue }) => (
           <div className="flex items-center gap-1.5">
-            <span className={cn('font-medium text-[13px]', row.original.isPaidGracePeriod && 'text-[var(--walnut)] line-through')}>
+            <span className={cn('font-medium text-[12px] sm:text-[13px]', row.original.isPaidGracePeriod && 'text-[var(--walnut)] line-through')}>
               {getValue() as string}
             </span>
             {row.original.isMultiInvoice && (
@@ -469,7 +469,7 @@ export default function DemoOutstandingTable({
         header: 'Due Amount (₹)',
         cell: ({ row, getValue }) => (
           <div>
-            <span className={cn('font-medium text-[13px]', row.original.isPaidGracePeriod ? 'text-teal-600' : 'text-[var(--walnut)]')}>
+            <span className={cn('font-medium text-[12px] sm:text-[13px]', row.original.isPaidGracePeriod ? 'text-teal-600' : 'text-[var(--walnut)]')}>
               ₹{(getValue() as number).toLocaleString('en-IN')}
             </span>
             {row.original.originalAmount && (
@@ -484,7 +484,7 @@ export default function DemoOutstandingTable({
         accessorKey: 'daysOutstanding',
         header: 'Days',
         cell: ({ row, getValue }) => (
-          <span className={cn('font-medium text-[13px]', row.original.isPaidGracePeriod ? 'text-teal-600' : 'text-[var(--walnut)]')}>
+          <span className={cn('font-medium text-[12px] sm:text-[13px]', row.original.isPaidGracePeriod ? 'text-teal-600' : 'text-[var(--walnut)]')}>
             {row.original.isPaidGracePeriod ? `Grace: ${row.original.graceDaysLeft}d` : (getValue() as number)}
           </span>
         ),
@@ -513,7 +513,7 @@ export default function DemoOutstandingTable({
             : row.original.daysOutstanding;
           const seg = getSegment(effectiveDays, row.original.dueAmount);
           if (seg.disabled) {
-            return <span className="text-[var(--walnut)] opacity-40 text-[13px]">—</span>;
+            return <span className="text-[var(--walnut)] opacity-40 text-[12px] sm:text-[13px]">—</span>;
           }
           return (
             <span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 font-body text-[11px] font-semibold tracking-wide', seg.bg)}>
@@ -527,7 +527,7 @@ export default function DemoOutstandingTable({
         header: 'Mobile No.',
         cell: ({ row, getValue }) =>
           row.original.isPastCall || row.original.isPaidGracePeriod ? (
-            <span className="text-[13px] text-[var(--walnut)] opacity-50">—</span>
+            <span className="text-[12px] sm:text-[13px] text-[var(--walnut)] opacity-50">—</span>
           ) : (
             <MobileInput value={getValue() as string} onCommit={(val) => handleEdit(row.original.id, 'mobileNo', val)} />
           ),
@@ -540,7 +540,7 @@ export default function DemoOutstandingTable({
             ? Math.max(...data.filter(r => r.partyName === row.original.partyName && !r.isPaidGracePeriod && !r.isPastCall).map(r => r.daysOutstanding))
             : row.original.daysOutstanding;
           if (!row.original.isPastCall && !row.original.isPaidGracePeriod && daysForStatus < 90) {
-            return <span className="text-[var(--walnut)] opacity-30 text-[13px]">—</span>;
+            return <span className="text-[var(--walnut)] opacity-30 text-[12px] sm:text-[13px]">—</span>;
           }
           if (row.original.isPastCall) {
             return (
@@ -567,7 +567,7 @@ export default function DemoOutstandingTable({
               </div>
             );
           }
-          return <span className="text-[var(--walnut)] text-[13px]">Pending</span>;
+          return <span className="text-[var(--walnut)] text-[12px] sm:text-[13px]">Pending</span>;
         },
       },
       {
@@ -691,7 +691,7 @@ export default function DemoOutstandingTable({
     <div className="space-y-6">
       {/* ── Segment behaviour notes ── */}
       <div>
-        <p className="mb-3 font-display text-[13px] font-semibold text-[var(--mahogany)] uppercase tracking-wider">
+        <p className="mb-3 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)] uppercase tracking-wider">
           How each segment works
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -706,7 +706,7 @@ export default function DemoOutstandingTable({
 
       {/* ── Intelligence case notes ── */}
       <div>
-        <p className="mb-3 font-display text-[13px] font-semibold text-[var(--mahogany)] uppercase tracking-wider">
+        <p className="mb-3 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)] uppercase tracking-wider">
           5 intelligence cases in this demo
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -733,11 +733,11 @@ export default function DemoOutstandingTable({
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-left font-body text-sm">
-            <thead className="bg-[var(--sand)] text-[13px] font-semibold text-[var(--dark-brown)] border-b border-[var(--caramel)]">
+            <thead className="bg-[var(--sand)] text-[11px] sm:text-[13px] font-semibold text-[var(--dark-brown)] border-b border-[var(--caramel)]">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-4 py-3 whitespace-nowrap">
+                    <th key={header.id} className="px-3 py-2.5 sm:px-4 sm:py-3 whitespace-nowrap">
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </th>
                   ))}
@@ -758,7 +758,7 @@ export default function DemoOutstandingTable({
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-2.5">
+                    <td key={cell.id} className="px-3 py-2 sm:px-4 sm:py-2.5">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

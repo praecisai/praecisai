@@ -161,7 +161,7 @@ export function TopHeader({ title, subtitle }: { title: string; subtitle?: strin
   const { setOpen } = useContext(SidebarContext);
   return (
     <header
-      className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b"
+      className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b"
       style={{ background: 'var(--surface-warm)', borderColor: 'rgba(221,184,146,0.4)' }}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -173,8 +173,8 @@ export function TopHeader({ title, subtitle }: { title: string; subtitle?: strin
           <Menu size={20} strokeWidth={1.75} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-[var(--dark-brown)] truncate">{title}</h1>
-          {subtitle && <p className="text-xs text-[var(--walnut)] mt-0.5 truncate">{subtitle}</p>}
+          <h1 className="text-base sm:text-lg font-semibold text-[var(--dark-brown)] truncate">{title}</h1>
+          {subtitle && <p className="text-[11px] sm:text-xs text-[var(--walnut)] mt-0.5 truncate">{subtitle}</p>}
         </div>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">

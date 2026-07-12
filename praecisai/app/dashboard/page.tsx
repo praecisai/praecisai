@@ -31,15 +31,15 @@ function MetricCard({
   }
 
   return (
-    <div className="glass-card p-4 sm:p-5 metric-card min-w-0">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider min-w-0">{title}</p>
-        <div className="p-2 rounded-lg flex-shrink-0" style={{ background: `${color}18` }}>
-          <Icon size={16} style={{ color }} strokeWidth={1.75} />
+    <div className="glass-card p-3.5 sm:p-5 metric-card min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+        <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider min-w-0">{title}</p>
+        <div className="p-1.5 sm:p-2 rounded-lg flex-shrink-0" style={{ background: `${color}18` }}>
+          <Icon size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color }} strokeWidth={1.75} />
         </div>
       </div>
-      <p className="text-xl sm:text-2xl font-bold text-[var(--dark-brown)] count-animation">{value}</p>
-      {sub && <p className="text-xs text-[var(--walnut)] mt-1">{sub}</p>}
+      <p className="text-base min-[400px]:text-lg sm:text-2xl font-bold text-[var(--dark-brown)] count-animation">{value}</p>
+      {sub && <p className="text-[11px] sm:text-xs text-[var(--walnut)] mt-0.5 sm:mt-1">{sub}</p>}
     </div>
   );
 }
@@ -121,11 +121,11 @@ export default function DashboardPage() {
         {/* Recovery Rate + Aging Buckets Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Recovery Rate */}
-          <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">Recovery Rate</p>
+          <div className="glass-card p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-3 sm:mb-4">Recovery Rate</p>
             <div className="flex items-center gap-4">
-              <div className="relative w-20 h-20">
-                <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+                <svg viewBox="0 0 36 36" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none" stroke="rgba(221,184,146,0.4)" strokeWidth="3" />
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -133,12 +133,12 @@ export default function DashboardPage() {
                     strokeDasharray={`${stats?.recovery_rate ?? 0}, 100`} strokeLinecap="round" />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</span>
+                  <span className="text-base sm:text-lg font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</span>
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</p>
-                <p className="text-xs text-[var(--walnut)]">Collections rate</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--dark-brown)]">{stats?.recovery_rate ?? 0}%</p>
+                <p className="text-[11px] sm:text-xs text-[var(--walnut)]">Collections rate</p>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-[var(--recovery-green)]" strokeWidth={1.75} />
                   <span className="text-xs text-[var(--recovery-green)]">Tracking enabled</span>
@@ -150,13 +150,13 @@ export default function DashboardPage() {
           {/* Aging Bucket Cards */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-3">
             {(stats?.aging_buckets ?? []).map((bucket, i) => (
-              <div key={bucket.range} className="glass-card p-4">
+              <div key={bucket.range} className="glass-card p-3 sm:p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-full" style={{ background: AGING_COLORS[i] }} />
-                  <span className="text-xs text-[var(--walnut)] font-medium">{bucket.range} days</span>
+                  <span className="text-[11px] sm:text-xs text-[var(--walnut)] font-medium">{bucket.range} days</span>
                 </div>
-                <p className="text-lg font-bold text-[var(--dark-brown)]">{formatINR(bucket.amount)}</p>
-                <p className="text-xs text-[var(--walnut)]">{bucket.count} customers</p>
+                <p className="text-base sm:text-lg font-bold text-[var(--dark-brown)]">{formatINR(bucket.amount)}</p>
+                <p className="text-[11px] sm:text-xs text-[var(--walnut)]">{bucket.count} customers</p>
               </div>
             ))}
             {isLoading && [1,2,3,4].map(i => (
@@ -172,8 +172,8 @@ export default function DashboardPage() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Aging Bar Chart */}
-          <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
+          <div className="glass-card p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               Aging Breakdown
             </p>
             {isLoading ? (
@@ -197,8 +197,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Segment Pie Chart */}
-          <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
+          <div className="glass-card p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               Segment Distribution
             </p>
             {isLoading ? (
@@ -233,8 +233,8 @@ export default function DashboardPage() {
 
         {/* Segment summary list */}
         {!isLoading && (stats?.segment_distribution?.length ?? 0) > 0 && (
-          <div className="glass-card p-5">
-            <p className="text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
+          <div className="glass-card p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               All Segments
             </p>
             <div className="space-y-2">

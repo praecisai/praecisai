@@ -65,14 +65,14 @@ export default function CustomerDetailPage() {
         </Link>
 
         {/* Header card */}
-        <div className="glass-card p-6 flex flex-col sm:flex-row items-start gap-5">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white flex-shrink-0"
+        <div className="glass-card p-4 sm:p-6 flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-bold text-white flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
             {customer.customer_name?.[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-white">{customer.customer_name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-white">{customer.customer_name}</h2>
               {customer.is_vip && <span className="text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-2 py-0.5 rounded-full">⭐ VIP</span>}
               {customer.outstanding?.segment && <SegmentBadge segment={customer.outstanding.segment} />}
             </div>
@@ -101,7 +101,7 @@ export default function CustomerDetailPage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-500 mb-1">Total Outstanding</p>
-            <p className={`text-2xl font-bold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
               {formatINR(customer.outstanding?.total_due ?? 0)}
             </p>
             <p className="text-xs text-slate-500 mt-1">{customer.outstanding?.aging_bucket ?? '—'} days bucket</p>

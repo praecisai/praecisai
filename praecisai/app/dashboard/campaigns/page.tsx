@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCampaigns, useCreateCampaign, useDeleteCampaign } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
+import { Select } from '../../../components/ui/Select';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
 import { formatDate } from '../../../lib/utils/format';
 import { Plus, X, Megaphone, Trash2 } from 'lucide-react';
@@ -62,9 +63,11 @@ export default function CampaignsPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Type</label>
-                  <select className="input-dark" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                    {TYPES.map((t) => <option key={t} value={t}>{typeIcons[t]} {t}</option>)}
-                  </select>
+                  <Select
+                    value={form.type}
+                    onChange={(v) => setForm((f) => ({ ...f, type: v }))}
+                    options={TYPES.map((t) => ({ value: t, label: `${typeIcons[t]} ${t}` }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Scheduled At (optional)</label>

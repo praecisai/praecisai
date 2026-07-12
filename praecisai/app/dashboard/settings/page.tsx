@@ -105,7 +105,7 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="flex-1 min-w-0">
           {activeTab === 'business' && (
-            <div className="glass-card p-6 space-y-5">
+            <div className="glass-card p-4 sm:p-6 space-y-5">
               <h3 className="font-semibold text-[var(--dark-brown)]">Business Settings</h3>
               <div className="space-y-4">
                 <div>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
           )}
 
           {activeTab === 'users' && (
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Users & Roles</h3>
               <div className="space-y-3">
                 {[
@@ -165,7 +165,7 @@ export default function SettingsPage() {
           )}
 
           {activeTab === 'segments' && (
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="font-semibold text-[var(--dark-brown)] mb-1">Segment Rules</h3>
               <p className="text-xs text-[var(--walnut)] mb-5">
                 Day ranges decide each customer&apos;s segment — which controls the AI call script, the WhatsApp
@@ -219,7 +219,7 @@ export default function SettingsPage() {
           )}
 
           {activeTab === 'notifications' && (
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Notifications</h3>
               <div className="space-y-3">
                 {['Import completed', 'Campaign finished', 'Promise-to-pay due', 'Weekly summary digest'].map((n) => (

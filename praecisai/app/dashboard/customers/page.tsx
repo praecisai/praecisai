@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCustomers, useCustomerCities } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
+import { Select } from '../../../components/ui/Select';
 import { SegmentBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR, formatDate } from '../../../lib/utils/format';
 import { Search, Filter, Star, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -47,26 +48,20 @@ export default function CustomersPage() {
             </div>
 
             {/* City filter */}
-            <select
-              className="input-dark text-sm"
-              style={{ width: 'auto', paddingRight: '32px' }}
+            <Select
+              className="flex-1 min-w-[110px] sm:flex-none sm:w-36"
               value={filters.city ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value || undefined, page: 1 }))}
-            >
-              <option value="">All Cities</option>
-              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+              onChange={(v) => setFilters((f) => ({ ...f, city: v || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Cities' }, ...cities.map((c) => ({ value: c, label: c }))]}
+            />
 
             {/* Segment filter */}
-            <select
-              className="input-dark text-sm"
-              style={{ width: 'auto', paddingRight: '32px' }}
+            <Select
+              className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, segment: (e.target.value as any) || undefined, page: 1 }))}
-            >
-              <option value="">All Segments</option>
-              {SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+              onChange={(v) => setFilters((f) => ({ ...f, segment: (v as any) || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Segments' }, ...SEGMENTS.map((s) => ({ value: s, label: s }))]}
+            />
 
             {/* VIP toggle */}
             <button

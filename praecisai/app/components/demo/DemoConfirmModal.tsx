@@ -37,10 +37,10 @@ export default function DemoConfirmModal({
         className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--cream)] border border-[var(--caramel)] shadow-2xl"
       >
         <div className="p-5 sm:p-6">
-          <h3 className="font-display text-xl font-semibold text-[var(--dark-brown)]">
+          <h3 className="font-display text-lg sm:text-xl font-semibold text-[var(--dark-brown)]">
             {title}
           </h3>
-          <p className="mt-2 font-body text-[14px] text-[var(--walnut)]">
+          <p className="mt-2 font-body text-[13px] sm:text-[14px] text-[var(--walnut)]">
             {description}
           </p>
 

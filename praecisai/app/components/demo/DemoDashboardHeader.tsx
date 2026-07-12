@@ -24,8 +24,8 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
     <div className="sticky top-0 z-40 flex w-full flex-col border-b border-[var(--caramel)] bg-[var(--surface-warm)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
       
       {/* Left: Brand & Badge */}
-      <div className="flex items-center gap-4">
-        <h1 className="font-display text-xl font-bold tracking-tight text-[var(--dark-brown)]">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <h1 className="font-display text-lg sm:text-xl font-bold tracking-tight text-[var(--dark-brown)]">
           Praecis<span className="text-[var(--walnut)]">AI</span>
         </h1>
         <div className="flex items-center gap-1.5 rounded-full bg-[var(--rust)] px-2.5 py-1 shadow-sm">
@@ -49,31 +49,31 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
         <div className="flex flex-row flex-wrap items-center gap-4 sm:gap-6">
           {/* WhatsApp Counter */}
           <div className="flex flex-col items-end">
-            <span className="font-body text-[11px] font-semibold text-[var(--dark-brown)]">
+            <span className="font-body text-[10px] sm:text-[11px] font-semibold text-[var(--dark-brown)]">
               4 WhatsApp actions remaining
             </span>
-            <div className="mt-1 flex gap-1.5">
+            <div className="mt-1 flex gap-1 sm:gap-1.5">
               {whatsappDots.map((_, i) => (
                 <motion.div
                   key={`wa-${i}`}
                   layout
-                  className="h-1.5 w-6 rounded-full bg-[#25D366]"
+                  className="h-1.5 w-5 sm:w-6 rounded-full bg-[#25D366]"
                 />
               ))}
             </div>
           </div>
-          
+
           {/* Call Counter */}
           <div className="flex flex-col items-end">
-            <span className="font-body text-[11px] font-semibold text-white">
+            <span className="font-body text-[10px] sm:text-[11px] font-semibold text-white">
               4 Call actions remaining
             </span>
-            <div className="mt-1 flex gap-1.5">
+            <div className="mt-1 flex gap-1 sm:gap-1.5">
               {callsDots.map((_, i) => (
                 <motion.div
                   key={`call-${i}`}
                   layout
-                  className="h-1.5 w-6 rounded-full bg-[#25D366]"
+                  className="h-1.5 w-5 sm:w-6 rounded-full bg-[#25D366]"
                 />
               ))}
             </div>
@@ -83,7 +83,7 @@ export default function DemoDashboardHeader({ businessName, whatsappUsed, whatsa
         <AnimatedThemeToggler />
         <Link
           href="/"
-          className="ml-0 sm:ml-2 flex items-center gap-2 whitespace-nowrap rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-3 sm:px-4 py-2 font-body text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
+          className="ml-0 sm:ml-2 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg sm:rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] px-3 sm:px-4 py-1.5 sm:py-2 font-body text-xs sm:text-sm font-semibold text-[var(--walnut)] transition-colors hover:bg-[var(--sand)] hover:text-[var(--dark-brown)]"
           title="Exit Demo"
         >
           <LogOut size={16} />

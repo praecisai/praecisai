@@ -34,18 +34,18 @@ function StepIndicator({ current, steps }: { current: number; steps: string[] })
         <div key={i} className="flex items-center">
           <div className="flex items-center gap-2">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-              i < current ? 'bg-emerald-500 text-white' :
-              i === current ? 'bg-blue-500 text-white' :
+              i < current ? 'bg-[var(--recovery-green)] text-white' :
+              i === current ? 'bg-[var(--mahogany)] text-white' :
               'bg-[var(--surface-warm)]/5 text-slate-500'
             }`}>
               {i < current ? <CheckCircle size={14} /> : i + 1}
             </div>
-            <span className={`text-xs font-medium hidden sm:block ${i === current ? 'text-white' : i < current ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <span className={`text-xs font-medium hidden sm:block ${i === current ? 'text-[var(--dark-brown)]' : i < current ? 'text-[var(--recovery-green)]' : 'text-slate-500'}`}>
               {s}
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div className={`w-3 sm:w-8 h-px mx-1 sm:mx-2 ${i < current ? 'bg-emerald-500' : 'bg-[var(--surface-warm)]/10'}`} />
+            <div className={`w-3 sm:w-8 h-px mx-1 sm:mx-2 ${i < current ? 'bg-[var(--recovery-green)]' : 'bg-[var(--surface-warm)]/10'}`} />
           )}
         </div>
       ))}
@@ -71,7 +71,7 @@ function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
 
   return (
     <div
-      className={`drop-zone p-12 text-center cursor-pointer ${dragOver ? 'drag-over' : ''}`}
+      className={`drop-zone p-8 sm:p-12 text-center cursor-pointer ${dragOver ? 'drag-over' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
@@ -79,11 +79,11 @@ function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
     >
       <input id="file-input" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileInput} />
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-        style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-        <FileSpreadsheet size={28} className="text-blue-400" />
+        style={{ background: 'rgba(127,85,57,0.12)', border: '1px solid rgba(127,85,57,0.25)' }}>
+        <FileSpreadsheet size={28} className="text-[var(--mahogany)]" />
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">Drop your Excel or CSV file here</h3>
-      <p className="text-sm text-slate-400 mb-4">Supports .xlsx, .xls, .csv - up to 50MB</p>
+      <h3 className="text-base sm:text-lg font-semibold text-white mb-2">Drop your Excel or CSV file here</h3>
+      <p className="text-[13px] sm:text-sm text-slate-400 mb-4">Supports .xlsx, .xls, .csv - up to 50MB</p>
       <button className="px-5 py-2.5 rounded-lg text-sm font-medium text-white"
         style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
         Browse Files
@@ -116,7 +116,7 @@ function ColumnMapperStep({
     <div className="space-y-4">
       {/* Template loader */}
       {templates.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--sand)', border: '1px solid var(--caramel)' }}>
           <span className="text-sm text-slate-400">Load saved template:</span>
           <select className="input-dark text-sm flex-1" style={{ maxWidth: 220 }}
             onChange={(e) => {
@@ -146,14 +146,14 @@ function ColumnMapperStep({
                   {required && <span className="text-red-400 ml-1">*</span>}
                 </p>
                 {conf > 0 && mapped && (
-                  <p className="text-[10px] text-emerald-400 sm:mt-0.5">
+                  <p className="text-[10px] text-[var(--recovery-green)] sm:mt-0.5">
                     {Math.round(conf * 100)}% match
                   </p>
                 )}
               </div>
               <ArrowRight size={14} className="text-slate-600 flex-shrink-0 hidden sm:block" />
               <select
-                className={`input-dark text-sm w-full sm:flex-1 ${mapped ? 'border-emerald-500/30 text-emerald-300' : ''}`}
+                className={`input-dark text-sm w-full sm:flex-1 ${mapped ? 'border-[rgba(74,124,89,0.45)] text-[var(--recovery-green)]' : ''}`}
                 value={mapped}
                 onChange={(e) => onMappingChange(field, e.target.value)}
               >
@@ -162,7 +162,7 @@ function ColumnMapperStep({
               </select>
               {mapped && (
                 <div className="w-5 flex-shrink-0 hidden sm:block">
-                  <CheckCircle size={16} className="text-emerald-400" />
+                  <CheckCircle size={16} className="text-[var(--recovery-green)]" />
                 </div>
               )}
             </div>
@@ -180,7 +180,7 @@ function ColumnMapperStep({
             <button
               onClick={() => { if (templateName) { onSaveTemplate(templateName); setShowSave(false); setTemplateName(''); } }}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399' }}>
+              style={{ background: 'rgba(74,124,89,0.15)', border: '1px solid rgba(74,124,89,0.35)', color: 'var(--recovery-green)' }}>
               <Save size={13} className="inline mr-1" /> Save
             </button>
             <button onClick={() => setShowSave(false)} className="p-2 text-slate-500 hover:text-white">
@@ -211,7 +211,7 @@ function PreviewStep({ previewData }: { previewData: any }) {
           Showing first <strong className="text-white">5</strong> of <strong className="text-white">{total_rows}</strong> rows
         </p>
         {validation_errors.length > 0 && (
-          <div className="flex items-center gap-1.5 text-sm text-yellow-400">
+          <div className="flex items-center gap-1.5 text-sm text-[var(--rust)]">
             <AlertCircle size={14} />
             {validation_errors.length} validation warnings
           </div>
@@ -247,7 +247,7 @@ function PreviewStep({ previewData }: { previewData: any }) {
                         <span key={i} className="text-[10px] text-red-400">{e.field}: {e.message}</span>
                       ))}
                     </div>
-                  ) : <CheckCircle size={13} className="text-emerald-400" />}
+                  ) : <CheckCircle size={13} className="text-[var(--recovery-green)]" />}
                 </td>
               </tr>
             ))}
@@ -263,7 +263,7 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
   if (isRunning) {
     return (
       <div className="text-center py-12">
-        <Loader2 size={40} className="text-blue-400 animate-spin mx-auto mb-4" />
+        <Loader2 size={40} className="text-[var(--mahogany)] animate-spin mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-white mb-2">Importing data…</h3>
         <p className="text-sm text-slate-400">Processing rows, upserting customers, recalculating segments</p>
       </div>
@@ -281,10 +281,10 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Rows', value: result.records_total, color: '#60a5fa' },
-          { label: 'Imported', value: result.records_imported, color: '#34d399' },
-          { label: 'Failed', value: result.records_failed, color: '#f87171' },
-          { label: 'Success Rate', value: `${successRate}%`, color: '#a78bfa' },
+          { label: 'Total Rows', value: result.records_total, color: '#7F5539' },
+          { label: 'Imported', value: result.records_imported, color: '#4A7C59' },
+          { label: 'Failed', value: result.records_failed, color: '#C62828' },
+          { label: 'Success Rate', value: `${successRate}%`, color: '#9C6644' },
         ].map((m) => (
           <div key={m.label} className="glass-card p-4 text-center">
             <p className="text-xs text-slate-400 mb-1">{m.label}</p>
@@ -321,7 +321,7 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
                 {result.errors.slice(0, 20).map((e: any, i: number) => (
                   <tr key={i}>
                     <td className="text-xs text-slate-400">#{e.row}</td>
-                    <td className="text-xs text-yellow-400">{e.field}</td>
+                    <td className="text-xs text-[var(--rust)]">{e.field}</td>
                     <td className="text-xs text-red-400">{e.message}</td>
                   </tr>
                 ))}
@@ -462,10 +462,10 @@ export default function ImportPage() {
               <tbody>
                 {(historyData?.data ?? []).slice(0, 10).map((h: any) => (
                   <tr key={h.id}>
-                    <td className="text-xs text-blue-400 font-mono">{h.file_name}</td>
+                    <td className="text-xs text-[var(--mahogany)] font-mono">{h.file_name}</td>
                     <td className="text-xs text-slate-400">{formatDate(h.created_at)}</td>
                     <td className="text-xs text-white">{h.records_total}</td>
-                    <td className="text-xs text-emerald-400">{h.records_imported}</td>
+                    <td className="text-xs text-[var(--recovery-green)]">{h.records_imported}</td>
                     <td className="text-xs text-red-400">{h.records_failed}</td>
                     <td><StatusBadge status={h.status} /></td>
                   </tr>
@@ -480,14 +480,14 @@ export default function ImportPage() {
         )}
 
         {/* Step content */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 sm:p-6">
           {step === 0 && (
             <div>
               <h2 className="text-base font-semibold text-white mb-1">Step 1: Upload File</h2>
               <p className="text-sm text-slate-400 mb-5">Upload your Excel or CSV file with outstanding dues data</p>
               {uploadMutation.isPending ? (
                 <div className="text-center py-12">
-                  <Loader2 size={36} className="text-blue-400 animate-spin mx-auto mb-3" />
+                  <Loader2 size={36} className="text-[var(--mahogany)] animate-spin mx-auto mb-3" />
                   <p className="text-sm text-slate-400">Uploading and extracting headers…</p>
                 </div>
               ) : (
@@ -502,7 +502,7 @@ export default function ImportPage() {
                 <div className="min-w-0">
                   <h2 className="text-base font-semibold text-white">Step 2: Map Columns</h2>
                   <p className="text-sm text-slate-400 mt-0.5 break-words">
-                    <span className="text-blue-400 font-mono text-xs">{uploadData.file_name}</span>
+                    <span className="text-[var(--mahogany)] font-mono text-xs">{uploadData.file_name}</span>
                     {' '}· {uploadData.row_count} rows · {uploadData.headers.length} columns detected
                   </p>
                 </div>

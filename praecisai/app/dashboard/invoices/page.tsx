@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useInvoices } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
+import { Select } from '../../../components/ui/Select';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR, formatDate } from '../../../lib/utils/format';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -38,23 +39,23 @@ export default function InvoicesPage() {
                 className="bg-transparent border-none outline-none text-sm text-white placeholder:text-slate-500 w-full"
               />
             </div>
-            <select
-              className="input-dark text-sm" style={{ width: 'auto' }}
+            <Select
+              className="flex-1 min-w-[124px] sm:flex-none sm:w-40"
               value={filters.status ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, status: (e.target.value as any) || undefined, page: 1 }))}
-            >
-              <option value="">All Statuses</option>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <input
-              type="date" className="input-dark text-sm" style={{ width: 'auto' }}
-              onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined, page: 1 }))}
+              onChange={(v) => setFilters((f) => ({ ...f, status: (v as any) || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Statuses' }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
             />
-            <span className="text-slate-500 text-xs">to</span>
-            <input
-              type="date" className="input-dark text-sm" style={{ width: 'auto' }}
-              onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined, page: 1 }))}
-            />
+            <div className="flex items-center gap-2 flex-1 min-w-[230px] sm:flex-none sm:w-auto">
+              <input
+                type="date" className="input-dark text-sm flex-1 min-w-0 sm:flex-none" style={{ width: 'auto' }}
+                onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined, page: 1 }))}
+              />
+              <span className="text-slate-500 text-xs flex-shrink-0">to</span>
+              <input
+                type="date" className="input-dark text-sm flex-1 min-w-0 sm:flex-none" style={{ width: 'auto' }}
+                onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined, page: 1 }))}
+              />
+            </div>
           </div>
         </div>
 
