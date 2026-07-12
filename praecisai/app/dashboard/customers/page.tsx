@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCustomers, useCustomerCities } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
@@ -9,12 +9,14 @@ import { formatINR, formatDate } from '../../../lib/utils/format';
 import { Search, Filter, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import type { CustomerFilters } from '../../../types';
+import { useDebounce } from '../../../lib/hooks/useDebounce';
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
 
 export default function CustomersPage() {
   const [filters, setFilters] = useState<CustomerFilters>({ page: 1, limit: 20 });
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
   const { data, isLoading } = useCustomers(filters);
   const { data: cities = [] } = useCustomerCities();
 
@@ -22,9 +24,10 @@ export default function CustomersPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / (filters.limit ?? 20));
 
-  function applySearch() {
-    setFilters((f) => ({ ...f, search: search || undefined, page: 1 }));
-  }
+  // Auto-search as user types
+  useEffect(() => {
+    setFilters((f) => ({ ...f, search: debouncedSearch || undefined, page: 1 }));
+  }, [debouncedSearch]);
 
   return (
     <div>
@@ -36,14 +39,14 @@ export default function CustomersPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Search */}
             <div className="flex items-center gap-2 flex-1 min-w-48 input-dark" style={{ padding: '8px 12px' }}>
-              <Search size={14} className="text-slate-500 flex-shrink-0" />
+              <Search size={14} className="flex-shrink-0" style={{ color: 'var(--walnut)' }} />
               <input
                 type="text"
                 placeholder="Search by name, phone…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-                className="bg-transparent border-none outline-none text-sm text-white placeholder:text-slate-500 w-full"
+                className="bg-transparent border-none outline-none text-sm w-full"
+                style={{ color: 'var(--dark-brown)' }}
               />
             </div>
 
@@ -68,25 +71,19 @@ export default function CustomersPage() {
               onClick={() => setFilters((f) => ({ ...f, is_vip: f.is_vip ? undefined : true, page: 1 }))}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 filters.is_vip
-                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                  : 'text-slate-400 hover:text-white border border-white/10 hover:bg-[var(--surface-warm)]/5'
+                  ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30'
+                  : 'border hover:bg-[rgba(127,85,57,0.06)]'
               }`}
+              style={!filters.is_vip ? { color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' } : {}}
             >
               <Star size={13} /> VIP
-            </button>
-
-            <button
-              onClick={applySearch}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
-            >
-              Search
             </button>
 
             {(filters.search || filters.city || filters.segment || filters.is_vip) && (
               <button
                 onClick={() => { setSearch(''); setFilters({ page: 1, limit: 20 }); }}
-                className="px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all"
+                className="px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+                style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' }}
               >
                 Clear
               </button>

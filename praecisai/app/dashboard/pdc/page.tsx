@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useDebounce } from '@/lib/hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api/client';
 import { TopHeader } from '@/components/layout/Sidebar';
@@ -30,6 +31,7 @@ export default function PdcPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -40,9 +42,9 @@ export default function PdcPage() {
   });
 
   const { data: cheques, isLoading } = useQuery({
-    queryKey: ['pdc', 'cheques', statusFilter, search],
+    queryKey: ['pdc', 'cheques', statusFilter, debouncedSearch],
     queryFn: async () => (await api.get('/pdc/cheques', {
-      params: { status: statusFilter === 'ALL' ? undefined : statusFilter, search: search || undefined },
+      params: { status: statusFilter === 'ALL' ? undefined : statusFilter, search: debouncedSearch || undefined },
     })).data.data,
   });
 

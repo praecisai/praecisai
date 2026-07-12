@@ -369,7 +369,7 @@ body {
   padding: 14px 16px; border-bottom: 1px solid rgba(221,184,146,0.35); font-size: 13.5px;
   color: var(--dark-brown);
 }
-.data-table tr:hover td { background: rgba(237,224,212,0.45); }
+.data-table tr:last-child td { border-bottom: none; }
 
 /* Metric card hover */
 .metric-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
@@ -398,6 +398,29 @@ select.input-dark {
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 14px;
+}
+
+/* Date inputs — warm palette calendar */
+input[type="date"],
+input[type="datetime-local"] {
+  color-scheme: light;
+  accent-color: #7F5539;
+}
+.dark input[type="date"],
+.dark input[type="datetime-local"] {
+  color-scheme: dark;
+  accent-color: #DDB892;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.65;
+  filter: invert(38%) sepia(28%) saturate(600%) hue-rotate(340deg) brightness(0.9);
+  transition: opacity 0.15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 /* Compact dashboard scale on phones — ≥640px keeps the original sizes */
