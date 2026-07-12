@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   useOutstandings,
-  useAgingBreakdown,
+  useSegmentBreakdown,
   useCallCustomer,
   useSendWhatsAppStatement,
   useUpdateCustomerPhone,
@@ -13,14 +13,20 @@ import {
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import { SegmentBadge, StatusBadge } from '../../../components/shared/SegmentBadge';
-import { formatINR, formatNumber, getAgingColor } from '../../../lib/utils/format';
+import { formatINR, formatNumber } from '../../../lib/utils/format';
 import { ChevronLeft, ChevronRight, Phone, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { ConfirmModal } from '../../../components/shared/ConfirmModal';
 import { toast } from 'sonner';
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
-const BUCKETS = ['0-60', '61-120', '121-180', '181+'];
+
+const SEGMENT_COLORS: Record<string, string> = {
+  'Soft Reminder': '#4A7C59',
+  'Follow-up': '#B8860B',
+  'Strong Follow-up': '#E65100',
+  'Escalation': '#C62828',
+};
 
 // Inline phone editor — most Tally imports carry no phone numbers, so they
 // get filled in right here before the first call/message.
@@ -58,7 +64,7 @@ function PhoneCell({ customerId, phone }: { customerId: string; phone: string | 
 export default function OutstandingsPage() {
   const [filters, setFilters] = useState({ page: 1, limit: 20 } as any);
   const { data, isLoading } = useOutstandings(filters);
-  const { data: aging = [] } = useAgingBreakdown();
+  const { data: segmentTotals = [] } = useSegmentBreakdown();
   const callCustomer = useCallCustomer();
   const sendWhatsApp = useSendWhatsAppStatement();
   const callSegment = useCallSegment();
@@ -169,19 +175,19 @@ export default function OutstandingsPage() {
 
   return (
     <div>
-      <TopHeader title="Outstandings" subtitle="Aging & segment breakdown" />
+      <TopHeader title="Outstandings" subtitle="Segment-wise recovery workspace" />
       <div className="p-4 sm:p-6 space-y-5">
-        {/* Aging bucket summary cards */}
+        {/* Segment summary cards — click to filter */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {aging.map((b: any) => (
+          {segmentTotals.map((b: any) => (
             <button
-              key={b.bucket}
-              onClick={() => setFilters((f: any) => ({ ...f, aging_bucket: f.aging_bucket === b.bucket ? undefined : b.bucket, page: 1 }))}
-              className={`glass-card p-3 sm:p-4 text-left metric-card transition-all ${filters.aging_bucket === b.bucket ? 'ring-1 ring-[var(--mahogany)]' : ''}`}
+              key={b.segment}
+              onClick={() => setFilters((f: any) => ({ ...f, segment: f.segment === b.segment ? undefined : b.segment, page: 1 }))}
+              className={`glass-card p-3 sm:p-4 text-left metric-card transition-all ${filters.segment === b.segment ? 'ring-1 ring-[var(--mahogany)]' : ''}`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ background: getAgingColor(b.bucket) }} />
-                <span className="text-[11px] sm:text-xs font-medium whitespace-nowrap" style={{ color: 'var(--walnut)' }}>{b.bucket} days</span>
+                <div className="w-2 h-2 rounded-full" style={{ background: SEGMENT_COLORS[b.segment] ?? 'var(--walnut)' }} />
+                <span className="text-[11px] sm:text-xs font-medium whitespace-nowrap" style={{ color: 'var(--walnut)' }}>{b.segment}</span>
               </div>
               <p className="text-base sm:text-lg font-bold" style={{ color: 'var(--dark-brown)' }}>{formatINR(b.amount)}</p>
               <p className="text-[11px] sm:text-xs" style={{ color: 'var(--walnut)' }}>{b.count} customers</p>
@@ -198,13 +204,7 @@ export default function OutstandingsPage() {
               onChange={(v) => setFilters((f: any) => ({ ...f, segment: v || undefined, page: 1 }))}
               options={[{ value: '', label: 'All Segments' }, ...SEGMENTS.map((s) => ({ value: s, label: s }))]}
             />
-            <Select
-              className="flex-1 min-w-[110px] sm:flex-none sm:w-36"
-              value={filters.aging_bucket ?? ''}
-              onChange={(v) => setFilters((f: any) => ({ ...f, aging_bucket: v || undefined, page: 1 }))}
-              options={[{ value: '', label: 'All Buckets' }, ...BUCKETS.map((b) => ({ value: b, label: `${b} days` }))]}
-            />
-            {(filters.segment || filters.aging_bucket) && (
+            {filters.segment && (
               <button onClick={() => setFilters({ page: 1, limit: 20 })}
                 className="px-3 py-2 rounded-lg text-sm border transition-all hover:bg-[rgba(127,85,57,0.06)]"
                 style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' }}>
@@ -263,7 +263,6 @@ export default function OutstandingsPage() {
                 <th className="text-left">City</th>
                 <th className="text-left">Phone</th>
                 <th className="text-left">Segment</th>
-                <th className="text-left">Aging Bucket</th>
                 <th className="text-right">Total Due</th>
                 <th className="text-left">Status</th>
                 <th className="text-left">Actions</th>
@@ -271,12 +270,12 @@ export default function OutstandingsPage() {
             </thead>
             <tbody>
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
+                <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
                   <td key={j}><div className="skeleton h-4 w-full rounded" /></td>
                 ))}</tr>
               ))}
               {!isLoading && rows.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-12 text-slate-500">
+                <tr><td colSpan={7} className="text-center py-12 text-slate-500">
                   <span className="text-4xl block mb-2">📊</span>
                   No outstanding records. <Link href="/dashboard/import" className="text-[var(--mahogany)] hover:underline">Import data →</Link>
                 </td></tr>
@@ -295,11 +294,6 @@ export default function OutstandingsPage() {
                       : <span style={{ color: 'var(--walnut)' }}>—</span>}
                   </td>
                   <td><SegmentBadge segment={row.segment} /></td>
-                  <td>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded whitespace-nowrap" style={{ background: `${getAgingColor(row.aging_bucket)}20`, color: getAgingColor(row.aging_bucket) }}>
-                      {row.aging_bucket} days
-                    </span>
-                  </td>
                   <td className="text-right">
                     <span className={`text-sm font-bold ${row.total_due > 0 ? 'text-red-600' : ''}`}
                       style={row.total_due <= 0 ? { color: 'var(--recovery-green)' } : {}}>

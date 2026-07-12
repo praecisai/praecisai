@@ -122,6 +122,16 @@ export function useAgingBreakdown() {
   });
 }
 
+export function useSegmentBreakdown() {
+  return useQuery({
+    queryKey: ['outstandings', 'segments'],
+    queryFn: async () => {
+      const res = await api.get('/outstandings/segment-breakdown');
+      return res.data.data;
+    },
+  });
+}
+
 // ─── Import ───────────────────────────────────────────────────────────────────
 
 export function useImportHistory(page = 1, limit = 20) {

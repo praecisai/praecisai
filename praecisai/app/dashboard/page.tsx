@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDashboardStats } from '../../lib/api/hooks';
+import { useDashboardStats, useDashboardActivity } from '../../lib/api/hooks';
 import { TopHeader } from '../../components/layout/Sidebar';
-import { formatINR, formatNumber, getAgingColor } from '../../lib/utils/format';
+import { formatINR, formatNumber, formatDate } from '../../lib/utils/format';
 import { SegmentBadge } from '../../components/shared/SegmentBadge';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from 'recharts';
 import {
   IndianRupee, Users, FileText, Megaphone,
-  TrendingUp, AlertTriangle,
+  TrendingUp, AlertTriangle, Phone, MessageCircle,
 } from 'lucide-react';
+import Link from 'next/link';
 
 function MetricCard({
   title, value, sub, icon: Icon, color, loading,
@@ -44,7 +45,12 @@ function MetricCard({
   );
 }
 
-const AGING_COLORS = ['#7F5539', '#9C6644', '#B08968', '#7F1D1D'];
+const SEGMENT_CARD_COLORS: Record<string, string> = {
+  'Soft Reminder': '#4A7C59',
+  'Follow-up': '#B8860B',
+  'Strong Follow-up': '#E65100',
+  'Escalation': '#C62828',
+};
 
 // Below 640px the pie legend moves under the chart so the pie isn't squeezed.
 function useIsMobile() {
@@ -61,14 +67,16 @@ function useIsMobile() {
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: activity } = useDashboardActivity();
   const isMobile = useIsMobile();
 
-  const agingData = stats?.aging_buckets?.map((b, i) => ({
-    name: b.range,
-    amount: b.amount,
-    count: b.count,
-    color: AGING_COLORS[i],
-  })) ?? [];
+  // Merged recent calls + WhatsApp sends, newest first
+  const recentActions = [
+    ...(activity?.recent_calls ?? []).map((c: any) => ({ ...c, kind: 'call' })),
+    ...(activity?.recent_whatsapp ?? []).map((w: any) => ({ ...w, kind: 'whatsapp' })),
+  ]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 8);
 
   const segmentData = stats?.segment_distribution?.filter((s) => s.count > 0).map((s) => ({
     name: s.segment,
@@ -147,16 +155,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Aging Bucket Cards */}
+          {/* Segment Cards */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-            {(stats?.aging_buckets ?? []).map((bucket, i) => (
-              <div key={bucket.range} className="glass-card p-3 sm:p-4">
+            {(stats?.segment_distribution ?? []).filter((sd) => Object.hasOwn(SEGMENT_CARD_COLORS, sd.segment)).map((sd) => (
+              <div key={sd.segment} className="glass-card p-3 sm:p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full" style={{ background: AGING_COLORS[i] }} />
-                  <span className="text-[11px] sm:text-xs text-[var(--walnut)] font-medium">{bucket.range} days</span>
+                  <div className="w-2 h-2 rounded-full" style={{ background: SEGMENT_CARD_COLORS[sd.segment] }} />
+                  <span className="text-[11px] sm:text-xs text-[var(--walnut)] font-medium">{sd.segment}</span>
                 </div>
-                <p className="text-base sm:text-lg font-bold text-[var(--dark-brown)]">{formatINR(bucket.amount)}</p>
-                <p className="text-[11px] sm:text-xs text-[var(--walnut)]">{bucket.count} customers</p>
+                <p className="text-base sm:text-lg font-bold text-[var(--dark-brown)]">{formatINR(sd.amount)}</p>
+                <p className="text-[11px] sm:text-xs text-[var(--walnut)]">{sd.count} customers</p>
               </div>
             ))}
             {isLoading && [1,2,3,4].map(i => (
@@ -171,28 +179,44 @@ export default function DashboardPage() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Aging Bar Chart */}
+          {/* Recent Activity — AI calls + WhatsApp sends */}
           <div className="glass-card p-4 sm:p-5">
             <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
-              Aging Breakdown
+              Recent Activity
             </p>
-            {isLoading ? (
-              <div className="skeleton h-40 w-full rounded-lg" />
+            {recentActions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-[var(--walnut)]">
+                <Phone size={22} className="mb-2" strokeWidth={1.75} />
+                <p className="text-sm text-center">No calls or WhatsApp messages yet.<br />Start from the Outstandings page.</p>
+              </div>
             ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={agingData} barSize={32}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#B08968' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#B08968' }} axisLine={false} tickLine={false}
-                    tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--surface-warm)', border: '1px solid var(--caramel)', borderRadius: '8px', fontSize: '12px', color: 'var(--dark-brown)' }}
-                    formatter={(v: any) => [formatINR(v as number), 'Amount']}
-                  />
-                  <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                    {agingData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                {recentActions.map((a: any) => (
+                  <div key={`${a.kind}-${a.id}`} className="flex items-start gap-2.5 pb-2.5 border-b last:border-0" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
+                    <div className="p-1.5 rounded-lg flex-shrink-0 mt-0.5" style={{ background: a.kind === 'call' ? 'rgba(127,85,57,0.12)' : 'rgba(74,124,89,0.12)' }}>
+                      {a.kind === 'call'
+                        ? <Phone size={12} style={{ color: 'var(--mahogany)' }} />
+                        : <MessageCircle size={12} style={{ color: 'var(--recovery-green)' }} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/dashboard/customers/${a.customer?.id}`} className="text-sm font-medium text-[var(--dark-brown)] hover:text-[var(--mahogany)] truncate">
+                          {a.customer?.customer_name ?? '—'}
+                        </Link>
+                        <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--walnut)' }}>{formatDate(a.created_at)}</span>
+                      </div>
+                      <p className="text-xs truncate" style={{ color: 'var(--walnut)' }}>
+                        {a.kind === 'call'
+                          ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? ` — ${a.call_summary}` : ''}`
+                          : `${a.delivery_status} · ${a.message}`}
+                      </p>
+                      {a.kind === 'call' && a.promise_date && (
+                        <p className="text-[11px] font-medium" style={{ color: 'var(--recovery-green)' }}>Promised {formatDate(a.promise_date)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 

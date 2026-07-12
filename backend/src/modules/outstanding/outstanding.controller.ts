@@ -20,6 +20,11 @@ export class OutstandingController {
     return this.outstandingService.getAgingBreakdown(businessId);
   }
 
+  @Get('segment-breakdown')
+  getSegmentBreakdown(@BusinessId() businessId: string) {
+    return this.outstandingService.getSegmentBreakdown(businessId);
+  }
+
   @Get('customer/:customerId')
   findByCustomer(@BusinessId() businessId: string, @Param('customerId') customerId: string) {
     return this.outstandingService.findByCustomer(businessId, customerId);

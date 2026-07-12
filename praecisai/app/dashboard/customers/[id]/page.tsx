@@ -230,6 +230,26 @@ export default function CustomerDetailPage() {
                 ))}
               </div>
             )}
+
+            {/* Recent WhatsApp messages */}
+            {(customer.whatsapp_logs ?? []).length > 0 && (
+              <div className="glass-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquare size={14} className="text-[var(--recovery-green)]" />
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--dark-brown)' }}>Recent WhatsApp</h3>
+                  <span className="text-xs" style={{ color: 'var(--walnut)' }}>({customer.whatsapp_logs.length})</span>
+                </div>
+                {customer.whatsapp_logs.slice(0, 5).map((log: any) => (
+                  <div key={log.id} className="py-2.5 border-b last:border-0 space-y-1" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
+                    <div className="flex justify-between items-center gap-2">
+                      <StatusBadge status={log.delivery_status} />
+                      <span className="text-xs" style={{ color: 'var(--walnut)' }}>{formatDate(log.created_at)}</span>
+                    </div>
+                    <p className="text-xs leading-snug" style={{ color: 'var(--walnut)' }}>{log.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

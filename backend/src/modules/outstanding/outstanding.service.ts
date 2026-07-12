@@ -221,6 +221,33 @@ export class OutstandingService {
     return { succeeded, failed, total: customers.length };
   }
 
+  /**
+   * Per-segment totals for the Outstandings header cards — segments are the
+   * only grouping concept the product exposes (their day ranges are the
+   * business's own segment_rules).
+   */
+  async getSegmentBreakdown(businessId: string) {
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      select: { segment_rules: true },
+    });
+    const order = parseSegmentRules(business?.segment_rules).map((r) => r.segment);
+
+    const grouped = await this.prisma.outstanding.groupBy({
+      by: ['segment'],
+      where: { business_id: businessId, status: 'ACTIVE' },
+      _count: { _all: true },
+      _sum: { total_due: true },
+    });
+
+    const bySegment = new Map(grouped.map((g) => [g.segment, g]));
+    return order.map((segment) => ({
+      segment,
+      count: bySegment.get(segment)?._count._all ?? 0,
+      amount: bySegment.get(segment)?._sum.total_due ?? 0,
+    }));
+  }
+
   async getAgingBreakdown(businessId: string) {
     const buckets = ['0-60', '61-120', '121-180', '181+'];
 

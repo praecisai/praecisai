@@ -75,7 +75,7 @@ export class DashboardService {
   }
 
   async getRecentActivity(businessId: string, limit = 10) {
-    const [recentImports, recentInvoices] = await Promise.all([
+    const [recentImports, recentInvoices, recentCalls, recentWhatsapp] = await Promise.all([
       this.prisma.importHistory.findMany({
         where: { business_id: businessId },
         take: limit,
@@ -89,8 +89,32 @@ export class DashboardService {
         select: { id: true, invoice_number: true, due_amount: true, status: true, created_at: true,
           customer: { select: { customer_name: true } } },
       }),
+      this.prisma.callLog.findMany({
+        where: { business_id: businessId },
+        take: limit,
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true, call_status: true, disposition: true, call_summary: true,
+          promise_date: true, duration_seconds: true, created_at: true,
+          customer: { select: { id: true, customer_name: true } },
+        },
+      }),
+      this.prisma.whatsAppLog.findMany({
+        where: { business_id: businessId },
+        take: limit,
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true, message: true, delivery_status: true, created_at: true,
+          customer: { select: { id: true, customer_name: true } },
+        },
+      }),
     ]);
 
-    return { recent_imports: recentImports, recent_invoices: recentInvoices };
+    return {
+      recent_imports: recentImports,
+      recent_invoices: recentInvoices,
+      recent_calls: recentCalls,
+      recent_whatsapp: recentWhatsapp,
+    };
   }
 }
