@@ -21,6 +21,7 @@ export default function ActivityPage() {
   const { data: activity, isLoading } = useDashboardActivity(50);
   const [filter, setFilter] = useState<'all' | Kind>('all');
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -31,13 +32,21 @@ export default function ActivityPage() {
     ]
       .filter((x) => filter === 'all' || x.kind === filter)
       .filter((x) => {
+        if (dateFilter) {
+          try {
+            const xDate = new Date(x.created_at).toISOString().split('T')[0];
+            if (xDate !== dateFilter) return false;
+          } catch (e) {
+            // invalid date
+          }
+        }
         if (!q) return true;
         const name = (x.customer?.customer_name ?? x.file_name ?? '').toLowerCase();
         const detail = (x.call_summary ?? x.message ?? x.disposition ?? x.status ?? '').toLowerCase();
         return name.includes(q) || detail.includes(q);
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [activity, filter, search]);
+  }, [activity, filter, search, dateFilter]);
 
   return (
     <div>
@@ -51,7 +60,8 @@ export default function ActivityPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by customer, summary, status…"
-              className="input-dark w-full pl-9 pr-8 text-sm"
+              className="input-dark w-full pr-8 text-[13px] sm:text-sm"
+              style={{ paddingLeft: '32px' }}
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--walnut)' }}>
@@ -64,7 +74,7 @@ export default function ActivityPage() {
               <button
                 key={f.id}
                 onClick={() => setFilter(f.id)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-all"
+                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border transition-all"
                 style={
                   filter === f.id
                     ? { background: 'var(--sand)', color: 'var(--mahogany)', borderColor: 'var(--mahogany)' }
@@ -74,6 +84,20 @@ export default function ActivityPage() {
                 {f.label}
               </button>
             ))}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="px-2 py-1 h-[30px] rounded-lg text-xs sm:text-sm font-medium border transition-all"
+                style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.35)', background: 'transparent' }}
+              />
+              {dateFilter && (
+                <button onClick={() => setDateFilter('')} className="text-[11px] sm:text-xs hover:underline" style={{ color: 'var(--walnut)' }}>
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -128,13 +152,13 @@ function ActivityRow({ a }: { a: any }) {
       <div className="p-2 rounded-lg flex-shrink-0 mt-0.5" style={{ background: iconBg }}>{icon}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium truncate" style={{ color: 'var(--dark-brown)' }}>{title}</span>
-          <span className="text-[11px] flex-shrink-0" style={{ color: 'var(--walnut)' }}>
+          <span className="text-[13px] sm:text-sm font-medium truncate" style={{ color: 'var(--dark-brown)' }}>{title}</span>
+          <span className="text-[10px] sm:text-[11px] flex-shrink-0" style={{ color: 'var(--walnut)' }}>
             {formatDate(a.created_at)}
             {a.kind === 'call' && a.duration_seconds ? ` · ${Math.round(a.duration_seconds)}s` : ''}
           </span>
         </div>
-        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--walnut)' }}>{body}</p>
+        <p className="text-[11px] sm:text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--walnut)' }}>{body}</p>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {a.kind === 'call' && a.promise_date && (
             <span className="text-[11px] font-medium" style={{ color: 'var(--recovery-green)' }}>
