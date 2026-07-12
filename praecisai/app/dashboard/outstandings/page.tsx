@@ -64,10 +64,11 @@ export default function OutstandingsPage() {
   const callSegment = useCallSegment();
   const sendSegment = useSendSegmentStatements();
   const [actingOn, setActingOn] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [vipOnly, setVipOnly] = useState(false);
+  const [confirm, setConfirm] = useState<{ open: boolean; title: string; message: string; confirmLabel?: string; onConfirm: () => void } | null>(null);
 
-  const showConfirm = (title: string, message: string, action: () => void) =>
-    setConfirm({ open: true, title, message, onConfirm: action });
+  const showConfirm = (title: string, message: string, confirmLabel: string, action: () => void) =>
+    setConfirm({ open: true, title, message, confirmLabel, onConfirm: action });
   const closeConfirm = () => setConfirm(null);
 
 
@@ -82,13 +83,15 @@ export default function OutstandingsPage() {
 
   const handleBulkCall = () => {
     if (!filters.segment) return;
+    const who = vipOnly ? `VIP "${filters.segment}"` : `ALL "${filters.segment}"`;
     showConfirm(
-      'Bulk AI Call',
-      `Start AI recovery calls to ALL "${filters.segment}" customers that have a phone number?`,
+      'Send Bulk AI Call',
+      `Start AI recovery calls to ${who} customers that have a phone number?`,
+      'Start Calls',
       async () => {
         closeConfirm();
         try {
-          const res = await callSegment.mutateAsync(filters.segment);
+          const res = await callSegment.mutateAsync({ segment: filters.segment, vipOnly });
           toastBulkResult(res.data?.data ?? res.data, 'Bulk calling');
         } catch (e: any) {
           toast.error('Bulk calling failed', { description: e.message });
@@ -99,13 +102,15 @@ export default function OutstandingsPage() {
 
   const handleBulkWhatsApp = () => {
     if (!filters.segment) return;
+    const who = vipOnly ? `VIP "${filters.segment}"` : `ALL "${filters.segment}"`;
     showConfirm(
-      'Bulk WhatsApp',
-      `Send statement PDFs on WhatsApp to ALL "${filters.segment}" customers that have a phone number?`,
+      'Send Bulk WhatsApp Message',
+      `Send statement PDFs on WhatsApp to ${who} customers that have a phone number?`,
+      'Send Statements',
       async () => {
         closeConfirm();
         try {
-          const res = await sendSegment.mutateAsync(filters.segment);
+          const res = await sendSegment.mutateAsync({ segment: filters.segment, vipOnly });
           toastBulkResult(res.data?.data ?? res.data, 'Bulk WhatsApp');
         } catch (e: any) {
           toast.error('Bulk WhatsApp failed', { description: e.message });
@@ -122,8 +127,9 @@ export default function OutstandingsPage() {
     const name = row.customer?.customer_name ?? 'this customer';
     if (!row.customer?.phone) return toast.warning('Add a phone number first');
     showConfirm(
-      'Start AI Call',
+      'Send AI Recovery Call',
       `Start an AI recovery call to ${name} (${row.customer.phone})?`,
+      'Start Call',
       async () => {
         closeConfirm();
         setActingOn(row.id + ':call');
@@ -143,8 +149,9 @@ export default function OutstandingsPage() {
     const name = row.customer?.customer_name ?? 'this customer';
     if (!row.customer?.phone) return toast.warning('Add a phone number first');
     showConfirm(
-      'Send WhatsApp Statement',
+      'Send WhatsApp Message',
       `Send the outstanding statement PDF to ${name} (${row.customer.phone}) on WhatsApp?`,
+      'Send WhatsApp',
       async () => {
         closeConfirm();
         setActingOn(row.id + ':wa');
@@ -208,13 +215,30 @@ export default function OutstandingsPage() {
             {/* Bulk actions — enabled when one segment is selected */}
             {filters.segment && filters.segment !== 'Cleared' && (
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                <label
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer select-none border transition-all"
+                  style={
+                    vipOnly
+                      ? { background: 'var(--sand)', color: 'var(--mahogany)', borderColor: 'var(--mahogany)' }
+                      : { color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.35)' }
+                  }
+                  title="Limit bulk actions to VIP customers only"
+                >
+                  <input
+                    type="checkbox"
+                    checked={vipOnly}
+                    onChange={(e) => setVipOnly(e.target.checked)}
+                    className="hidden"
+                  />
+                  ⭐ VIP only
+                </label>
                 <button
                   onClick={handleBulkWhatsApp}
                   disabled={sendSegment.isPending}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                   style={{ background: 'var(--recovery-green)' }}>
                   <MessageCircle size={14} />
-                  {sendSegment.isPending ? 'Sending…' : `WhatsApp all ${filters.segment}`}
+                  {sendSegment.isPending ? 'Sending…' : `WhatsApp ${vipOnly ? 'VIP' : 'all'} ${filters.segment}`}
                 </button>
                 <button
                   onClick={handleBulkCall}
@@ -222,7 +246,7 @@ export default function OutstandingsPage() {
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                   <Phone size={14} />
-                  {callSegment.isPending ? 'Queuing…' : `Call all ${filters.segment}`}
+                  {callSegment.isPending ? 'Queuing…' : `Call ${vipOnly ? 'VIP' : 'all'} ${filters.segment}`}
                 </button>
               </div>
             )}
@@ -335,7 +359,7 @@ export default function OutstandingsPage() {
           open={confirm.open}
           title={confirm.title}
           message={confirm.message}
-          confirmLabel="Yes, proceed"
+          confirmLabel={confirm.confirmLabel ?? "Yes, proceed"}
           variant="warning"
           onConfirm={confirm.onConfirm}
           onCancel={closeConfirm}

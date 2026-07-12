@@ -250,10 +250,14 @@ export class ImportService {
       byName.set(c.customer_name.trim().toLowerCase(), c);
     }
 
+    // NAME-first identity: in accounting exports the party name is the real
+    // identity — phones can repeat across parties (one proprietor, several
+    // shops; or the owner testing with their own number). Matching phone-first
+    // would silently merge distinct parties into one customer.
     const resolveExisting = (r: ParsedRow) =>
-      (r.phone && byPhone.get(r.phone)) || byName.get(r.name.toLowerCase()) || null;
+      byName.get(r.name.toLowerCase()) || (r.phone && byPhone.get(r.phone)) || null;
 
-    // Distinct new customers (first occurrence wins)
+    // Distinct new customers (first occurrence wins), keyed by name
     const newByKey = new Map<string, ParsedRow>();
     const matchedIds = new Set<string>();
     for (const r of parsedRows) {
@@ -261,19 +265,34 @@ export class ImportService {
       if (existing) {
         matchedIds.add(existing.id);
       } else {
-        const key = r.phone ?? r.name.toLowerCase();
+        const key = r.name.toLowerCase();
         if (!newByKey.has(key)) newByKey.set(key, r);
       }
     }
 
-    const createdCustomers = newByKey.size
+    // (phone, business) is unique in the DB — when several parties share a
+    // phone, only the first keeps it; the rest are created without a phone
+    // (fill it on the dashboard later) so the parties stay separate.
+    const claimedPhones = new Set(
+      existingCustomers.filter((c) => c.phone).map((c) => c.phone as string),
+    );
+    const createData = Array.from(newByKey.values()).map((r) => {
+      let phone = r.phone;
+      if (phone) {
+        if (claimedPhones.has(phone)) phone = null;
+        else claimedPhones.add(phone);
+      }
+      return {
+        business_id: businessId,
+        customer_name: r.name,
+        phone,
+        city: r.city,
+      };
+    });
+
+    const createdCustomers = createData.length
       ? await this.prisma.customer.createManyAndReturn({
-          data: Array.from(newByKey.values()).map((r) => ({
-            business_id: businessId,
-            customer_name: r.name,
-            phone: r.phone,
-            city: r.city,
-          })),
+          data: createData,
           skipDuplicates: true,
         })
       : [];
@@ -286,15 +305,18 @@ export class ImportService {
     const customersCreated = createdCustomers.length;
     const customersUpdated = matchedIds.size;
 
-    // ── Phase 3: bulk-insert invoices (1 query + chunked createMany) ──────────
-    const existingInvoiceNumbers = new Set(
-      (
-        await this.prisma.invoice.findMany({
-          where: { business_id: businessId },
-          select: { invoice_number: true },
-        })
-      ).map((i) => i.invoice_number),
-    );
+    // ── Phase 3: snapshot-sync invoices ───────────────────────────────────────
+    // Every upload is treated as the CURRENT outstanding report:
+    //   • bills new in the file            → created
+    //   • bills whose due/days changed     → updated (partial payments flow in)
+    //   • bills missing from the file      → marked PAID with due 0 (Tally
+    //     outstanding reports only list unpaid bills, so absent = cleared;
+    //     this is also what lets PDC cheque-clearing detection fire)
+    const existingInvoices = await this.prisma.invoice.findMany({
+      where: { business_id: businessId },
+      select: { id: true, invoice_number: true, due_amount: true, days_overdue: true, status: true, customer_id: true },
+    });
+    const existingByNumber = new Map(existingInvoices.map((i) => [i.invoice_number, i]));
 
     // Deduplicate within the file — first row of an invoice number wins
     const invoiceByNumber = new Map<string, ParsedRow>();
@@ -304,11 +326,26 @@ export class ImportService {
 
     const affectedCustomerIds = new Set<string>();
     const invoiceData: any[] = [];
+    const invoiceUpdates: Array<{ id: string; due_amount: number; days_overdue: number; status: string }> = [];
+
     for (const r of invoiceByNumber.values()) {
       const customer = resolveExisting(r);
       if (!customer) continue; // cannot happen — created above
       affectedCustomerIds.add(customer.id);
-      if (existingInvoiceNumbers.has(r.invoiceNumber)) continue;
+
+      const status = r.dueAmount <= 0 ? 'PAID' : r.daysOverdue > 0 ? 'OVERDUE' : 'PENDING';
+      const existing = existingByNumber.get(r.invoiceNumber);
+
+      if (existing) {
+        if (
+          existing.due_amount !== r.dueAmount ||
+          existing.days_overdue !== r.daysOverdue ||
+          existing.status !== status
+        ) {
+          invoiceUpdates.push({ id: existing.id, due_amount: r.dueAmount, days_overdue: r.daysOverdue, status });
+        }
+        continue;
+      }
 
       invoiceData.push({
         business_id: businessId,
@@ -319,7 +356,7 @@ export class ImportService {
         due_amount: r.dueAmount,
         days_overdue: r.daysOverdue,
         sales_agent: r.agent,
-        status: r.dueAmount <= 0 ? 'PAID' : r.daysOverdue > 0 ? 'OVERDUE' : 'PENDING',
+        status,
       });
     }
 
@@ -331,6 +368,32 @@ export class ImportService {
       });
       invoicesCreated += res.count;
     }
+
+    // Update bills whose due/days changed since the last upload
+    for (let i = 0; i < invoiceUpdates.length; i += 25) {
+      await Promise.all(
+        invoiceUpdates.slice(i, i + 25).map((u) =>
+          this.prisma.invoice.update({
+            where: { id: u.id },
+            data: { due_amount: u.due_amount, days_overdue: u.days_overdue, status: u.status as any },
+          }),
+        ),
+      );
+    }
+    const invoicesUpdated = invoiceUpdates.length;
+
+    // Bills that disappeared from the report were paid — clear them
+    const cleared = existingInvoices.filter(
+      (i) => !invoiceByNumber.has(i.invoice_number) && i.due_amount !== 0,
+    );
+    if (cleared.length > 0) {
+      await this.prisma.invoice.updateMany({
+        where: { id: { in: cleared.map((c) => c.id) } },
+        data: { due_amount: 0, status: 'PAID' },
+      });
+      cleared.forEach((c) => affectedCustomerIds.add(c.customer_id));
+    }
+    const invoicesCleared = cleared.length;
 
     // ── Phase 4: bulk outstanding recalc ──────────────────────────────────────
     const outstandingUpdated = await this.outstandingService.bulkRecalculate(
@@ -364,6 +427,8 @@ export class ImportService {
       customers_created: customersCreated,
       customers_updated: customersUpdated,
       invoices_created: invoicesCreated,
+      invoices_updated: invoicesUpdated,
+      invoices_cleared: invoicesCleared,
       outstanding_updated: outstandingUpdated,
       errors: errors.slice(0, 50), // cap error list
     };

@@ -23,8 +23,8 @@ export class CallingController {
   // Bulk: queue calls to every eligible customer in a segment
   @Post('call-segment')
   @UseGuards(JwtAuthGuard, EmailAllowlistGuard)
-  callSegment(@BusinessId() businessId: string, @Body() body: { segment: string }) {
-    return this.callingService.queueSegmentCalls(businessId, body.segment);
+  callSegment(@BusinessId() businessId: string, @Body() body: { segment: string; vipOnly?: boolean }) {
+    return this.callingService.queueSegmentCalls(businessId, body.segment, body.vipOnly === true);
   }
 
   // RETELL DASHBOARD ACTION REQUIRED:

@@ -29,7 +29,7 @@ export class WhatsappController {
   // Bulk: statement PDFs to every eligible customer in a segment
   @Post('send-segment')
   @UseGuards(EmailAllowlistGuard)
-  sendSegment(@BusinessId() businessId: string, @Body() body: { segment: string }) {
-    return this.whatsappService.sendSegmentStatements(businessId, body.segment);
+  sendSegment(@BusinessId() businessId: string, @Body() body: { segment: string; vipOnly?: boolean }) {
+    return this.whatsappService.sendSegmentStatements(businessId, body.segment, body.vipOnly === true);
   }
 }

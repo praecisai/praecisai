@@ -135,9 +135,14 @@ export class WhatsappService {
   }
 
   // ─── Bulk: statement PDFs to every eligible customer in a segment ──────────
-  async sendSegmentStatements(businessId: string, segment: string) {
+  async sendSegmentStatements(businessId: string, segment: string, vipOnly = false) {
     const outstandings = await this.prisma.outstanding.findMany({
-      where: { business_id: businessId, segment, status: 'ACTIVE' },
+      where: {
+        business_id: businessId,
+        segment,
+        status: 'ACTIVE',
+        ...(vipOnly && { customer: { is_vip: true } }),
+      },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
       take: 100,
     });
@@ -163,7 +168,7 @@ export class WhatsappService {
       sent,
       no_phone: noPhone,
       skipped,
-      message: `${sent} statement(s) sent for ${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
+      message: `${sent} statement(s) sent for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 }

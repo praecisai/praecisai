@@ -208,7 +208,8 @@ export function useSendWhatsAppStatement() {
 export function useCallSegment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (segment: string) => api.post('/calling/call-segment', { segment }),
+    mutationFn: (params: { segment: string; vipOnly?: boolean }) =>
+      api.post('/calling/call-segment', params),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
   });
 }
@@ -216,7 +217,8 @@ export function useCallSegment() {
 export function useSendSegmentStatements() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (segment: string) => api.post('/whatsapp/send-segment', { segment }),
+    mutationFn: (params: { segment: string; vipOnly?: boolean }) =>
+      api.post('/whatsapp/send-segment', params),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['outstandings'] }),
   });
 }

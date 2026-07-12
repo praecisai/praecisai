@@ -169,9 +169,14 @@ export class CallingService {
   // Eligible = ACTIVE outstanding in the segment AND a phone number on file.
   // Per-customer guards (sensitive cooldown, 60-min gap) still apply — those
   // customers are reported as skipped, not errors.
-  async queueSegmentCalls(businessId: string, segment: string) {
+  async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
     const outstandings = await this.prisma.outstanding.findMany({
-      where: { business_id: businessId, segment, status: 'ACTIVE' },
+      where: {
+        business_id: businessId,
+        segment,
+        status: 'ACTIVE',
+        ...(vipOnly && { customer: { is_vip: true } }),
+      },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
       take: 100,
     });
@@ -197,7 +202,7 @@ export class CallingService {
       queued,
       no_phone: noPhone,
       skipped,
-      message: `${queued} call(s) queued for ${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
+      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 
