@@ -82,10 +82,10 @@ function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
         style={{ background: 'rgba(127,85,57,0.12)', border: '1px solid rgba(127,85,57,0.25)' }}>
         <FileSpreadsheet size={28} className="text-[var(--mahogany)]" />
       </div>
-      <h3 className="text-base sm:text-lg font-semibold text-white mb-2">Drop your Excel or CSV file here</h3>
-      <p className="text-[13px] sm:text-sm text-slate-400 mb-4">Supports .xlsx, .xls, .csv - up to 50MB</p>
-      <button className="px-5 py-2.5 rounded-lg text-sm font-medium text-white"
-        style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+      <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: 'var(--dark-brown)' }}>Drop your Excel or CSV file here</h3>
+      <p className="text-[13px] sm:text-sm mb-4" style={{ color: 'var(--walnut)' }}>Supports .xlsx, .xls, .csv - up to 50MB</p>
+      <button className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+        style={{ background: 'linear-gradient(135deg, #5C3D2E, #7F5539)', color: '#F5ECD7' }}>
         Browse Files
       </button>
     </div>

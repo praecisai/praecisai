@@ -129,11 +129,11 @@ export default function PdcPage() {
             onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); }}
             onDragOver={(e) => e.preventDefault()}
           >
-            <Upload size={28} className="text-[var(--walnut)]" strokeWidth={1.5} />
-            <p className="font-body text-sm text-[var(--walnut)]">
+            <Upload size={28} className="text-[var(--mahogany)]" strokeWidth={1.5} />
+            <p className="font-body text-sm font-medium text-[var(--dark-brown)]">
               {uploading ? 'Uploading…' : 'Drop your PDC Excel here or click to browse'}
             </p>
-            <p className="font-body text-[11px] text-[var(--walnut)] opacity-60">
+            <p className="font-body text-[11px] text-[var(--walnut)]">
               Columns auto-detected — Party Name, Cheque No, Date, Amount (any order)
             </p>
             <input

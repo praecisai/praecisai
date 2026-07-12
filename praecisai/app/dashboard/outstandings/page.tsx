@@ -16,6 +16,7 @@ import { SegmentBadge, StatusBadge } from '../../../components/shared/SegmentBad
 import { formatINR, formatNumber, getAgingColor } from '../../../lib/utils/format';
 import { ChevronLeft, ChevronRight, Phone, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
+import { ConfirmModal } from '../../../components/shared/ConfirmModal';
 import { toast } from 'sonner';
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
@@ -48,7 +49,8 @@ function PhoneCell({ customerId, phone }: { customerId: string; phone: string | 
       onChange={(e) => setLocal(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-      className="w-32 bg-transparent text-sm text-slate-300 rounded border border-transparent px-2 py-1 hover:border-white/10 focus:border-[var(--mahogany)] focus:outline-none"
+      className="w-32 bg-transparent text-sm rounded border border-transparent px-2 py-1 hover:border-[rgba(176,137,104,0.4)] focus:border-[var(--mahogany)] focus:outline-none"
+      style={{ color: 'var(--dark-brown)' }}
     />
   );
 }
@@ -62,6 +64,12 @@ export default function OutstandingsPage() {
   const callSegment = useCallSegment();
   const sendSegment = useSendSegmentStatements();
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+
+  const showConfirm = (title: string, message: string, action: () => void) =>
+    setConfirm({ open: true, title, message, onConfirm: action });
+  const closeConfirm = () => setConfirm(null);
+
 
   const toastBulkResult = (d: any, verb: string) => {
     let description = '';
@@ -72,60 +80,84 @@ export default function OutstandingsPage() {
     toast.success(d?.message ?? `${verb} done`, description ? { description, duration: 9000 } : undefined);
   };
 
-  const handleBulkCall = async () => {
+  const handleBulkCall = () => {
     if (!filters.segment) return;
-    if (!confirm(`Start AI recovery calls to ALL "${filters.segment}" customers that have a phone number?`)) return;
-    try {
-      const res = await callSegment.mutateAsync(filters.segment);
-      toastBulkResult(res.data?.data ?? res.data, 'Bulk calling');
-    } catch (e: any) {
-      toast.error('Bulk calling failed', { description: e.message });
-    }
+    showConfirm(
+      'Bulk AI Call',
+      `Start AI recovery calls to ALL "${filters.segment}" customers that have a phone number?`,
+      async () => {
+        closeConfirm();
+        try {
+          const res = await callSegment.mutateAsync(filters.segment);
+          toastBulkResult(res.data?.data ?? res.data, 'Bulk calling');
+        } catch (e: any) {
+          toast.error('Bulk calling failed', { description: e.message });
+        }
+      }
+    );
   };
 
-  const handleBulkWhatsApp = async () => {
+  const handleBulkWhatsApp = () => {
     if (!filters.segment) return;
-    if (!confirm(`Send statement PDFs on WhatsApp to ALL "${filters.segment}" customers that have a phone number?`)) return;
-    try {
-      const res = await sendSegment.mutateAsync(filters.segment);
-      toastBulkResult(res.data?.data ?? res.data, 'Bulk WhatsApp');
-    } catch (e: any) {
-      toast.error('Bulk WhatsApp failed', { description: e.message });
-    }
+    showConfirm(
+      'Bulk WhatsApp',
+      `Send statement PDFs on WhatsApp to ALL "${filters.segment}" customers that have a phone number?`,
+      async () => {
+        closeConfirm();
+        try {
+          const res = await sendSegment.mutateAsync(filters.segment);
+          toastBulkResult(res.data?.data ?? res.data, 'Bulk WhatsApp');
+        } catch (e: any) {
+          toast.error('Bulk WhatsApp failed', { description: e.message });
+        }
+      }
+    );
   };
 
   const rows = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
-  const handleCall = async (row: any) => {
+  const handleCall = (row: any) => {
     const name = row.customer?.customer_name ?? 'this customer';
     if (!row.customer?.phone) return toast.warning('Add a phone number first');
-    if (!confirm(`Start an AI recovery call to ${name} (${row.customer.phone})?`)) return;
-    setActingOn(row.id + ':call');
-    try {
-      const res = await callCustomer.mutateAsync(row.customer.id);
-      toast.success(res.data?.data?.message ?? res.data?.message ?? 'Call queued');
-    } catch (e: any) {
-      toast.error('Call failed', { description: e.message });
-    } finally {
-      setActingOn(null);
-    }
+    showConfirm(
+      'Start AI Call',
+      `Start an AI recovery call to ${name} (${row.customer.phone})?`,
+      async () => {
+        closeConfirm();
+        setActingOn(row.id + ':call');
+        try {
+          const res = await callCustomer.mutateAsync(row.customer.id);
+          toast.success(res.data?.data?.message ?? res.data?.message ?? 'Call queued');
+        } catch (e: any) {
+          toast.error('Call failed', { description: e.message });
+        } finally {
+          setActingOn(null);
+        }
+      }
+    );
   };
 
-  const handleWhatsApp = async (row: any) => {
+  const handleWhatsApp = (row: any) => {
     const name = row.customer?.customer_name ?? 'this customer';
     if (!row.customer?.phone) return toast.warning('Add a phone number first');
-    if (!confirm(`Send the outstanding statement PDF to ${name} (${row.customer.phone}) on WhatsApp?`)) return;
-    setActingOn(row.id + ':wa');
-    try {
-      const res = await sendWhatsApp.mutateAsync(row.customer.id);
-      toast.success(res.data?.data?.message ?? res.data?.message ?? 'WhatsApp statement sent');
-    } catch (e: any) {
-      toast.error('WhatsApp send failed', { description: e.message });
-    } finally {
-      setActingOn(null);
-    }
+    showConfirm(
+      'Send WhatsApp Statement',
+      `Send the outstanding statement PDF to ${name} (${row.customer.phone}) on WhatsApp?`,
+      async () => {
+        closeConfirm();
+        setActingOn(row.id + ':wa');
+        try {
+          const res = await sendWhatsApp.mutateAsync(row.customer.id);
+          toast.success(res.data?.data?.message ?? res.data?.message ?? 'WhatsApp statement sent');
+        } catch (e: any) {
+          toast.error('WhatsApp send failed', { description: e.message });
+        } finally {
+          setActingOn(null);
+        }
+      }
+    );
   };
 
   return (
@@ -142,10 +174,10 @@ export default function OutstandingsPage() {
             >
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: getAgingColor(b.bucket) }} />
-                <span className="text-[11px] sm:text-xs text-slate-400 font-medium whitespace-nowrap">{b.bucket} days</span>
+                <span className="text-[11px] sm:text-xs font-medium whitespace-nowrap" style={{ color: 'var(--walnut)' }}>{b.bucket} days</span>
               </div>
-              <p className="text-base sm:text-lg font-bold text-white">{formatINR(b.amount)}</p>
-              <p className="text-[11px] sm:text-xs text-slate-500">{b.count} customers</p>
+              <p className="text-base sm:text-lg font-bold" style={{ color: 'var(--dark-brown)' }}>{formatINR(b.amount)}</p>
+              <p className="text-[11px] sm:text-xs" style={{ color: 'var(--walnut)' }}>{b.count} customers</p>
             </button>
           ))}
         </div>
@@ -167,7 +199,8 @@ export default function OutstandingsPage() {
             />
             {(filters.segment || filters.aging_bucket) && (
               <button onClick={() => setFilters({ page: 1, limit: 20 })}
-                className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
+                className="px-3 py-2 rounded-lg text-sm border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+                style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' }}>
                 Clear
               </button>
             )}
@@ -231,11 +264,11 @@ export default function OutstandingsPage() {
                       {row.customer?.customer_name ?? '—'}
                     </Link>
                   </td>
-                  <td className="text-sm text-slate-400">{row.customer?.city ?? '—'}</td>
+                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{row.customer?.city ?? '—'}</td>
                   <td>
                     {row.customer?.id
                       ? <PhoneCell customerId={row.customer.id} phone={row.customer.phone ?? null} />
-                      : <span className="text-slate-500">—</span>}
+                      : <span style={{ color: 'var(--walnut)' }}>—</span>}
                   </td>
                   <td><SegmentBadge segment={row.segment} /></td>
                   <td>
@@ -244,7 +277,8 @@ export default function OutstandingsPage() {
                     </span>
                   </td>
                   <td className="text-right">
-                    <span className={`text-sm font-bold ${row.total_due > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                    <span className={`text-sm font-bold ${row.total_due > 0 ? 'text-red-600' : ''}`}
+                      style={row.total_due <= 0 ? { color: 'var(--recovery-green)' } : {}}>
                       {formatINR(row.total_due)}
                     </span>
                   </td>
@@ -280,19 +314,33 @@ export default function OutstandingsPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-              <p className="text-xs text-slate-500">{total} records</p>
+            <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
+              <p className="text-xs" style={{ color: 'var(--walnut)' }}>{total} records</p>
               <div className="flex items-center gap-2">
                 <button disabled={filters.page === 1} onClick={() => setFilters((f: any) => ({ ...f, page: f.page - 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30"><ChevronLeft size={16} /></button>
-                <span className="text-xs text-slate-400">{filters.page} / {totalPages}</span>
+                  className="p-1.5 rounded-lg disabled:opacity-30 hover:bg-[rgba(127,85,57,0.08)] transition-all"
+                  style={{ color: 'var(--walnut)' }}><ChevronLeft size={16} /></button>
+                <span className="text-xs" style={{ color: 'var(--walnut)' }}>{filters.page} / {totalPages}</span>
                 <button disabled={filters.page === totalPages} onClick={() => setFilters((f: any) => ({ ...f, page: f.page + 1 }))}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30"><ChevronRight size={16} /></button>
+                  className="p-1.5 rounded-lg disabled:opacity-30 hover:bg-[rgba(127,85,57,0.08)] transition-all"
+                  style={{ color: 'var(--walnut)' }}><ChevronRight size={16} /></button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {confirm && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel="Yes, proceed"
+          variant="warning"
+          onConfirm={confirm.onConfirm}
+          onCancel={closeConfirm}
+        />
+      )}
     </div>
   );
 }

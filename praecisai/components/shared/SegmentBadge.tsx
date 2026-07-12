@@ -12,22 +12,25 @@ export function SegmentBadge({ segment }: { segment: string }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const colorMap: Record<string, string> = {
-    ACTIVE: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    PENDING: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-    COMPLETED: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-    FAILED: 'bg-red-500/10 text-red-400 border border-red-500/20',
-    PROCESSING: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
-    CLEARED: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    OVERDUE: 'bg-red-500/10 text-red-400 border border-red-500/20',
-    PAID: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    DRAFT: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
-    RUNNING: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-    SCHEDULED: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
-    SUSPENDED: 'bg-red-500/10 text-red-400 border border-red-500/20',
-    INACTIVE: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+    ACTIVE:     'bg-emerald-50  text-emerald-700 border border-emerald-200  dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25',
+    PENDING:    'bg-amber-50    text-amber-700   border border-amber-200    dark:bg-amber-500/15   dark:text-amber-400   dark:border-amber-500/25',
+    COMPLETED:  'bg-blue-50     text-blue-700    border border-blue-200     dark:bg-blue-500/15    dark:text-blue-400    dark:border-blue-500/25',
+    FAILED:     'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
+    PROCESSING: 'bg-violet-50   text-violet-700  border border-violet-200   dark:bg-violet-500/15  dark:text-violet-400  dark:border-violet-500/25',
+    CLEARED:    'bg-emerald-50  text-emerald-700 border border-emerald-200  dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25',
+    OVERDUE:    'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
+    PAID:       'bg-emerald-50  text-emerald-700 border border-emerald-200  dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/25',
+    PARTIAL:    'bg-amber-50    text-amber-700   border border-amber-200    dark:bg-amber-500/15   dark:text-amber-400   dark:border-amber-500/25',
+    DISPUTED:   'bg-orange-50   text-orange-700  border border-orange-200   dark:bg-orange-500/15  dark:text-orange-400  dark:border-orange-500/25',
+    DRAFT:      'bg-slate-100   text-slate-600   border border-slate-200    dark:bg-slate-500/15   dark:text-slate-400   dark:border-slate-500/25',
+    RUNNING:    'bg-blue-50     text-blue-700    border border-blue-200     dark:bg-blue-500/15    dark:text-blue-400    dark:border-blue-500/25',
+    SCHEDULED:  'bg-violet-50   text-violet-700  border border-violet-200   dark:bg-violet-500/15  dark:text-violet-400  dark:border-violet-500/25',
+    SUSPENDED:  'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
+    INACTIVE:   'bg-slate-100   text-slate-600   border border-slate-200    dark:bg-slate-500/15   dark:text-slate-400   dark:border-slate-500/25',
+    BOUNCED:    'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
   };
 
-  const cls = colorMap[status] ?? 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+  const cls = colorMap[status] ?? 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-500/15 dark:text-slate-400 dark:border-slate-500/25';
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
       {status}

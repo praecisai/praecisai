@@ -5,6 +5,7 @@ import { useCampaigns, useCreateCampaign, useDeleteCampaign } from '../../../lib
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
+import { ConfirmModal } from '../../../components/shared/ConfirmModal';
 import { formatDate } from '../../../lib/utils/format';
 import { Plus, X, Megaphone, Trash2 } from 'lucide-react';
 
@@ -16,10 +17,17 @@ export default function CampaignsPage() {
   const deleteMutation = useDeleteCampaign();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'WHATSAPP', scheduled_at: '' });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete campaign "${name}"? This cannot be undone.`)) return;
-    deleteMutation.mutate(id);
+    setDeleteTarget({ id, name });
+  }
+
+  function confirmDelete() {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id);
+      setDeleteTarget(null);
+    }
   }
 
   const campaigns = data?.data ?? [];
@@ -37,32 +45,37 @@ export default function CampaignsPage() {
     <div>
       <TopHeader title="Campaigns" subtitle="Manage outreach campaigns" />
       <div className="p-4 sm:p-6 space-y-5">
-        {/* Create button */}
+        {/* Create button — uses fixed dark brown tones so it isn't blindingly bright in dark mode */}
         <div className="flex justify-end">
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white"
-            style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #5C3D2E, #7F5539)', color: '#F5ECD7' }}>
             <Plus size={15} /> New Campaign
           </button>
         </div>
 
         {/* Create modal */}
         {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
             <div className="glass-card p-5 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-semibold text-white">New Campaign</h3>
-                <button onClick={() => setShowCreate(false)} className="text-slate-500 hover:text-white"><X size={18} /></button>
+                <h3 className="font-semibold text-base" style={{ color: 'var(--dark-brown)' }}>New Campaign</h3>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="p-1 rounded-md transition-colors hover:bg-[rgba(127,85,57,0.08)]"
+                  style={{ color: 'var(--walnut)' }}>
+                  <X size={18} />
+                </button>
               </div>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Campaign Name</label>
+                  <label className="block text-xs mb-1.5 uppercase tracking-wider font-medium" style={{ color: 'var(--walnut)' }}>Campaign Name</label>
                   <input required className="input-dark" placeholder="e.g. June Follow-up Blast"
                     value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Type</label>
+                  <label className="block text-xs mb-1.5 uppercase tracking-wider font-medium" style={{ color: 'var(--walnut)' }}>Type</label>
                   <Select
                     value={form.type}
                     onChange={(v) => setForm((f) => ({ ...f, type: v }))}
@@ -70,13 +83,13 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1.5 uppercase tracking-wider">Scheduled At (optional)</label>
+                  <label className="block text-xs mb-1.5 uppercase tracking-wider font-medium" style={{ color: 'var(--walnut)' }}>Scheduled At (optional)</label>
                   <input type="datetime-local" className="input-dark"
                     value={form.scheduled_at} onChange={(e) => setForm((f) => ({ ...f, scheduled_at: e.target.value }))} />
                 </div>
                 <button type="submit" disabled={createMutation.isPending}
-                  className="w-full py-2.5 rounded-xl font-semibold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
+                  className="w-full py-2.5 rounded-xl font-semibold disabled:opacity-50 transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg, #5C3D2E, #7F5539)', color: '#F5ECD7' }}>
                   {createMutation.isPending ? 'Creating…' : 'Create Campaign'}
                 </button>
               </form>
@@ -97,9 +110,9 @@ export default function CampaignsPage() {
           </div>
         ) : campaigns.length === 0 ? (
           <div className="glass-card p-12 text-center">
-            <Megaphone size={40} className="text-slate-600 mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">No campaigns yet</p>
-            <p className="text-sm text-slate-400">Create your first campaign to start reaching out to customers</p>
+            <Megaphone size={40} className="mx-auto mb-3" style={{ color: 'var(--caramel)' }} />
+            <p className="font-medium mb-1" style={{ color: 'var(--dark-brown)' }}>No campaigns yet</p>
+            <p className="text-sm" style={{ color: 'var(--walnut)' }}>Create your first campaign to start reaching out to customers</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -113,25 +126,38 @@ export default function CampaignsPage() {
                       onClick={() => handleDelete(c.id, c.name)}
                       disabled={deleteMutation.isPending}
                       title="Delete campaign"
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-40"
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                      style={{ color: 'var(--walnut)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#c62828')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--walnut)')}
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <h3 className="font-semibold text-white mb-1">{c.name}</h3>
-                <p className="text-xs text-slate-500 mb-3">{c.type}</p>
+                <h3 className="font-semibold mb-1" style={{ color: 'var(--dark-brown)' }}>{c.name}</h3>
+                <p className="text-xs mb-3" style={{ color: 'var(--walnut)' }}>{c.type}</p>
                 {c.scheduled_at && (
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs" style={{ color: 'var(--walnut)' }}>
                     Scheduled: {formatDate(c.scheduled_at)}
                   </p>
                 )}
-                <p className="text-xs text-slate-600 mt-2">Created {formatDate(c.created_at)}</p>
+                <p className="text-xs mt-2" style={{ color: 'var(--caramel)' }}>Created {formatDate(c.created_at)}</p>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete Campaign"
+        message={`Delete campaign "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
