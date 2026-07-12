@@ -167,7 +167,8 @@ model Customer {
   ai_analyses     AIAnalysis[]
   promises_to_pay PromiseToPay[]
 
-  @@unique([phone, business_id])
+  // No unique constraint on phone — several parties can share one number
+  // (same proprietor, several shops). Party name is the identity.
   @@index([business_id])
   @@index([customer_name])
   @@map("customers")

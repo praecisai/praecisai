@@ -270,25 +270,12 @@ export class ImportService {
       }
     }
 
-    // (phone, business) is unique in the DB — when several parties share a
-    // phone, only the first keeps it; the rest are created without a phone
-    // (fill it on the dashboard later) so the parties stay separate.
-    const claimedPhones = new Set(
-      existingCustomers.filter((c) => c.phone).map((c) => c.phone as string),
-    );
-    const createData = Array.from(newByKey.values()).map((r) => {
-      let phone = r.phone;
-      if (phone) {
-        if (claimedPhones.has(phone)) phone = null;
-        else claimedPhones.add(phone);
-      }
-      return {
-        business_id: businessId,
-        customer_name: r.name,
-        phone,
-        city: r.city,
-      };
-    });
+    const createData = Array.from(newByKey.values()).map((r) => ({
+      business_id: businessId,
+      customer_name: r.name,
+      phone: r.phone,
+      city: r.city,
+    }));
 
     const createdCustomers = createData.length
       ? await this.prisma.customer.createManyAndReturn({
