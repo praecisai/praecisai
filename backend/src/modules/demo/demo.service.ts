@@ -624,7 +624,7 @@ export class DemoService {
       // Convert the party name and city to Devanagari so Sarvam Bulbul pronounces them naturally.
       const [customerNameSpoken, businessCitySpoken] = await Promise.all([
         transliterateNameToDevanagari(dto.partyName),
-        transliterateCityToDevanagari(lead.city || ''),
+        transliterateCityToDevanagari(lead.city || 'Mumbai'),
       ]);
 
       await this.callingQueue.add('outbound-calls', {

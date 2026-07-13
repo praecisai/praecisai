@@ -186,7 +186,7 @@ export async function transliterateNameToDevanagari(name: string): Promise<strin
 
 // ─── Segment-specific call scripts ───────────────────────────────────────────
 // Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
-const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या मैं आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement — no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of THREE times in the whole call — if the customer refuses again after the third attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
+const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement — no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of THREE times in the whole call — if the customer refuses again after the third attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
 
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
   'Soft Reminder': `
@@ -234,8 +234,7 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
-"मेरी तरफ से, एक request थी।"
-"Accounts team मुझसे इस payment का update पूछ रही है।"
+"मेरी तरफ से एक request थी, Accounts team मुझसे इस payment का update पूछ रही है।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
@@ -256,8 +255,7 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
-"मेरी तरफ से, एक छोटी सी request है।"
-"Accounts team मुझसे update पूछ रही है।"
+"मेरी तरफ से एक छोटी सी request है, Accounts team मुझसे update पूछ रही है।"
 "Senior team भी जानकारी चाहते हैं।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
