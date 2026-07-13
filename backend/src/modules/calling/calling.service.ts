@@ -6,6 +6,7 @@ import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus
 import { CallExtractionService } from './call-extraction.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
+import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import {
   amountToHindi,
   numberToHindiWords,
@@ -26,7 +27,30 @@ export class CallingService {
     private readonly extractionService: CallExtractionService,
     private readonly whatsappService: WhatsappService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
+    @InjectQueue('callback-redials') private readonly callbackQueue: Queue,
   ) {}
+
+  // Map the LLM extraction's callback block to the slot util's intent shape.
+  private mapCallbackIntent(cb: any): CallbackIntent {
+    if (!cb || !cb.kind || cb.kind === 'none') return { kind: 'none' };
+    switch (cb.kind) {
+      case 'later':
+        return { kind: 'later' };
+      case 'tomorrow':
+        return { kind: 'tomorrow' };
+      case 'relative_hours':
+        return { kind: 'relativeHours', hours: Number(cb.hours) || 1 };
+      case 'relative_days':
+        return { kind: 'relativeDays', days: Number(cb.days) || 1 };
+      case 'specific': {
+        const at = cb.datetime ? new Date(cb.datetime) : null;
+        if (!at || isNaN(at.getTime())) return { kind: 'later' };
+        return { kind: 'specific', at, hasTime: !!cb.has_time };
+      }
+      default:
+        return { kind: 'none' };
+    }
+  }
 
   // ─── Production: queue an AI recovery call to a real customer ─────────────
   // Mirrors the demo flow's intelligence (multi-invoice totals, partial
@@ -403,6 +427,36 @@ export class CallingService {
             where: { id: callLog.id },
             data: { whatsapp_requested: true, whatsapp_fulfilled: fulfilled },
           });
+        }
+      }
+    }
+
+    // Customer asked to be called back → auto-schedule a re-dial. "baadme"/busy
+    // snaps to the next 12pm/4pm slot; "kal"/"X din"/specific times are honoured;
+    // delays over 15 days are treated as mischief and snapped to the next slot.
+    // Never schedule when they already gave a payment date (that's a PTP, above).
+    const callbackIntent = this.mapCallbackIntent(extraction?.callback);
+    if (!promisedDate && !isSensitive && callbackIntent.kind !== 'none') {
+      const when = computeCallbackTime(callbackIntent);
+      const delayMs = when ? when.getTime() - Date.now() : 0;
+      if (when && delayMs > 60_000 && delayMs <= 25 * 24 * 60 * 60 * 1000) {
+        const cbLog = await this.prisma.callLog.findUnique({
+          where: { retell_call_id: callId },
+          select: { business_id: true, customer_id: true },
+        });
+        if (cbLog) {
+          await this.callbackQueue.add(
+            'callback-redial',
+            {
+              businessId: cbLog.business_id,
+              customerId: cbLog.customer_id,
+              scheduledFor: when.toISOString(),
+            },
+            { delay: delayMs, removeOnComplete: true, removeOnFail: 100, attempts: 2 },
+          );
+          this.logger.log(
+            `Callback for customer ${cbLog.customer_id} scheduled at ${when.toISOString()} (in ${Math.round(delayMs / 60000)} min)`,
+          );
         }
       }
     }

@@ -11,6 +11,13 @@ export interface CallExtractionResult {
   talk_ratio: number | null;
   is_sensitive: boolean;
   whatsapp_requested: boolean;
+  callback: {
+    kind: 'none' | 'later' | 'tomorrow' | 'relative_hours' | 'relative_days' | 'specific';
+    hours: number | null;
+    days: number | null;
+    datetime: string | null;
+    has_time: boolean;
+  } | null;
 }
 
 const SYSTEM_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
@@ -27,8 +34,24 @@ const USER_PROMPT = `Extract the following from the call transcript:
   "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
   "talk_ratio": <0-100 integer — % of call the agent spoke, or null>,
   "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy — including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam" — else false>,
-  "whatsapp_requested": <true if the customer asked for the outstanding / statement / bill details to be sent on WhatsApp, and the agent agreed to send it — including phrasing such as "outstanding WhatsApp कर दो", "statement भेज दो", "mujhe bhej dijiye", "WhatsApp pe bhejo", "details भेज दीजिए", "bhej do main check karke bataata hu" — else false>
+  "whatsapp_requested": <true if the customer asked for the outstanding / statement / bill details to be sent on WhatsApp, and the agent agreed to send it — including phrasing such as "outstanding WhatsApp कर दो", "statement भेज दो", "mujhe bhej dijiye", "WhatsApp pe bhejo", "details भेज दीजिए", "bhej do main check karke bataata hu" — else false>,
+  "callback": {
+    "kind": "<none | later | tomorrow | relative_hours | relative_days | specific>",
+    "hours": <integer or null>,
+    "days": <integer or null>,
+    "datetime": "<ISO 8601 date or date-time, or null>",
+    "has_time": <true if the customer stated a clock time, else false>
+  }
 }
+
+Callback guide — set ONLY when the customer asks to be called back later or says they are busy now:
+- "later": busy / call later with NO day or time — "baad mein call karo", "abhi busy hoon", "thodi der baad", "aap baad mein call kariye"
+- "tomorrow": "kal", "kal call karo" — no clock time
+- "relative_hours": "ek ghante baad", "do ghante baad" → set hours = N
+- "relative_days": "do din baad", "teen din baad", "hafte baad" (hafte = 7), "X din baad" → set days = N
+- "specific": a concrete date and/or clock time was given → set datetime (ISO); has_time = true only if a clock time was stated
+- "none": customer did NOT ask to be called back
+IMPORTANT: if the customer gave a payment DATE (a promise to pay), that is NOT a callback → kind = "none".
 
 Disposition guide:
 - INTERESTED: willing to pay
