@@ -95,7 +95,7 @@ export class DashboardService {
         orderBy: { created_at: 'desc' },
         select: {
           id: true, call_status: true, disposition: true, call_summary: true,
-          promise_date: true, duration_seconds: true, created_at: true,
+          promise_date: true, duration_seconds: true, created_at: true, next_call_at: true,
           customer: { select: { id: true, customer_name: true } },
         },
       }),

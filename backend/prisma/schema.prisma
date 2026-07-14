@@ -289,6 +289,8 @@ model CallLog {
   // Customer asked for the statement on WhatsApp during the call
   whatsapp_requested       Boolean          @default(false)
   whatsapp_fulfilled       Boolean          @default(false)
+  // Auto-scheduled callback re-dial time (customer said "baadme"/"kal"/etc.)
+  next_call_at             DateTime?
 
   // Relations
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)

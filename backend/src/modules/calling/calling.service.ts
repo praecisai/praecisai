@@ -455,6 +455,11 @@ export class CallingService {
             },
             { delay: delayMs, removeOnComplete: true, removeOnFail: 100, attempts: 2 },
           );
+          // Persist the slot so the dashboard can show "Next call: …"
+          await this.prisma.callLog.updateMany({
+            where: { retell_call_id: callId },
+            data: { next_call_at: when },
+          });
           this.logger.log(
             `Callback for customer ${cbLog.customer_id} scheduled at ${when.toISOString()} (in ${Math.round(delayMs / 60000)} min)`,
           );

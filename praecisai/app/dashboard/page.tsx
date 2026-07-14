@@ -213,6 +213,11 @@ export default function DashboardPage() {
                       {a.kind === 'call' && a.promise_date && (
                         <p className="text-[11px] font-medium" style={{ color: 'var(--recovery-green)' }}>Promised {formatDate(a.promise_date)}</p>
                       )}
+                      {a.kind === 'call' && a.next_call_at && (
+                        <p className="text-[11px] font-medium" style={{ color: '#B8860B' }}>
+                          Next call {new Date(a.next_call_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
