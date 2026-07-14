@@ -44,20 +44,27 @@ export default function SettingsPage() {
   const updateBusiness = useUpdateBusiness();
 
   const [businessName, setBusinessName] = useState('');
+  const [handoffNumber, setHandoffNumber] = useState('');
   const [bounds, setBounds] = useState<number[]>(DEFAULT_BOUNDS);
 
   useEffect(() => {
     if (user?.business?.name) setBusinessName(user.business.name);
+    setHandoffNumber(user?.business?.handoff_number ?? '');
     setBounds(boundsFromRules(user?.business?.segment_rules));
-  }, [user?.business?.name, user?.business?.segment_rules]);
+  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules]);
 
   const boundsValid = bounds[0] >= 1 && bounds[1] > bounds[0] && bounds[2] > bounds[1];
+  // Empty is allowed (falls back to platform default); otherwise must look like a phone number.
+  const handoffValid = /^(\+?[0-9]{10,15})?$/.test(handoffNumber.trim());
 
   const saveBusiness = async () => {
+    if (!handoffValid) return;
     try {
-      await updateBusiness.mutateAsync({ name: businessName.trim() });
+      await updateBusiness.mutateAsync({ name: businessName.trim(), handoff_number: handoffNumber.trim() });
       toast.success('Business settings saved', {
-        description: `On calls, Meena will say “${spokenName}”.`,
+        description: handoffNumber.trim()
+          ? `Senior transfers will go to ${handoffNumber.trim()}. On calls, Meena will say “${spokenName}”.`
+          : `On calls, Meena will say “${spokenName}”.`,
       });
     } catch (e: any) {
       toast.error('Could not save business settings', { description: e.message });
@@ -121,6 +128,24 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div>
+                  <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Call Transfer Number</label>
+                  <input
+                    className="input-dark"
+                    value={handoffNumber}
+                    onChange={(e) => setHandoffNumber(e.target.value)}
+                    placeholder="+919876543210"
+                  />
+                  <p className="text-xs text-[var(--walnut)] mt-1.5">
+                    When a customer asks to speak with a senior, Meena transfers the call to this number.
+                    Leave blank to use the platform default.
+                  </p>
+                  {!handoffValid && (
+                    <p className="text-xs mt-1" style={{ color: '#C62828' }}>
+                      Enter a valid phone number, e.g. +919876543210.
+                    </p>
+                  )}
+                </div>
+                <div>
                   <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Plan</label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-[var(--dark-brown)]">{user?.business?.plan ?? 'FREE'}</span>
@@ -133,7 +158,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={saveBusiness}
-                  disabled={updateBusiness.isPending || businessName.trim().length < 2}
+                  disabled={updateBusiness.isPending || businessName.trim().length < 2 || !handoffValid}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                   {updateBusiness.isPending ? 'Saving…' : 'Save Changes'}

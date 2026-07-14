@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import { parseSegmentRules, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
-import { IsString, IsOptional, IsEnum, IsArray, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, MinLength, Matches } from 'class-validator';
 
 export class UpdateBusinessDto {
   @IsOptional()
@@ -22,6 +22,15 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsArray()
   segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
+
+  // Number the AI transfers to on a "talk to a human/senior" request.
+  // Empty string clears it (call falls back to the platform default number).
+  @IsOptional()
+  @IsString()
+  @Matches(/^(\+?[0-9]{10,15})?$/, {
+    message: 'handoff_number must be a phone number like +919876543210 (or empty to use the default)',
+  })
+  handoff_number?: string;
 }
 
 @Injectable()

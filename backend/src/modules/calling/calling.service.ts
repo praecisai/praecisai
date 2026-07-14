@@ -60,7 +60,7 @@ export class CallingService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true } },
+        business: { select: { name: true, segment_rules: true, handoff_number: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -177,7 +177,8 @@ export class CallingService {
         call_history_summary: histSummary,
         multi_invoice_note: multiInvoiceNote,
         partial_payment_note: partialPaymentNote,
-        handoff_number: process.env.BOLNA_HANDOFF_NUMBER || '',
+        // Per-business senior/human transfer number; platform env var is the fallback.
+        handoff_number: customer.business.handoff_number || process.env.BOLNA_HANDOFF_NUMBER || '',
         greeting_time: getISTGreeting(),
         days_mention: daysMention,
       },
