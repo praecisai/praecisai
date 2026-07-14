@@ -205,7 +205,6 @@ export class CallingService {
         ...(vipOnly && { customer: { is_vip: true } }),
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
-      take: 100,
     });
 
     const eligible = outstandings.filter((o) => o.customer?.phone);

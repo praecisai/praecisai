@@ -1,4 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
 import { AisensyService } from './aisensy.service';
@@ -14,6 +16,7 @@ export class WhatsappService {
     private statementPdf: StatementPdfService,
     private aisensy: AisensyService,
     private storage: StorageService,
+    @InjectQueue('whatsapp-statements') private statementQueue: Queue,
   ) {}
 
   async getLogs(businessId: string, page = 1, limit = 20) {
@@ -138,6 +141,10 @@ export class WhatsappService {
   }
 
   // ─── Bulk: statement PDFs to every eligible customer in a segment ──────────
+  // Sends are queued, not sent inline: PDF + AiSensy takes seconds per customer,
+  // so a big segment would hold the HTTP request open for many minutes. The
+  // whatsapp-statements worker drains the queue in the background; per-customer
+  // failures are logged there (and in WhatsAppLog) without stopping the run.
   async sendSegmentStatements(businessId: string, segment: string, vipOnly = false) {
     const outstandings = await this.prisma.outstanding.findMany({
       where: {
@@ -147,31 +154,29 @@ export class WhatsappService {
         ...(vipOnly && { customer: { is_vip: true } }),
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
-      take: 100,
     });
 
     const eligible = outstandings.filter((o) => o.customer?.phone);
     const noPhone = outstandings.length - eligible.length;
 
-    let sent = 0;
-    const skipped: Array<{ customer: string; reason: string }> = [];
-
-    for (const o of eligible) {
-      try {
-        await this.sendStatementToCustomer(businessId, o.customer.id);
-        sent++;
-      } catch (err: any) {
-        skipped.push({ customer: o.customer.customer_name, reason: err.message });
-      }
-    }
+    await this.statementQueue.addBulk(
+      eligible.map((o) => ({
+        name: 'send-statement',
+        data: {
+          businessId,
+          customerId: o.customer.id,
+          customerName: o.customer.customer_name,
+        },
+      })),
+    );
 
     return {
       success: true,
       segment,
-      sent,
+      queued: eligible.length,
       no_phone: noPhone,
-      skipped,
-      message: `${sent} statement(s) sent for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
+      skipped: [],
+      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment} — sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 
