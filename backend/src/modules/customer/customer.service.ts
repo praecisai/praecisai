@@ -74,7 +74,22 @@ export class CustomerService {
         outstanding: true,
         promises_to_pay: { orderBy: { created_at: 'desc' } },
         whatsapp_logs: { orderBy: { created_at: 'desc' }, take: 20 },
-        call_logs: { orderBy: { created_at: 'desc' }, take: 20 },
+        call_logs: {
+          orderBy: { created_at: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            call_status: true,
+            disposition: true,
+            call_summary: true,
+            promise_date: true,
+            duration_seconds: true,
+            created_at: true,
+            business_id: true,
+            customer_id: true,
+            retell_call_id: true
+          }
+        },
       },
     });
     if (!customer) throw new NotFoundException('Customer not found');
