@@ -95,7 +95,7 @@ export class DashboardService {
         orderBy: { created_at: 'desc' },
         select: {
           id: true, call_status: true, disposition: true, call_summary: true,
-          promise_date: true, duration_seconds: true, created_at: true, next_call_at: true,
+          promise_date: true, duration_seconds: true, created_at: true,
           customer: { select: { id: true, customer_name: true } },
         },
       }),
@@ -116,5 +116,72 @@ export class DashboardService {
       recent_calls: recentCalls,
       recent_whatsapp: recentWhatsapp,
     };
+  }
+
+  private creditsCache: { data: object; fetchedAt: number } | null = null;
+
+  async getCredits() {
+    if (this.creditsCache && Date.now() - this.creditsCache.fetchedAt < 60_000) {
+      return this.creditsCache.data;
+    }
+
+    const headers = { Authorization: `Bearer ${process.env.BOLNA_API_KEY}` };
+    const meRes = await fetch('https://api.bolna.dev/me', { headers });
+    if (!meRes.ok) throw new Error('Could not fetch Bolna credits');
+    const me = await meRes.json();
+    const balanceUsd = Math.round(me.wallet) / 100;
+
+    let avgCallCostUsd: number | null = null;
+    try {
+      const exRes = await fetch(
+        `https://api.bolna.dev/v2/agent/${process.env.BOLNA_AGENT_ID}/executions?page_size=5`,
+        { headers },
+      );
+      if (exRes.ok) {
+        const ex = await exRes.json();
+        const items: any[] = Array.isArray(ex) ? ex : (ex?.data ?? []);
+        const costs = items
+          .map((e) => e?.total_cost)
+          .filter((c): c is number => typeof c === 'number' && c > 0);
+        if (costs.length) {
+          avgCallCostUsd = costs.reduce((s, c) => s + c, 0) / costs.length / 100;
+        }
+      }
+    } catch { }
+
+    let deepgramUsd: number | null = null;
+    const dgKey = process.env.DEEPGRAM_API_KEY;
+    if (dgKey) {
+      try {
+        const dgHeaders = { Authorization: `Token ${dgKey}` };
+        const projRes = await fetch('https://api.deepgram.com/v1/projects', { headers: dgHeaders });
+        if (projRes.ok) {
+          const projects = (await projRes.json())?.projects ?? [];
+          if (projects[0]?.project_id) {
+            const balRes = await fetch(
+              `https://api.deepgram.com/v1/projects/${projects[0].project_id}/balances`,
+              { headers: dgHeaders },
+            );
+            if (balRes.ok) {
+              const balances: any[] = (await balRes.json())?.balances ?? [];
+              deepgramUsd =
+                Math.round(balances.reduce((s, b) => s + (Number(b?.amount) || 0), 0) * 100) / 100;
+            }
+          }
+        }
+      } catch { }
+    }
+
+    const data = {
+      balanceUsd,
+      avgCallCostUsd: avgCallCostUsd !== null ? Math.round(avgCallCostUsd * 1000) / 1000 : null,
+      estCallsLeft:
+        avgCallCostUsd !== null && avgCallCostUsd > 0
+          ? Math.max(0, Math.floor(balanceUsd / avgCallCostUsd))
+          : null,
+      deepgramUsd,
+    };
+    this.creditsCache = { data, fetchedAt: Date.now() };
+    return data;
   }
 }

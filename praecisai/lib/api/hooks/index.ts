@@ -25,6 +25,16 @@ export function useDashboardActivity(limit = 10) {
   });
 }
 
+export function useBolnaCredits() {
+  return useQuery({
+    queryKey: ['dashboard', 'credits'],
+    queryFn: async () => {
+      const res = await api.get('/dashboard/credits');
+      return res.data.data; // nestjs standard response if wrapped, wait, does dashboard service wrap in data? No, dashboard service returns data directly. Wait, the global interceptor wraps responses in { status: 'success', data: ... }
+    },
+  });
+}
+
 // ─── Customers ────────────────────────────────────────────────────────────────
 
 export function useCustomers(filters: CustomerFilters = {}) {

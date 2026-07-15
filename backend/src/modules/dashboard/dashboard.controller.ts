@@ -20,4 +20,9 @@ export class DashboardController {
   ) {
     return this.dashboardService.getRecentActivity(businessId, limit);
   }
+
+  @Get('credits')
+  getCredits() {
+    return this.dashboardService.getCredits();
+  }
 }

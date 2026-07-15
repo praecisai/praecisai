@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
-import { useMe, useUpdateBusiness } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Bell } from 'lucide-react';
+import { useMe, useUpdateBusiness, useBolnaCredits } from '../../../lib/api/hooks';
+import { Settings, Users, Shield, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
   { id: 'users', label: 'Users & Roles', icon: Users },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'credits', label: 'Credit Status', icon: Coins },
 ];
 
 const SEGMENT_META = [
@@ -243,23 +243,70 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <div className="glass-card p-4 sm:p-6">
-              <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Notifications</h3>
-              <div className="space-y-3">
-                {['Import completed', 'Campaign finished', 'Promise-to-pay due', 'Weekly summary digest'].map((n) => (
-                  <div key={n} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
-                    <span className="text-sm text-[var(--dark-brown)]">{n}</span>
-                    <div className="w-9 h-5 rounded-full relative cursor-pointer" style={{ background: 'var(--caramel)' }}>
-                      <div className="w-4 h-4 rounded-full absolute top-0.5 right-0.5" style={{ background: 'var(--mahogany)' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-[var(--walnut)] mt-4">Notification delivery via email/SMS — coming soon.</p>
-            </div>
-          )}
+          {activeTab === 'credits' && <CreditStatus />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CreditStatus() {
+  const { data: credits, isLoading } = useBolnaCredits();
+
+  return (
+    <div className="glass-card p-4 sm:p-6 space-y-4">
+      <h3 className="font-semibold text-[var(--dark-brown)] mb-2">Credit Status</h3>
+      <p className="text-sm text-[var(--walnut)] mb-4">
+        Your remaining balance for telephony, transcription, and platform fees.
+      </p>
+      
+      <div className="space-y-3">
+        {/* Calls Balance Row */}
+        <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--caramel)] bg-[var(--sand)] shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[var(--cream)] flex items-center justify-center text-[var(--mahogany)]">
+              <Coins className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-[var(--dark-brown)]">Call Credits</p>
+              <p className="text-xs text-[var(--walnut)]">Telephony & AI platform</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-semibold text-sm text-[var(--mahogany)]">
+              {isLoading ? 'Loading...' : credits ? `${credits.balanceUsd < 0 ? '-' : ''}$${Math.abs(credits.balanceUsd).toFixed(2)}` : 'Unavailable'}
+            </p>
+            {credits?.estCallsLeft !== null && credits?.estCallsLeft !== undefined && (
+              <p className="text-xs opacity-75 text-[var(--mahogany)]">≈{credits.estCallsLeft} calls left</p>
+            )}
+          </div>
+        </div>
+
+        {/* Deepgram Row (if present) */}
+        {typeof credits?.deepgramUsd === 'number' && (
+          <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--caramel)] bg-[var(--sand)] shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[var(--cream)] flex items-center justify-center text-[var(--mahogany)]">
+                <Coins className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-[var(--dark-brown)]">Transcription Credits</p>
+                <p className="text-xs text-[var(--walnut)]">Deepgram STT usage</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-sm text-[var(--mahogany)]">
+                ${credits.deepgramUsd.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="pt-4 border-t border-[rgba(221,184,146,0.35)] mt-6">
+        <p className="text-xs text-[var(--walnut)]">
+          Top up integration coming soon. For now, please contact support to add credits to your account.
+        </p>
       </div>
     </div>
   );
