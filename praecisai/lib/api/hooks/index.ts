@@ -68,6 +68,16 @@ export function useCustomerCities() {
   });
 }
 
+export function useCustomerAgents() {
+  return useQuery({
+    queryKey: ['customers', 'agents'],
+    queryFn: async (): Promise<string[]> => {
+      const res = await api.get('/customers/agents');
+      return res.data.data ?? [];
+    },
+  });
+}
+
 export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
@@ -80,9 +90,83 @@ export function useUpdateCustomer(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: any) => api.patch(`/customers/${id}`, data),
+    // Optimistic: patch every cached customer list/detail instantly so
+    // star/VIP toggles feel immediate; roll back if the server rejects.
+    onMutate: async (data: any) => {
+      await qc.cancelQueries({ queryKey: ['customers'] });
+      const snapshots = qc.getQueriesData({ queryKey: ['customers'] });
+      qc.setQueriesData({ queryKey: ['customers'] }, (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old?.data)) {
+          return {
+            ...old,
+            data: old.data.map((c: any) => (c.id === id ? { ...c, ...data } : c)),
+          };
+        }
+        if (old?.id === id) return { ...old, ...data };
+        return old;
+      });
+      return { snapshots };
+    },
+    onError: (_err, _data, ctx: any) => {
+      for (const [key, snapshot] of ctx?.snapshots ?? []) {
+        qc.setQueryData(key, snapshot);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['outstandings'] });
+    },
+  });
+}
+
+// Excel with PARTY + VIP (Yes/No) columns → auto-stars matching customers
+export function useVipImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.post('/customers/vip-import', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customers'] });
-      qc.invalidateQueries({ queryKey: ['customers', id] });
+      qc.invalidateQueries({ queryKey: ['outstandings'] });
+    },
+  });
+}
+
+// ─── Recovery reports ─────────────────────────────────────────────────────────
+
+export function useRecoveryReport() {
+  return useQuery({
+    queryKey: ['reports', 'recovery'],
+    queryFn: async () => {
+      const res = await api.get('/reports/recovery');
+      return res.data.data ?? res.data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useDownloadRecoveryPdf() {
+  return useMutation({
+    mutationFn: async (type: 'positive' | 'negative') => {
+      const res = await api.get(`/reports/recovery/pdf?type=${type}`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      const today = new Date();
+      const stamp = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+      a.href = url;
+      a.download = `${type}-recovery-report_${stamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     },
   });
 }

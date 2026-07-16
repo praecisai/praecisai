@@ -1,5 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { IsOptional } from 'class-validator';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getSegment, getAgingBucket, parseSegmentRules } from '../../common/utils/segment.util';
 import { PdcService } from '../pdc/pdc.service';
@@ -24,7 +25,9 @@ export class OutstandingService {
     const skip = (page - 1) * limit;
 
     const where: any = { business_id: businessId };
-    if (segment) where.segment = segment;
+    // "VIP" is a pseudo-segment: all VIP customers regardless of day range
+    if (segment === 'VIP') where.customer = { is_vip: true };
+    else if (segment) where.segment = segment;
     if (aging_bucket) where.aging_bucket = aging_bucket;
     if (status) where.status = status;
 
@@ -33,7 +36,7 @@ export class OutstandingService {
         where, skip, take: limit,
         orderBy: { total_due: 'desc' },
         include: {
-          customer: { select: { id: true, customer_name: true, phone: true, city: true } },
+          customer: { select: { id: true, customer_name: true, phone: true, city: true, is_vip: true } },
         },
       }),
       this.prisma.outstanding.count({ where }),
@@ -60,7 +63,7 @@ export class OutstandingService {
     });
     const prevDue = prevOutstanding?.total_due ?? 0;
 
-    const [invoices, business] = await Promise.all([
+    const [invoices, business, customer] = await Promise.all([
       this.prisma.invoice.findMany({
         where: { business_id: businessId, customer_id: customerId },
       }),
@@ -68,8 +71,13 @@ export class OutstandingService {
         where: { id: businessId },
         select: { segment_rules: true },
       }),
+      this.prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { custom_schedule: true },
+      }),
     ]);
-    const rules = parseSegmentRules(business?.segment_rules);
+    // A per-customer custom schedule overrides the business segment rules
+    const rules = parseSegmentRules(customer?.custom_schedule ?? business?.segment_rules);
 
     const totalDue = invoices.reduce((sum, inv) => {
       return inv.due_amount > 0 ? sum + inv.due_amount : sum;
@@ -126,7 +134,16 @@ export class OutstandingService {
       where: { id: businessId },
       select: { segment_rules: true },
     });
-    const rules = parseSegmentRules(business?.segment_rules);
+    const businessRules = parseSegmentRules(business?.segment_rules);
+
+    // Customers with a custom schedule are segmented by their own day ranges
+    const customSchedules = await this.prisma.customer.findMany({
+      where: { business_id: businessId, id: { in: customerIds }, custom_schedule: { not: Prisma.AnyNull } },
+      select: { id: true, custom_schedule: true },
+    });
+    const rulesByCustomer = new Map(
+      customSchedules.map((c) => [c.id, parseSegmentRules(c.custom_schedule)]),
+    );
 
     const prev = await this.prisma.outstanding.findMany({
       where: { business_id: businessId, customer_id: { in: customerIds } },
@@ -160,6 +177,7 @@ export class OutstandingService {
       await Promise.all(
         chunk.map(async (customerId) => {
           const totals = totalsByCustomer.get(customerId) ?? { totalDue: 0, maxDays: 0 };
+          const rules = rulesByCustomer.get(customerId) ?? businessRules;
           const segment = getSegment(totals.maxDays, totals.totalDue, rules);
           const agingBucket = getAgingBucket(totals.maxDays);
           const status = totals.totalDue === 0 ? 'CLEARED' : 'ACTIVE';

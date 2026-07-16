@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Query,
+  UseInterceptors, UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomerService, CreateCustomerDto, UpdateCustomerDto, CustomerFiltersDto } from './customer.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -18,6 +22,19 @@ export class CustomerController {
   @Get('cities')
   getCities(@BusinessId() businessId: string) {
     return this.customerService.getCities(businessId);
+  }
+
+  @Get('agents')
+  getAgents(@BusinessId() businessId: string) {
+    return this.customerService.getAgents(businessId);
+  }
+
+  // Excel with PARTY + VIP (Yes/No) columns — auto-stars/un-stars customers
+  @Post('vip-import')
+  @Roles('MANAGER')
+  @UseInterceptors(FileInterceptor('file'))
+  importVip(@BusinessId() businessId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.customerService.importVipExcel(businessId, file);
   }
 
   @Get(':id')

@@ -22,6 +22,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { PdcModule } from './modules/pdc/pdc.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
 import { validate } from './config/env.validation';
 
@@ -73,6 +74,7 @@ import { validate } from './config/env.validation';
     NotificationModule,
     DemoModule,
     PdcModule,
+    ReportsModule,
     HealthModule,
   ],
 })

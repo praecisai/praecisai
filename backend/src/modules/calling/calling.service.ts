@@ -56,7 +56,11 @@ export class CallingService {
   // Mirrors the demo flow's intelligence (multi-invoice totals, partial
   // payment, call history, sensitive cooldown) but reads everything from the
   // real Customer/Invoice/CallLog tables and records into CallLog.
-  async queueCustomerCall(businessId: string, customerId: string) {
+  async queueCustomerCall(
+    businessId: string,
+    customerId: string,
+    opts: { phoneOverride?: string; skipCooldown?: boolean } = {},
+  ) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
@@ -69,7 +73,8 @@ export class CallingService {
     });
 
     if (!customer) throw new NotFoundException('Customer not found');
-    if (!customer.phone) throw new BadRequestException('Customer has no phone number — add one first');
+    const dialPhone = opts.phoneOverride ?? customer.phone;
+    if (!dialPhone) throw new BadRequestException('Customer has no phone number — add one first');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
 
@@ -91,23 +96,28 @@ export class CallingService {
       );
     }
 
-    // 60-min same-customer cooldown — never ring the same person twice in a row
-    const recentCall = await this.prisma.callLog.findFirst({
-      where: {
-        customer_id: customerId,
-        created_at: { gte: new Date(Date.now() - 60 * 60 * 1000) },
-      },
-    });
-    if (recentCall) {
-      throw new BadRequestException(
-        'This customer was called within the last 60 minutes. Please wait before calling again.',
-      );
+    // 60-min same-customer cooldown — never ring the same person twice in a
+    // row. Skipped for fallback dials to the next number of the SAME attempt.
+    if (!opts.skipCooldown) {
+      const recentCall = await this.prisma.callLog.findFirst({
+        where: {
+          customer_id: customerId,
+          created_at: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+        },
+      });
+      if (recentCall) {
+        throw new BadRequestException(
+          'This customer was called within the last 60 minutes. Please wait before calling again.',
+        );
+      }
     }
 
-    // Multi-invoice totals — speak the TOTAL due, oldest days drives the segment
+    // Multi-invoice totals — speak the TOTAL due, oldest days drives the segment.
+    // A per-customer custom schedule overrides the business segment rules.
     const totalDue = customer.invoices.reduce((s, i) => s + i.due_amount, 0);
     const maxDays = Math.max(...customer.invoices.map((i) => i.days_overdue));
-    const segment = getSegment(maxDays, totalDue, parseSegmentRules(customer.business.segment_rules));
+    const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
+    const segment = getSegment(maxDays, totalDue, rules);
 
     const multiInvoiceNote =
       customer.invoices.length > 1
@@ -158,13 +168,14 @@ export class CallingService {
         business_id: businessId,
         customer_id: customerId,
         call_status: CallStatus.PENDING,
+        dialed_phone: dialPhone,
       },
     });
 
     await this.callingQueue.add('outbound-calls', {
       callLogId: callLog.id,
       businessId,
-      phoneNumber: customer.phone,
+      phoneNumber: dialPhone,
       context: {
         business_name: businessName,
         business_city: businessCitySpoken,
@@ -197,12 +208,16 @@ export class CallingService {
   // Per-customer guards (sensitive cooldown, 60-min gap) still apply — those
   // customers are reported as skipped, not errors.
   async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
+    // VIP protection: VIPs NEVER receive automated/bulk calls unless the user
+    // explicitly targets them (vipOnly toggle, or the special "VIP" segment
+    // which means "all VIP customers regardless of segment").
+    const isVipSegment = segment === 'VIP';
     const outstandings = await this.prisma.outstanding.findMany({
       where: {
         business_id: businessId,
-        segment,
         status: 'ACTIVE',
-        ...(vipOnly && { customer: { is_vip: true } }),
+        ...(isVipSegment ? {} : { segment }),
+        customer: { is_vip: isVipSegment || vipOnly },
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
     });
@@ -294,6 +309,47 @@ export class CallingService {
         where: { retell_call_id: callId },
         data: { call_status: CallStatus.FAILED },
       });
+      // Call never connected — try the customer's next number, if any
+      await this.tryNextPhone(callId);
+    }
+  }
+
+  // ─── Fallback dialing ───────────────────────────────────────────────────────
+  // A customer row can carry several numbers (phone + alt_phones). When the
+  // dialed number goes unanswered or the call fails, immediately dial the NEXT
+  // number in the list. An answered call ends the chain naturally (its
+  // disposition won't be NO_ANSWER, so this never fires).
+  private async tryNextPhone(callId: string) {
+    try {
+      const log = await this.prisma.callLog.findUnique({
+        where: { retell_call_id: callId },
+        select: { business_id: true, customer_id: true, dialed_phone: true },
+      });
+      if (!log?.dialed_phone) return;
+
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: log.customer_id },
+        select: { phone: true, alt_phones: true, customer_name: true },
+      });
+      if (!customer) return;
+
+      const numbers = [customer.phone, ...(customer.alt_phones ?? [])].filter(
+        (n): n is string => !!n,
+      );
+      const idx = numbers.indexOf(log.dialed_phone);
+      if (idx === -1 || idx + 1 >= numbers.length) return; // no more numbers
+
+      const next = numbers[idx + 1];
+      this.logger.log(
+        `No answer on ${log.dialed_phone} for ${customer.customer_name} — falling back to ${next} (${idx + 2}/${numbers.length})`,
+      );
+      await this.queueCustomerCall(log.business_id, log.customer_id, {
+        phoneOverride: next,
+        skipCooldown: true,
+      });
+    } catch (err: any) {
+      // Fallback dialing must never break webhook processing
+      this.logger.warn(`Fallback dial after ${callId} skipped: ${err?.message || err}`);
     }
   }
 
@@ -468,6 +524,12 @@ export class CallingService {
 
     if (isSensitive) {
       this.logger.warn(`Sensitive situation flagged for call ${callId} — cooldown applied`);
+    }
+
+    // Not picked up → immediately try the customer's next number (if the
+    // Excel row carried more than one). Answered calls never reach here.
+    if (extraction?.disposition === 'NO_ANSWER' && !isSensitive) {
+      await this.tryNextPhone(callId);
     }
 
     this.logger.log(

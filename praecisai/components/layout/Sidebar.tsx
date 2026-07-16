@@ -6,7 +6,7 @@ import { createContext, useContext, useState } from 'react';
 import { createClient } from '../../lib/supabase/client';
 import {
   LayoutDashboard, Users, FileText, TrendingDown,
-  Upload, Megaphone, Settings, LogOut,
+  Upload, Settings, LogOut, Star, ClipboardList,
   ChevronRight, Bell, Search, FileSpreadsheet, Menu, X, Activity,
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
@@ -18,9 +18,10 @@ const NAV_ITEMS = [
   { href: '/dashboard/customers', label: 'Customers', icon: Users },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
   { href: '/dashboard/outstandings', label: 'Outstandings', icon: TrendingDown },
+  { href: '/dashboard/vip',       label: 'VIP', icon: Star },
+  { href: '/dashboard/reports',   label: 'Reports', icon: ClipboardList },
   { href: '/dashboard/activity', label: 'Activity', icon: Activity },
   { href: '/dashboard/import', label: 'Import Center', icon: Upload },
-  { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
   { href: '/dashboard/pdc',       label: 'PDC Cheques', icon: FileSpreadsheet },
   { href: '/dashboard/settings',  label: 'Settings', icon: Settings },
 ];

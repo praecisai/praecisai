@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useCustomers, useCustomerCities } from '../../../lib/api/hooks';
+import { useState, useEffect, useMemo } from 'react';
+import { useCustomers, useCustomerCities, useCustomerAgents } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import { SegmentBadge } from '../../../components/shared/SegmentBadge';
-import { formatINR, formatDate } from '../../../lib/utils/format';
-import { Search, Filter, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CustomScheduleModal, ScheduleTarget } from '../../../components/shared/CustomScheduleModal';
+import { formatINR } from '../../../lib/utils/format';
+import { Search, Star, ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
 import type { CustomerFilters } from '../../../types';
 import { useDebounce } from '../../../lib/hooks/useDebounce';
@@ -33,8 +34,7 @@ function VipToggle({ customerId, isVip, name }: { customerId: string; isVip: boo
           },
         );
       }}
-      disabled={update.isPending}
-      className="p-1 rounded transition-colors disabled:opacity-40 flex-shrink-0"
+      className="p-1 rounded transition-colors flex-shrink-0"
     >
       <Star
         size={14}
@@ -51,10 +51,40 @@ export default function CustomersPage() {
   const debouncedSearch = useDebounce(search, 350);
   const { data, isLoading } = useCustomers(filters);
   const { data: cities = [] } = useCustomerCities();
+  const { data: agents = [] } = useCustomerAgents();
+
+  // Row selection — enables the per-customer Custom Schedule column
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [scheduleFor, setScheduleFor] = useState<ScheduleTarget | null>(null);
 
   const customers = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / (filters.limit ?? 20));
+
+  const selectionMode = selected.size > 0;
+  const colCount = selectionMode ? 9 : 8;
+
+  const toggleSelected = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const pageIds = useMemo(() => customers.map((c: any) => c.id), [customers]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id: string) => selected.has(id));
+  const toggleAllPage = () =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (allPageSelected) pageIds.forEach((id: string) => next.delete(id));
+      else pageIds.forEach((id: string) => next.add(id));
+      return next;
+    });
+
+  const selectedTargets: ScheduleTarget[] = customers
+    .filter((c: any) => selected.has(c.id))
+    .map((c: any) => ({ id: c.id, customer_name: c.customer_name, custom_schedule: c.custom_schedule ?? null }));
 
   // Auto-search as user types
   useEffect(() => {
@@ -90,12 +120,24 @@ export default function CustomersPage() {
               options={[{ value: '', label: 'All Cities' }, ...cities.map((c) => ({ value: c, label: c }))]}
             />
 
-            {/* Segment filter */}
+            {/* Segment filter — includes the VIP pseudo-segment */}
             <Select
               className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
-              onChange={(v) => setFilters((f) => ({ ...f, segment: (v as any) || undefined, page: 1 }))}
-              options={[{ value: '', label: 'All Segments' }, ...SEGMENTS.map((s) => ({ value: s, label: s }))]}
+              onChange={(v) => setFilters((f) => ({ ...f, segment: v || undefined, page: 1 }))}
+              options={[
+                { value: '', label: 'All Segments' },
+                ...SEGMENTS.map((s) => ({ value: s, label: s })),
+                { value: 'VIP', label: '⭐ VIP' },
+              ]}
+            />
+
+            {/* Agent filter */}
+            <Select
+              className="flex-1 min-w-[130px] sm:flex-none sm:w-52"
+              value={filters.agent ?? ''}
+              onChange={(v) => setFilters((f) => ({ ...f, agent: v || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Agents' }, ...agents.map((a) => ({ value: a, label: a }))]}
             />
 
             {/* VIP toggle */}
@@ -111,7 +153,7 @@ export default function CustomersPage() {
               <Star size={13} /> VIP
             </button>
 
-            {(filters.search || filters.city || filters.segment || filters.is_vip) && (
+            {(filters.search || filters.city || filters.segment || filters.agent || filters.is_vip) && (
               <button
                 onClick={() => { setSearch(''); setFilters({ page: 1, limit: 20 }); }}
                 className="px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-[rgba(127,85,57,0.06)]"
@@ -121,18 +163,44 @@ export default function CustomersPage() {
               </button>
             )}
           </div>
+
+          {/* Selection hint */}
+          {selectionMode && (
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--mahogany)' }}>
+                {selected.size} selected — use the Custom Schedule column to set per-customer day ranges
+              </span>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs px-2 py-1 rounded border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+                style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' }}
+              >
+                Clear selection
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Table */}
         <div className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="data-table w-full min-w-[720px]">
+          <table className="data-table w-full min-w-[860px]">
             <thead>
               <tr>
+                <th className="w-8">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={toggleAllPage}
+                    title="Select all on this page"
+                  />
+                </th>
                 <th className="text-left">Customer</th>
                 <th className="text-left">City</th>
                 <th className="text-left">Phone</th>
+                <th className="text-left">Agent</th>
                 <th className="text-left">Segment</th>
+                {selectionMode && <th className="text-left">Custom Schedule</th>}
                 <th className="text-right">Total Due</th>
                 <th className="text-left">Tags</th>
               </tr>
@@ -140,7 +208,7 @@ export default function CustomersPage() {
             <tbody>
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: colCount }).map((_, j) => (
                     <td key={j}><div className="skeleton h-4 w-full rounded" /></td>
                   ))}
                 </tr>
@@ -148,7 +216,7 @@ export default function CustomersPage() {
 
               {!isLoading && customers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-500">
+                  <td colSpan={colCount} className="text-center py-12 text-slate-500">
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-4xl">🔍</span>
                       <p>No customers found. Try importing your first file.</p>
@@ -160,8 +228,18 @@ export default function CustomersPage() {
                 </tr>
               )}
 
-              {!isLoading && customers.map((customer: any) => (
+              {!isLoading && customers.map((customer: any) => {
+                const isSelected = selected.has(customer.id);
+                const hasCustom = Array.isArray(customer.custom_schedule) && customer.custom_schedule.length > 0;
+                return (
                 <tr key={customer.id} className="cursor-pointer hover:bg-[var(--surface-warm)]/2 transition-colors">
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelected(customer.id)}
+                    />
+                  </td>
                   <td>
                     <div className="flex items-center gap-2">
                       <VipToggle customerId={customer.id} isVip={!!customer.is_vip} name={customer.customer_name} />
@@ -174,20 +252,61 @@ export default function CustomersPage() {
                           <p className="text-sm font-medium text-white hover:text-[var(--mahogany)] transition-colors">
                             {customer.customer_name}
                           </p>
-                          {customer.is_vip && (
-                            <span className="text-[10px] text-yellow-400">⭐ VIP</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {customer.is_vip && (
+                              <span className="text-[10px] text-yellow-400">⭐ VIP</span>
+                            )}
+                            {hasCustom && (
+                              <span className="text-[10px] inline-flex items-center gap-0.5" style={{ color: 'var(--mahogany)' }}>
+                                <CalendarClock size={9} /> Custom schedule
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </Link>
                     </div>
                   </td>
                   <td className="text-sm text-slate-400">{customer.city ?? '—'}</td>
-                  <td className="text-sm text-slate-400 font-mono text-xs">{customer.phone ?? '—'}</td>
+                  <td className="text-sm text-slate-400 font-mono text-xs">
+                    {customer.phone ?? '—'}
+                    {(customer.alt_phones?.length ?? 0) > 0 && (
+                      <span
+                        className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[var(--sand)]"
+                        style={{ color: 'var(--walnut)' }}
+                        title={`Backup numbers (tried when the first is not picked up): ${customer.alt_phones.join(', ')}`}
+                      >
+                        +{customer.alt_phones.length}
+                      </span>
+                    )}
+                  </td>
+                  <td className="text-sm text-slate-400 text-xs">{customer.assigned_agent ?? '—'}</td>
                   <td>
                     {customer.outstanding?.segment
                       ? <SegmentBadge segment={customer.outstanding.segment} />
                       : <span className="text-slate-600 text-xs">—</span>}
                   </td>
+                  {selectionMode && (
+                    <td>
+                      {isSelected ? (
+                        <button
+                          onClick={() =>
+                            setScheduleFor({
+                              id: customer.id,
+                              customer_name: customer.customer_name,
+                              custom_schedule: customer.custom_schedule ?? null,
+                            })
+                          }
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all hover:bg-[rgba(127,85,57,0.08)]"
+                          style={{ color: 'var(--mahogany)', borderColor: 'rgba(176,137,104,0.4)' }}
+                        >
+                          <CalendarClock size={12} />
+                          {hasCustom ? 'Edit schedule' : 'Set schedule'}
+                        </button>
+                      ) : (
+                        <span className="text-slate-600 text-xs">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="text-right">
                     <span className={`text-sm font-semibold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                       {formatINR(customer.outstanding?.total_due ?? 0)}
@@ -201,7 +320,8 @@ export default function CustomersPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           </div>
@@ -233,6 +353,14 @@ export default function CustomersPage() {
           )}
         </div>
       </div>
+
+      {scheduleFor && (
+        <CustomScheduleModal
+          target={scheduleFor}
+          others={selectedTargets.filter((t) => t.id !== scheduleFor.id)}
+          onClose={() => setScheduleFor(null)}
+        />
+      )}
     </div>
   );
 }

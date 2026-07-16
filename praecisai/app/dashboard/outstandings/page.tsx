@@ -202,7 +202,11 @@ export default function OutstandingsPage() {
               className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
               onChange={(v) => setFilters((f: any) => ({ ...f, segment: v || undefined, page: 1 }))}
-              options={[{ value: '', label: 'All Segments' }, ...SEGMENTS.map((s) => ({ value: s, label: s }))]}
+              options={[
+                { value: '', label: 'All Segments' },
+                ...SEGMENTS.map((s) => ({ value: s, label: s })),
+                { value: 'VIP', label: '⭐ VIP' },
+              ]}
             />
             {filters.segment && (
               <button onClick={() => setFilters({ page: 1, limit: 20 })}
@@ -212,9 +216,12 @@ export default function OutstandingsPage() {
               </button>
             )}
 
-            {/* Bulk actions — enabled when one segment is selected */}
+            {/* Bulk actions — enabled when one segment is selected.
+                VIPs never receive automated sends; bulk actions here are the
+                ONLY way to reach them ("VIP" segment or the VIP-only toggle). */}
             {filters.segment && filters.segment !== 'Cleared' && (
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                {filters.segment !== 'VIP' && (
                 <label
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer select-none border transition-all"
                   style={
@@ -232,6 +239,7 @@ export default function OutstandingsPage() {
                   />
                   ⭐ VIP only
                 </label>
+                )}
                 <button
                   onClick={handleBulkWhatsApp}
                   disabled={sendSegment.isPending}
@@ -284,6 +292,7 @@ export default function OutstandingsPage() {
                 <tr key={row.id}>
                   <td>
                     <Link href={`/dashboard/customers/${row.customer?.id}`} className="text-sm font-medium text-[var(--dark-brown)] hover:text-[var(--mahogany)] transition-colors">
+                      {row.customer?.is_vip && <span title="VIP — automated calls/messages are blocked" className="mr-1">⭐</span>}
                       {row.customer?.customer_name ?? '—'}
                     </Link>
                   </td>

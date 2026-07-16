@@ -101,6 +101,28 @@ export function normalizePhone(raw: string | number): string {
 }
 
 /**
+ * Parse an Excel phone cell that may hold several numbers
+ * ("9876543210 / 9123456789", comma- or newline-separated).
+ * Returns all distinct normalized numbers in file order —
+ * first = primary, rest = fallbacks.
+ */
+export function parsePhones(raw: string | number): string[] {
+  const parts = String(raw ?? '')
+    .split(/[,\/;|\n]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const out: string[] = [];
+  for (const p of parts) {
+    const digits = p.replace(/\D/g, '');
+    if (digits.length < 10) continue; // fragments like "ext 22" are not numbers
+    const normalized = normalizePhone(digits);
+    if (!out.includes(normalized)) out.push(normalized);
+  }
+  return out;
+}
+
+/**
  * Parse Indian date format DD/MM/YYYY to JS Date.
  */
 export function parseIndianDate(raw: string): Date | null {

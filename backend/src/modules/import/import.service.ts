@@ -9,6 +9,7 @@ import { StorageService } from '../storage/storage.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import {
   normalizePhone,
+  parsePhones,
   parseIndianDate,
   getSegment,
   getAgingBucket,
@@ -184,6 +185,7 @@ export class ImportService {
     interface ParsedRow {
       name: string;
       phone: string | null;
+      altPhones: string[];
       city: string | null;
       invoiceNumber: string;
       invoiceDate: Date;
@@ -221,9 +223,14 @@ export class ImportService {
       const dueAmount = parseFloat(String(mapped.due_amount ?? '0').replace(/[^0-9.\-]/g, '')) || 0;
       const billAmountRaw = parseFloat(String(mapped.bill_amount ?? '').replace(/[^0-9.\-]/g, ''));
 
+      // A cell can hold several numbers — first is primary, rest are
+      // fallbacks dialed when the primary goes unanswered.
+      const phones = mapped.phone ? parsePhones(mapped.phone) : [];
+
       parsedRows.push({
         name: String(mapped.customer_name ?? '').trim(),
-        phone: mapped.phone ? normalizePhone(mapped.phone) : null,
+        phone: phones[0] ?? null,
+        altPhones: phones.slice(1),
         city: mapped.city ? String(mapped.city).trim() : null,
         invoiceNumber: String(mapped.invoice_number ?? '').trim(),
         invoiceDate:
@@ -240,11 +247,25 @@ export class ImportService {
     // ── Phase 2: resolve customers (2 queries + 1 bulk insert) ────────────────
     const existingCustomers = await this.prisma.customer.findMany({
       where: { business_id: businessId },
-      select: { id: true, customer_name: true, phone: true, city: true },
+      select: {
+        id: true,
+        customer_name: true,
+        phone: true,
+        alt_phones: true,
+        assigned_agent: true,
+        city: true,
+      },
     });
 
-    const byPhone = new Map<string, { id: string; city: string | null }>();
-    const byName = new Map<string, { id: string; city: string | null }>();
+    interface ExistingCustomer {
+      id: string;
+      city: string | null;
+      phone?: string | null;
+      alt_phones?: string[];
+      assigned_agent?: string | null;
+    }
+    const byPhone = new Map<string, ExistingCustomer>();
+    const byName = new Map<string, ExistingCustomer>();
     for (const c of existingCustomers) {
       if (c.phone) byPhone.set(c.phone, c);
       byName.set(c.customer_name.trim().toLowerCase(), c);
@@ -257,13 +278,23 @@ export class ImportService {
     const resolveExisting = (r: ParsedRow) =>
       byName.get(r.name.toLowerCase()) || (r.phone && byPhone.get(r.phone)) || null;
 
-    // Distinct new customers (first occurrence wins), keyed by name
+    // Distinct new customers (first occurrence wins), keyed by name.
+    // For matched customers, refresh fallback numbers / agent from the file
+    // (primary phone is never overwritten — manual dashboard edits win).
     const newByKey = new Map<string, ParsedRow>();
     const matchedIds = new Set<string>();
+    const customerRefreshes = new Map<string, { alt_phones?: string[]; assigned_agent?: string; phone?: string }>();
     for (const r of parsedRows) {
       const existing = resolveExisting(r);
       if (existing) {
         matchedIds.add(existing.id);
+        const refresh = customerRefreshes.get(existing.id) ?? {};
+        if (!existing.phone && r.phone) refresh.phone = r.phone;
+        if (r.altPhones.length && JSON.stringify(existing.alt_phones ?? []) !== JSON.stringify(r.altPhones)) {
+          refresh.alt_phones = r.altPhones;
+        }
+        if (r.agent && existing.assigned_agent !== r.agent) refresh.assigned_agent = r.agent;
+        if (Object.keys(refresh).length) customerRefreshes.set(existing.id, refresh);
       } else {
         const key = r.name.toLowerCase();
         if (!newByKey.has(key)) newByKey.set(key, r);
@@ -274,6 +305,8 @@ export class ImportService {
       business_id: businessId,
       customer_name: r.name,
       phone: r.phone,
+      alt_phones: r.altPhones,
+      assigned_agent: r.agent,
       city: r.city,
     }));
 
@@ -287,6 +320,16 @@ export class ImportService {
     for (const c of createdCustomers) {
       if (c.phone) byPhone.set(c.phone, c);
       byName.set(c.customer_name.trim().toLowerCase(), c);
+    }
+
+    // Apply fallback-number / agent refreshes to matched customers (chunked)
+    const refreshEntries = Array.from(customerRefreshes.entries());
+    for (let i = 0; i < refreshEntries.length; i += 25) {
+      await Promise.all(
+        refreshEntries.slice(i, i + 25).map(([id, data]) =>
+          this.prisma.customer.update({ where: { id }, data }),
+        ),
+      );
     }
 
     const customersCreated = createdCustomers.length;

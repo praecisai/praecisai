@@ -63,7 +63,8 @@ export class WhatsappService {
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
 
-    const rules = parseSegmentRules(customer.business.segment_rules);
+    // A per-customer custom schedule overrides the business segment rules
+    const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
 
     const invoices: StatementInvoice[] = customer.invoices.map((inv) => ({
       billNo: inv.invoice_number,
@@ -146,12 +147,15 @@ export class WhatsappService {
   // whatsapp-statements worker drains the queue in the background; per-customer
   // failures are logged there (and in WhatsAppLog) without stopping the run.
   async sendSegmentStatements(businessId: string, segment: string, vipOnly = false) {
+    // VIP protection: VIPs NEVER receive bulk messages unless explicitly
+    // targeted (vipOnly toggle, or the special "VIP" segment = all VIPs).
+    const isVipSegment = segment === 'VIP';
     const outstandings = await this.prisma.outstanding.findMany({
       where: {
         business_id: businessId,
-        segment,
         status: 'ACTIVE',
-        ...(vipOnly && { customer: { is_vip: true } }),
+        ...(isVipSegment ? {} : { segment }),
+        customer: { is_vip: isVipSegment || vipOnly },
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
     });

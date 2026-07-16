@@ -41,10 +41,13 @@ export interface Customer {
   business_id: string;
   customer_name: string;
   phone: string | null;
+  alt_phones: string[];
   email: string | null;
   city: string | null;
   tags: string[];
   is_vip: boolean;
+  assigned_agent: string | null;
+  custom_schedule: SegmentRule[] | null;
   created_at: string;
   updated_at: string;
   // Relations
@@ -296,7 +299,9 @@ export const DEFAULT_SEGMENT_RULES: SegmentRule[] = [
 export interface CustomerFilters extends PaginationParams {
   search?: string;
   city?: string;
-  segment?: Segment;
+  // Segment name, or 'VIP' (pseudo-segment = all VIP customers)
+  segment?: string;
+  agent?: string;
   tag?: string;
   is_vip?: boolean;
 }

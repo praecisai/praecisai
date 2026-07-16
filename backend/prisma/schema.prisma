@@ -153,10 +153,18 @@ model Customer {
   business_id   String
   customer_name String
   phone         String?
+  // Fallback numbers (Excel rows can carry several) — dialed in order when the
+  // primary number goes unanswered; the chain stops at the first answered call.
+  alt_phones    String[] @default([])
   email         String?
   city          String?
   tags          String[] @default([])
   is_vip        Boolean  @default(false)
+  // Sales agent from the latest import (Excel AGENT column, party-level)
+  assigned_agent String?
+  // Per-customer segment day-range override; same shape as
+  // businesses.segment_rules. Null = follow the business rules.
+  custom_schedule Json?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
@@ -291,6 +299,9 @@ model CallLog {
   whatsapp_fulfilled       Boolean          @default(false)
   // Auto-scheduled callback re-dial time (customer said "baadme"/"kal"/etc.)
   next_call_at             DateTime?
+  // The number actually dialed (primary or an alt_phones fallback) — lets the
+  // webhook pick the NEXT number when this one goes unanswered.
+  dialed_phone             String?
 
   // Relations
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
