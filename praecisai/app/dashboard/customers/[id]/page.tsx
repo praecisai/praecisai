@@ -106,7 +106,7 @@ export default function CustomerDetailPage() {
                style={(customer.outstanding?.total_due ?? 0) <= 0 ? { color: 'var(--recovery-green)' } : {}}>
               {formatINR(customer.outstanding?.total_due ?? 0)}
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--walnut)' }}>{customer.outstanding?.aging_bucket ?? '—'} days bucket</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--walnut)' }}>{customer.outstanding?.aging_bucket ?? '-'} days bucket</p>
           </div>
         </div>
 
@@ -142,7 +142,8 @@ export default function CustomerDetailPage() {
                         </span>
                       </td>
                       <td className="text-sm text-slate-400">{inv.days_overdue}d</td>
-                      <td><StatusBadge status={inv.status} /></td>
+                      {/* Negative amounts are receipts/credit notes from Tally, not paid bills */}
+                      <td><StatusBadge status={inv.due_amount < 0 ? 'CREDIT' : inv.status} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -182,7 +183,7 @@ export default function CustomerDetailPage() {
               </div>
             )}
 
-            {/* Recent AI calls — summary, disposition, sentiment, PTP, recording */}
+            {/* Recent AI calls: summary, disposition, sentiment, PTP, recording */}
             {(customer.call_logs ?? []).length > 0 && (
               <div className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-3">

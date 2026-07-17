@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useInvoices } from '../../../lib/api/hooks';
+import { useInvoices, useCustomerAgents } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
+import { DatePicker } from '../../../components/ui/DatePicker';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR, formatDate } from '../../../lib/utils/format';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,6 +19,7 @@ export default function InvoicesPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 350);
   const { data, isLoading } = useInvoices(filters);
+  const { data: agents = [] } = useCustomerAgents();
 
   // Auto-update filters when debounced search changes
   useEffect(() => {
@@ -52,15 +54,25 @@ export default function InvoicesPage() {
               onChange={(v) => setFilters((f) => ({ ...f, status: (v as any) || undefined, page: 1 }))}
               options={[{ value: '', label: 'All Statuses' }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
             />
-            <div className="flex items-center gap-2 flex-1 min-w-[230px] sm:flex-none sm:w-auto">
-              <input
-                type="date" className="input-dark text-sm flex-1 min-w-0 sm:flex-none" style={{ width: 'auto' }}
-                onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined, page: 1 }))}
+            <Select
+              className="flex-1 min-w-[130px] sm:flex-none sm:w-52"
+              value={filters.sales_agent ?? ''}
+              onChange={(v) => setFilters((f) => ({ ...f, sales_agent: v || undefined, page: 1 }))}
+              options={[{ value: '', label: 'All Agents' }, ...agents.map((a) => ({ value: a, label: a }))]}
+            />
+            <div className="flex items-center gap-2 flex-1 min-w-[250px] sm:flex-none sm:w-auto">
+              <DatePicker
+                className="flex-1 min-w-[118px] sm:flex-none sm:w-36"
+                value={filters.date_from ?? ''}
+                onChange={(v) => setFilters((f) => ({ ...f, date_from: v || undefined, page: 1 }))}
+                placeholder="From date"
               />
               <span className="text-xs flex-shrink-0" style={{ color: 'var(--walnut)' }}>to</span>
-              <input
-                type="date" className="input-dark text-sm flex-1 min-w-0 sm:flex-none" style={{ width: 'auto' }}
-                onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined, page: 1 }))}
+              <DatePicker
+                className="flex-1 min-w-[118px] sm:flex-none sm:w-36"
+                value={filters.date_to ?? ''}
+                onChange={(v) => setFilters((f) => ({ ...f, date_to: v || undefined, page: 1 }))}
+                placeholder="To date"
               />
             </div>
           </div>
@@ -107,12 +119,12 @@ export default function InvoicesPage() {
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--mahogany)')}
                       onMouseLeave={e => (e.currentTarget.style.color = 'var(--dark-brown)')}
                     >
-                      {inv.customer?.customer_name ?? '—'}
+                      {inv.customer?.customer_name ?? '-'}
                     </Link>
                     {inv.customer?.city && <p className="text-xs mt-0.5" style={{ color: 'var(--walnut)' }}>{inv.customer.city}</p>}
                   </td>
                   <td className="text-sm" style={{ color: 'var(--walnut)' }}>{formatDate(inv.invoice_date)}</td>
-                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{inv.sales_agent ?? '—'}</td>
+                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{inv.sales_agent ?? '-'}</td>
                   <td className="text-right">
                     <span className={`text-sm font-semibold ${
                       inv.due_amount < 0 ? 'text-purple-600' :
@@ -126,7 +138,9 @@ export default function InvoicesPage() {
                       {inv.days_overdue ?? 0}d
                     </span>
                   </td>
-                  <td className="text-center"><StatusBadge status={inv.status} /></td>
+                  {/* Negative amounts are receipts/credit notes from the Tally
+                      export, not paid bills: label them CREDIT */}
+                  <td className="text-center"><StatusBadge status={inv.due_amount < 0 ? 'CREDIT' : inv.status} /></td>
                 </tr>
               ))}
             </tbody>

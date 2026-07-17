@@ -23,7 +23,7 @@ export class CallbackProcessor extends WorkerHost {
   async process(job: Job<{ businessId: string; customerId: string; scheduledFor: string }>) {
     const { businessId, customerId, scheduledFor } = job.data;
 
-    // VIP protection — VIPs never receive automated calls; the user must
+    // VIP protection: VIPs never receive automated calls; the user must
     // trigger them manually from the Outstandings dashboard.
     const customer = await this.prisma.customer.findUnique({
       where: { id: customerId },
@@ -38,7 +38,7 @@ export class CallbackProcessor extends WorkerHost {
     try {
       await this.callingService.queueCustomerCall(businessId, customerId);
     } catch (err: any) {
-      // Expected when the customer paid, has no phone, or is in cooldown — skip quietly.
+      // Expected when the customer paid, has no phone, or is in cooldown: skip quietly.
       this.logger.warn(`Callback re-dial skipped for ${customerId}: ${err?.message || err}`);
     }
   }

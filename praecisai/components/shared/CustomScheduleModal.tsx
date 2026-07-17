@@ -7,16 +7,16 @@ import api from '../../lib/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { SegmentRule } from '../../types';
 
-// Per-customer segment schedule editor — same shape as the business-level
+// Per-customer segment schedule editor: same shape as the business-level
 // Segment Rules in Settings, but saved onto the customer as custom_schedule.
 // Day ranges decide when this customer moves from Soft Reminder → Follow-up →
 // Strong Follow-up → Escalation, overriding the business defaults.
 
 const SEGMENT_META = [
-  { segment: 'Soft Reminder', color: 'var(--recovery-green, #4A7C59)', desc: 'Gentle first reminder — no pressure' },
+  { segment: 'Soft Reminder', color: 'var(--recovery-green, #4A7C59)', desc: 'Gentle first reminder: no pressure' },
   { segment: 'Follow-up', color: '#B8860B', desc: 'Friendly follow-up asking for a rough date' },
-  { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful — accounts team update' },
-  { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved — humble but urgent' },
+  { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful: accounts team update' },
+  { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved: humble but urgent' },
 ];
 
 const DEFAULT_BOUNDS = [60, 120, 180];
@@ -49,7 +49,7 @@ export function CustomScheduleModal({
   onClose,
 }: {
   target: ScheduleTarget;
-  // Remaining selected customers — the schedule can be applied to all of them
+  // Remaining selected customers: the schedule can be applied to all of them
   others?: ScheduleTarget[];
   onClose: () => void;
 }) {
@@ -75,8 +75,8 @@ export function CustomScheduleModal({
       qc.invalidateQueries({ queryKey: ['outstandings'] });
       toast.success(
         customSchedule
-          ? `Custom schedule saved for ${ids.length} customer${ids.length === 1 ? '' : 's'} — segments updated`
-          : `Custom schedule removed — back to business defaults`,
+          ? `Custom schedule saved for ${ids.length} customer${ids.length === 1 ? '' : 's'}: segments updated`
+          : `Custom schedule removed: back to business defaults`,
       );
       onClose();
     } catch (e: any) {
@@ -106,7 +106,7 @@ export function CustomScheduleModal({
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-sm" style={{ color: 'var(--dark-brown)' }}>
-              Custom Schedule — {target.customer_name}
+              Custom Schedule: {target.customer_name}
             </p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--walnut)' }}>
               These day ranges apply to this customer only, instead of the business-wide segment
@@ -175,7 +175,7 @@ export function CustomScheduleModal({
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-[rgba(198,40,40,0.06)] disabled:opacity-50"
               style={{ color: '#C62828', borderColor: 'rgba(198,40,40,0.35)' }}
             >
-              <RotateCcw size={13} /> Remove — use business default
+              <RotateCcw size={13} /> Remove: use business default
             </button>
           ) : <span />}
           <div className="flex gap-2 ml-auto">

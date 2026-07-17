@@ -27,7 +27,7 @@ export interface StatementData {
   business?: StatementBusinessInfo;
 }
 
-// Segment color themes — dark accent for bands/text, light tint for fills.
+// Segment color themes: dark accent for bands/text, light tint for fills.
 // Soft Reminder = light green, Follow-up = yellow, Strong Follow-up = orange,
 // Escalation = red (matches the WhatsApp campaign per segment).
 const SEGMENT_THEMES: Record<string, { accent: string; tint: string }> = {
@@ -40,7 +40,7 @@ const SEGMENT_THEMES: Record<string, { accent: string; tint: string }> = {
 const INK = '#1F2937';
 const MUTED = '#6B7280';
 
-// Business identity on the statement header. Hardcoded Aeromen for now — same
+// Business identity on the statement header. Hardcoded Aeromen for now: same
 // approach as the demo call flow's business_name (see demo.service.ts).
 const BUSINESS = {
   name: 'AEROMEN CLOTHING LLP',
@@ -59,7 +59,7 @@ export class StatementPdfService {
    * Render the outstanding statement as a PDF buffer. Layout mirrors the
    * approved Aeromen sample: header, statement band, party block, total box,
    * invoice table with per-row status, and a polite footer.
-   * Uses "Rs." instead of the rupee glyph — pdfkit's built-in Helvetica
+   * Uses "Rs." instead of the rupee glyph: pdfkit's built-in Helvetica
    * has no ₹ and embedding a font isn't worth it here.
    */
   async generate(data: StatementData): Promise<Buffer> {

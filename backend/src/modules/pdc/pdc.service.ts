@@ -4,7 +4,7 @@ import { PdcStatus } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import Fuse from 'fuse.js';
 
-// PDC Excel field aliases — detects columns in any order
+// PDC Excel field aliases: detects columns in any order
 const PDC_ALIASES = {
   party_name: ['Party Name', 'Party', 'Customer Name', 'Customer', 'Name', 'Client'],
   cheque_no:  ['Cheque No', 'Cheque Number', 'Chq No', 'Chq Number', 'Check No', 'Cheque No.'],
@@ -166,7 +166,7 @@ export class PdcService {
 
     if (pendingCheques.length === 0) return;
 
-    // FIFO by cheque date — match cleared amount to cheques
+    // FIFO by cheque date: match cleared amount to cheques
     let remaining = amountCleared;
     const clearedIds: string[] = [];
     let totalCleared = 0;

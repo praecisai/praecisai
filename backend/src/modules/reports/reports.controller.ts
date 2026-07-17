@@ -21,7 +21,7 @@ export class ReportsController {
     return this.reportsService.getRecoveryReport(businessId);
   }
 
-  // Downloadable PDF — ?type=positive|negative
+  // Downloadable PDF: ?type=positive|negative
   @Get('recovery/pdf')
   async downloadPdf(
     @BusinessId() businessId: string,

@@ -28,6 +28,7 @@ export function StatusBadge({ status }: { status: string }) {
     SUSPENDED:  'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
     INACTIVE:   'bg-slate-100   text-slate-600   border border-slate-200    dark:bg-slate-500/15   dark:text-slate-400   dark:border-slate-500/25',
     BOUNCED:    'bg-red-50      text-red-700     border border-red-200      dark:bg-red-500/15     dark:text-red-400     dark:border-red-500/25',
+    CREDIT:     'bg-purple-50   text-purple-700  border border-purple-200   dark:bg-purple-500/15  dark:text-purple-400  dark:border-purple-500/25',
   };
 
   const cls = colorMap[status] ?? 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-500/15 dark:text-slate-400 dark:border-slate-500/25';

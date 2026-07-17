@@ -111,10 +111,10 @@ export default function PdcPage() {
         <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4">
           <h3 className="font-display text-[13px] font-semibold text-[var(--mahogany)] mb-2">How PDC tracking works</h3>
           <ul className="space-y-1 font-body text-[12px] text-[var(--walnut)] list-none">
-            <li>📤 Upload your PDC Excel — fields auto-detected (Party Name, Cheque No, Date, Amount in any order)</li>
+            <li>📤 Upload your PDC Excel: fields auto-detected (Party Name, Cheque No, Date, Amount in any order)</li>
             <li>🔗 System matches party names to your outstanding list via fuzzy matching</li>
             <li>✅ When you upload a new outstanding and a party's due amount decreases → cheque auto-cleared</li>
-            <li>⏸ Cleared party enters <strong>15-day calling cooldown</strong> — agent won't call during this period</li>
+            <li>⏸ Cleared party enters <strong>15-day calling cooldown</strong>: agent won't call during this period</li>
             <li>📅 Multiple cheques: cooldown starts from the <strong>latest cleared cheque date</strong></li>
           </ul>
         </div>
@@ -134,7 +134,7 @@ export default function PdcPage() {
               {uploading ? 'Uploading…' : 'Drop your PDC Excel here or click to browse'}
             </p>
             <p className="font-body text-[11px] text-[var(--walnut)]">
-              Columns auto-detected — Party Name, Cheque No, Date, Amount (any order)
+              Columns auto-detected: Party Name, Cheque No, Date, Amount (any order)
             </p>
             <input
               ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
@@ -204,12 +204,12 @@ export default function PdcPage() {
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5 font-medium">{c.party_name}</td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5 text-[var(--walnut)]">{c.cheque_no}</td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5 text-[var(--walnut)]">
-                      {c.cheque_date ? new Date(c.cheque_date).toLocaleDateString('en-IN') : '—'}
+                      {c.cheque_date ? new Date(c.cheque_date).toLocaleDateString('en-IN') : '-'}
                     </td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5 font-medium">₹{Number(c.amount).toLocaleString('en-IN')}</td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5"><StatusBadge status={c.status} /></td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5 text-[var(--walnut)]">
-                      {c.cleared_date ? new Date(c.cleared_date).toLocaleDateString('en-IN') : '—'}
+                      {c.cleared_date ? new Date(c.cleared_date).toLocaleDateString('en-IN') : '-'}
                     </td>
                     <td className="px-3 py-2 sm:px-4 sm:py-2.5">
                       <div className="flex gap-1">

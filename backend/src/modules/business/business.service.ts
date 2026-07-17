@@ -18,7 +18,7 @@ export class UpdateBusinessDto {
   @IsEnum(['FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'])
   plan?: string;
 
-  // [{min_days, max_days, segment}] — validated structurally in the service
+  // [{min_days, max_days, segment}]: validated structurally in the service
   @IsOptional()
   @IsArray()
   segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;

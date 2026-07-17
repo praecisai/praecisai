@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Recent Activity — AI calls + WhatsApp sends */}
+          {/* Recent Activity: AI calls + WhatsApp sends */}
           <div className="glass-card p-4 sm:p-5">
             <p className="text-[10px] sm:text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-4">
               Recent Activity
@@ -201,13 +201,13 @@ export default function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <Link href={`/dashboard/customers/${a.customer?.id}`} className="text-sm font-medium text-[var(--dark-brown)] hover:text-[var(--mahogany)] truncate">
-                          {a.customer?.customer_name ?? '—'}
+                          {a.customer?.customer_name ?? '-'}
                         </Link>
                         <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--walnut)' }}>{formatDate(a.created_at)}</span>
                       </div>
                       <p className="text-xs truncate" style={{ color: 'var(--walnut)' }}>
                         {a.kind === 'call'
-                          ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? ` — ${a.call_summary}` : ''}`
+                          ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? `: ${a.call_summary}` : ''}`
                           : `${a.delivery_status} · ${a.message}`}
                       </p>
                       {a.kind === 'call' && a.promise_date && (

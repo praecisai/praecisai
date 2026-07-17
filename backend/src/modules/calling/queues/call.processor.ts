@@ -46,6 +46,7 @@ export class CallProcessor extends WorkerHost {
             handoff_number: context.handoff_number,
             greeting_time: context.greeting_time || 'Namaskar',
             days_mention: context.days_mention || '',
+            dispute_note: context.dispute_note || '',
           },
           metadata: callLogId ? { call_log_id: callLogId } : { demo_lead_id: demoLeadId },
         }),
@@ -62,7 +63,7 @@ export class CallProcessor extends WorkerHost {
       const callId = call.execution_id || call.run_id || call.call_id || call.id;
 
       if (callLogId) {
-        // Production customer call — link Bolna execution to the CallLog
+        // Production customer call: link Bolna execution to the CallLog
         await this.prisma.callLog.update({
           where: { id: callLogId },
           data: { retell_call_id: callId },

@@ -138,11 +138,11 @@ function ActivityRow({ a }: { a: any }) {
     : 'rgba(176,137,104,0.15)';
 
   const title =
-    a.kind === 'import' ? a.file_name : (a.customer?.customer_name ?? '—');
+    a.kind === 'import' ? a.file_name : (a.customer?.customer_name ?? '-');
 
   const body =
     a.kind === 'call'
-      ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? ` — ${a.call_summary}` : ''}`
+      ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? `: ${a.call_summary}` : ''}`
       : a.kind === 'whatsapp'
       ? `${a.delivery_status} · ${a.message}`
       : `${a.status} · ${a.records_imported ?? 0} records imported`;

@@ -74,11 +74,11 @@ export class CallingService {
 
     if (!customer) throw new NotFoundException('Customer not found');
     const dialPhone = opts.phoneOverride ?? customer.phone;
-    if (!dialPhone) throw new BadRequestException('Customer has no phone number — add one first');
+    if (!dialPhone) throw new BadRequestException('Customer has no phone number: add one first');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
 
-    // Sensitive situation cooldown — death/medical emergency pauses calling
+    // Sensitive situation cooldown: death/medical emergency pauses calling
     const sensitive = await this.prisma.callLog.findFirst({
       where: {
         customer_id: customerId,
@@ -96,7 +96,7 @@ export class CallingService {
       );
     }
 
-    // 60-min same-customer cooldown — never ring the same person twice in a
+    // 60-min same-customer cooldown: never ring the same person twice in a
     // row. Skipped for fallback dials to the next number of the SAME attempt.
     if (!opts.skipCooldown) {
       const recentCall = await this.prisma.callLog.findFirst({
@@ -112,7 +112,7 @@ export class CallingService {
       }
     }
 
-    // Multi-invoice totals — speak the TOTAL due, oldest days drives the segment.
+    // Multi-invoice totals: speak the TOTAL due, oldest days drives the segment.
     // A per-customer custom schedule overrides the business segment rules.
     const totalDue = customer.invoices.reduce((s, i) => s + i.due_amount, 0);
     const maxDays = Math.max(...customer.invoices.map((i) => i.days_overdue));
@@ -121,10 +121,10 @@ export class CallingService {
 
     const multiInvoiceNote =
       customer.invoices.length > 1
-        ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(totalDue)}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(totalDue)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
+        ? `IMPORTANT: Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(totalDue)}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(totalDue)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
         : '';
 
-    // Partial payment — bill amount higher than remaining due means money came in
+    // Partial payment: bill amount higher than remaining due means money came in
     const totalBilled = customer.invoices.reduce((s, i) => s + (i.amount || i.due_amount), 0);
     const previousPaid = Math.round(totalBilled - totalDue);
     const partialPaymentNote =
@@ -145,6 +145,27 @@ export class CallingService {
             orderBy: { created_at: 'asc' },
           });
     const histSummary = buildCallHistorySummary(history as any, segment);
+
+    // Unresolved dispute: if the LAST analyzed call ended as DISPUTE, Meena
+    // must FIRST ask whether the issue got sorted before any payment talk
+    // (the {dispute_note} section in the agent canvas). A resolved dispute
+    // ends the chain naturally: that call's disposition won't be DISPUTE.
+    const lastAnalyzed = await this.prisma.callLog.findFirst({
+      where: { customer_id: customerId, disposition: { not: null } },
+      orderBy: { created_at: 'desc' },
+      select: { disposition: true, key_objection: true, call_summary: true },
+    });
+    let disputeNote = '';
+    if (lastAnalyzed?.disposition === 'DISPUTE') {
+      const issue = lastAnalyzed.key_objection || lastAnalyzed.call_summary || '';
+      disputeNote =
+        `UNRESOLVED DISPUTE from the previous call.` +
+        (issue ? ` What the customer said last time: "${issue}".` : '') +
+        ` Before ANY payment talk, FIRST ask warmly whether that issue got resolved.` +
+        ` If they say YES (solve/clear ho gaya): continue the normal payment reminder and date question.` +
+        ` If they say NO (abhi bhi issue hai): do NOT push for payment, do NOT repeat the amount;` +
+        ` sympathize, say the seniors/accounts team will get it resolved quickly, and close warmly.`;
+    }
 
     const businessName = spokenBusinessName(customer.business.name);
     const segmentInstructions = buildSegmentInstructions(segment, businessName);
@@ -192,6 +213,7 @@ export class CallingService {
         handoff_number: customer.business.handoff_number || process.env.BOLNA_HANDOFF_NUMBER || '',
         greeting_time: getISTGreeting(),
         days_mention: daysMention,
+        dispute_note: disputeNote,
       },
     });
 
@@ -199,13 +221,13 @@ export class CallingService {
       success: true,
       callLogId: callLog.id,
       segment,
-      message: `Call queued to ${customer.customer_name} — their phone should ring shortly`,
+      message: `Call queued to ${customer.customer_name}: their phone should ring shortly`,
     };
   }
 
   // ─── Bulk: queue calls to every eligible customer in a segment ─────────────
   // Eligible = ACTIVE outstanding in the segment AND a phone number on file.
-  // Per-customer guards (sensitive cooldown, 60-min gap) still apply — those
+  // Per-customer guards (sensitive cooldown, 60-min gap) still apply: those
   // customers are reported as skipped, not errors.
   async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
     // VIP protection: VIPs NEVER receive automated/bulk calls unless the user
@@ -243,7 +265,7 @@ export class CallingService {
       queued,
       no_phone: noPhone,
       skipped,
-      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? ` — ${noPhone} customer(s) have no phone number` : ''}`,
+      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 
@@ -269,10 +291,10 @@ export class CallingService {
       });
 
     } else if (status === 'in-progress') {
-      // Call connected — nothing extra to do
+      // Call connected: nothing extra to do
 
     } else if (status === 'call-disconnected') {
-      // Call disconnected — save recording URL immediately
+      // Call disconnected: save recording URL immediately
       const recordingUrl = payload.telephony_data?.recording_url;
       if (recordingUrl) {
         await this.prisma.demoRun.updateMany({
@@ -286,7 +308,7 @@ export class CallingService {
       }
 
     } else if (status === 'completed') {
-      // Call completed — save recording and run analysis
+      // Call completed: save recording and run analysis
       const recordingUrl = payload.telephony_data?.recording_url;
       if (recordingUrl) {
         await this.prisma.demoRun.updateMany({
@@ -309,7 +331,7 @@ export class CallingService {
         where: { retell_call_id: callId },
         data: { call_status: CallStatus.FAILED },
       });
-      // Call never connected — try the customer's next number, if any
+      // Call never connected: try the customer's next number, if any
       await this.tryNextPhone(callId);
     }
   }
@@ -341,7 +363,7 @@ export class CallingService {
 
       const next = numbers[idx + 1];
       this.logger.log(
-        `No answer on ${log.dialed_phone} for ${customer.customer_name} — falling back to ${next} (${idx + 2}/${numbers.length})`,
+        `No answer on ${log.dialed_phone} for ${customer.customer_name}: falling back to ${next} (${idx + 2}/${numbers.length})`,
       );
       await this.queueCustomerCall(log.business_id, log.customer_id, {
         phoneOverride: next,
@@ -356,7 +378,7 @@ export class CallingService {
   private async handleCallAnalyzed(callId: string, payload: any) {
     const transcript: string = payload.transcript || '';
 
-    // Bolna extractions — deeply nested structure: extractions.field_name.field_name.subjective/objective
+    // Bolna extractions: deeply nested structure: extractions.field_name.field_name.subjective/objective
     const extractions = payload.custom_extractions || payload.extracted_data || payload.agent_extraction || {};
     this.logger.log(`Bolna extractions for ${callId}: ${JSON.stringify(extractions)}`);
 
@@ -383,7 +405,7 @@ export class CallingService {
     const extraction = await this.extractionService.extract(transcript);
 
     if (!extraction) {
-      this.logger.warn(`Extraction returned null for call ${callId} — storing Bolna data only`);
+      this.logger.warn(`Extraction returned null for call ${callId}: storing Bolna data only`);
     }
 
     const isSensitive = extraction?.is_sensitive ?? false;
@@ -411,7 +433,7 @@ export class CallingService {
       },
     });
 
-    // Production customer calls — same extraction, recorded on CallLog
+    // Production customer calls: same extraction, recorded on CallLog
     const durationRaw =
       payload.telephony_data?.duration ?? payload.conversation_duration;
     const durationSeconds =
@@ -477,7 +499,7 @@ export class CallingService {
             fulfilled = true;
             this.logger.log(`Auto-sent WhatsApp statement for call ${callId} (customer requested on call)`);
           } catch (err: any) {
-            this.logger.warn(`Auto WhatsApp after call ${callId} not delivered to file number — awaiting inbound reply: ${err?.message || err}`);
+            this.logger.warn(`Auto WhatsApp after call ${callId} not delivered to file number: awaiting inbound reply: ${err?.message || err}`);
           }
           await this.prisma.callLog.update({
             where: { id: callLog.id },
@@ -523,7 +545,7 @@ export class CallingService {
     }
 
     if (isSensitive) {
-      this.logger.warn(`Sensitive situation flagged for call ${callId} — cooldown applied`);
+      this.logger.warn(`Sensitive situation flagged for call ${callId}: cooldown applied`);
     }
 
     // Not picked up → immediately try the customer's next number (if the

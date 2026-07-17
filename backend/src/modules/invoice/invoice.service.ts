@@ -36,8 +36,19 @@ export class InvoiceService {
     if (status) where.status = status;
     if (sales_agent) where.sales_agent = { contains: sales_agent, mode: 'insensitive' };
     if (customer_id) where.customer_id = customer_id;
-    if (date_from) where.invoice_date = { ...where.invoice_date, gte: new Date(date_from) };
-    if (date_to) where.invoice_date = { ...where.invoice_date, lte: new Date(date_to) };
+    // Whole-day bounds so bills dated ON the from/to dates are included.
+    // (A bare new Date('2026-04-10') is midnight UTC, which excluded bills
+    // stored at local midnight of that same day.)
+    if (date_from) {
+      const from = new Date(date_from);
+      from.setHours(0, 0, 0, 0);
+      where.invoice_date = { ...where.invoice_date, gte: from };
+    }
+    if (date_to) {
+      const to = new Date(date_to);
+      to.setHours(23, 59, 59, 999);
+      where.invoice_date = { ...where.invoice_date, lte: to };
+    }
     if (search) {
       where.OR = [
         { invoice_number: { contains: search, mode: 'insensitive' } },

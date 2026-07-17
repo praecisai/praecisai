@@ -10,7 +10,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import OpenAI from 'openai';
 
-// ─── Hindi number words for multiples of 5 (in thousands) — 5 to 95 ──────────
+// ─── Hindi number words for multiples of 5 (in thousands): 5 to 95 ──────────
 const THOUSAND_WORDS: Record<number, string> = {
   5: 'पाँच', 10: 'दस', 15: 'पंद्रह', 20: 'बीस', 25: 'पच्चीस',
   30: 'तीस', 35: 'पैंतीस', 40: 'चालीस', 45: 'पैंतालीस', 50: 'पचास',
@@ -19,9 +19,9 @@ const THOUSAND_WORDS: Record<number, string> = {
 };
 
 // ─── Hindi amount approximation ──────────────────────────────────────────────
-// Converts exact rupee amounts to clean spoken Hindi — always rounded UP to
+// Converts exact rupee amounts to clean spoken Hindi: always rounded UP to
 // the nearest ₹5,000 for amounts under 1 lakh. DB and UI keep the exact amount;
-// only the spoken value on calls is rounded — customers get frustrated by exact figures.
+// only the spoken value on calls is rounded: customers get frustrated by exact figures.
 function amountToHindi(amount: number): string {
   if (amount <= 0) return 'कुछ amount';
 
@@ -52,7 +52,7 @@ function amountToHindi(amount: number): string {
   return `लगभग ${lakhs} लाख रुपये`;
 }
 
-// ─── Hindi cardinal number words (1-99) — for speaking counts like "days overdue" ──
+// ─── Hindi cardinal number words (1-99): for speaking counts like "days overdue" ──
 const HINDI_CARDINALS: Record<number, string> = {
   1: 'एक', 2: 'दो', 3: 'तीन', 4: 'चार', 5: 'पाँच',
   6: 'छह', 7: 'सात', 8: 'आठ', 9: 'नौ', 10: 'दस',
@@ -88,7 +88,7 @@ function numberToHindiWords(num: number): string {
   return remainder === 0 ? hundredsWord : `${hundredsWord} ${HINDI_CARDINALS[remainder]}`;
 }
 
-// ─── Proper case for TTS — converts "PATEL ENTERPRISES" to "Patel Enterprises"
+// ─── Proper case for TTS: converts "PATEL ENTERPRISES" to "Patel Enterprises"
 // All-caps names sound robotic when TTS reads them. Proper case sounds natural.
 function toProperCase(name: string): string {
   return name
@@ -184,7 +184,7 @@ async function transliterateNameToDevanagari(name: string): Promise<string> {
         {
           role: 'system',
           content:
-            'You transliterate Indian personal and business names from Roman script into Devanagari for a Hindi text-to-speech engine. Output ONLY the Devanagari transliteration — no translation, no explanation, no quotes, no extra text. Preserve every word including surnames and company words (Enterprises, Traders, Industries, LLP, Pvt Ltd). Use the natural Hindi pronunciation an Indian speaker would use.',
+            'You transliterate Indian personal and business names from Roman script into Devanagari for a Hindi text-to-speech engine. Output ONLY the Devanagari transliteration: no translation, no explanation, no quotes, no extra text. Preserve every word including surnames and company words (Enterprises, Traders, Industries, LLP, Pvt Ltd). Use the natural Hindi pronunciation an Indian speaker would use.',
         },
         { role: 'user', content: proper },
       ],
@@ -202,82 +202,82 @@ async function transliterateNameToDevanagari(name: string): Promise<string> {
 // Shared handling for outright refusal or a promise more than two months away.
 // Checked BEFORE the normal "any timeframe → close" line, else "तीन महीने" would
 // close instantly as just another timeframe.
-const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement — no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of THREE times in the whole call — if the customer refuses again after the third attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
+const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल"): do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement: no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of THREE times in the whole call: if the customer refuses again after the third attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
 
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
   'Soft Reminder': `
 SEGMENT: Soft Reminder
 
-ONLY DO THESE TWO THINGS — NOTHING ELSE:
+ONLY DO THESE TWO THINGS: NOTHING ELSE:
 1. Tell customer that {due_amount_hindi} is pending.
 2. Ask "आप please बताइए, कब तक clear हो सकता है?"
 
 THAT IS ALL. No pressure. No probing. No firmness.
 
-If customer gives ANY answer (date, week, month, anything) — say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
-If customer gives no answer — say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
+If customer gives ANY answer (date, week, month, anything): say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer: say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
 NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
 
   'Follow-up': `
 SEGMENT: Follow-up
 
-TONE: friendly, gentle reminder — you had contact before, this is just a soft follow-up. Never firm, never pressuring.
+TONE: friendly, gentle reminder: you had contact before, this is just a soft follow-up. Never firm, never pressuring.
 
 DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
 2. Ask warmly for a rough/expected date. Approximate is completely fine.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
 "यह एक छोटा सा follow-up call है, अगर approximate date भी हो तो चलेगा।"
 "आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
-The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने) — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
-If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
-If still no date — say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
+Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने): say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
+If customer gives truly vague answer ("जल्दी", "देखते हैं"): ask once more gently for a rough date.
+If still no date: say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
 
-TONE: firm but respectful — accounts team is asking you for an update. Always a request, never a demand or threat.
+TONE: firm but respectful: accounts team is asking you for an update. Always a request, never a demand or threat.
 
-MANDATORY ORDER — deliver every step, NEVER stop early:
+MANDATORY ORDER: deliver every step, NEVER stop early:
 1. (If partial payment) thank them for the previous payment.
 2. Accounts team is asking you for an update on this payment.
-3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
 4. Wait for the customer's answer.
-The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
+The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
 "मेरी तरफ से एक request थी, Accounts team मुझसे इस payment का update पूछ रही है।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
-The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal timeframe within two months — capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+Otherwise, if customer gives ANY normal timeframe within two months: capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague: ask once more for a rough date.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
 SEGMENT: Escalation
 
-Highest recovery stage. TONE: warm, humble, genuinely requesting — internal follow-up is really happening, but NO threat, NO legal mention, NO rudeness. Always remain humble.
+Highest recovery stage. TONE: warm, humble, genuinely requesting: internal follow-up is really happening, but NO threat, NO legal mention, NO rudeness. Always remain humble.
 
-MANDATORY ORDER — deliver every step, NEVER stop early:
+MANDATORY ORDER: deliver every step, NEVER stop early:
 1. (If partial payment) thank them for the previous payment.
 2. Accounts team and the senior team are asking about this account; you must give them an update.
-3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
 4. Wait for the customer's answer.
-The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
+The amount, the thanks, and the seniors' follow-up are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
 "मेरी तरफ से एक छोटी सी request है, Accounts team मुझसे update पूछ रही है।"
 "Senior team भी जानकारी चाहते हैं।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
-The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
 };
 
 // Resolves {business_name} here rather than leaving it for Bolna's template pass —
@@ -288,7 +288,7 @@ function buildSegmentInstructions(segment: string, businessName: string): string
   return template.replace(/\{business_name\}/g, businessName);
 }
 
-// IST greeting based on time of call — server runs UTC, IST = UTC+5:30
+// IST greeting based on time of call: server runs UTC, IST = UTC+5:30
 function getISTGreeting(): string {
   const nowUTC = new Date();
   const istMinutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes() + 330;
@@ -435,11 +435,11 @@ export class DemoService {
         }
       }
     } catch {
-      // estimate is optional — balance alone is still useful
+      // estimate is optional: balance alone is still useful
     }
 
     // Deepgram balance (STT bills the connected Deepgram account directly).
-    // Sarvam has no balance API — its credits are dashboard-only.
+    // Sarvam has no balance API: its credits are dashboard-only.
     let deepgramUsd: number | null = null;
     const dgKey = process.env.DEEPGRAM_API_KEY;
     if (dgKey) {
@@ -492,7 +492,7 @@ export class DemoService {
     // if (isCall && lead.calls_used >= lead.calls_allowed)
     //   throw new BadRequestException('Call demo limit reached');
 
-    // Sensitive situation cooldown — 18 days, overrides everything
+    // Sensitive situation cooldown: 18 days, overrides everything
     if (isCall) {
       const sensitiveCooldown = await this.demoLeadRepo.findActiveSensitiveCooldown(lead.id, dto.partyName);
       if (sensitiveCooldown?.sensitive_cooldown_until) {
@@ -506,7 +506,7 @@ export class DemoService {
     }
 
     // NOTE: 60-min same-number cooldown is enforced at the campaign/bulk-call level
-    // in production — NOT in the demo flow. Demo allows unlimited calls.
+    // in production: NOT in the demo flow. Demo allows unlimited calls.
 
     // Rule 2: Call history for this party (skip for Soft Reminder)
     const callHistory =
@@ -517,18 +517,18 @@ export class DemoService {
     const histSummary = buildCallHistorySummary(callHistory, dto.segment);
     const segmentInstructions = buildSegmentInstructions(dto.segment, lead.business_name);
 
-    // Rule 1: Multi-invoice — use total across all bills, not just current bill
+    // Rule 1: Multi-invoice: use total across all bills, not just current bill
     const isMultiInvoice =
       !!(dto.totalDueForParty && dto.maxDaysForParty && dto.totalDueForParty !== dto.dueAmount);
     const effectiveDueAmount = isMultiInvoice ? (dto.totalDueForParty ?? dto.dueAmount) : dto.dueAmount;
     const effectiveDays = isMultiInvoice ? (dto.maxDaysForParty ?? dto.daysOverdue) : dto.daysOverdue;
 
     const multiInvoiceNote = isMultiInvoice
-      ? `IMPORTANT — Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${numberToHindiWords(effectiveDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
+      ? `IMPORTANT: Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(effectiveDueAmount)}. The oldest bill is ${numberToHindiWords(effectiveDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(effectiveDueAmount)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
       : '';
 
-    // Rule 5: Partial payment — acknowledge what was paid, then mention remainder
-    // Approximate "when was the previous partial payment made" — demo uses ~20 days
+    // Rule 5: Partial payment: acknowledge what was paid, then mention remainder
+    // Approximate "when was the previous partial payment made": demo uses ~20 days
     // ago from the call date (we do not store the real partial-payment date).
     const prevPayDateHindi = formatHindiDate(new Date(Date.now() - 20 * 86400000));
     const partialPaymentNote =
@@ -656,8 +656,8 @@ export class DemoService {
       success: true,
       demoRunId: run.id,
       message: isWhatsapp
-        ? 'WhatsApp statement sent — check your WhatsApp'
-        : 'Call queued — your phone should ring shortly',
+        ? 'WhatsApp statement sent: check your WhatsApp'
+        : 'Call queued: your phone should ring shortly',
       whatsappRemaining: updatedLead.whatsapp_allowed - updatedLead.whatsapp_used,
       callsRemaining: updatedLead.calls_allowed - updatedLead.calls_used,
     };

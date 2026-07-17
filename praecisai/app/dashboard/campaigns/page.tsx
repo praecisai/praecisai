@@ -45,7 +45,7 @@ export default function CampaignsPage() {
     <div>
       <TopHeader title="Campaigns" subtitle="Manage outreach campaigns" />
       <div className="p-4 sm:p-6 space-y-5">
-        {/* Create button — uses fixed dark brown tones so it isn't blindingly bright in dark mode */}
+        {/* Create button: uses fixed dark brown tones so it isn't blindingly bright in dark mode */}
         <div className="flex justify-end">
           <button
             onClick={() => setShowCreate(true)}

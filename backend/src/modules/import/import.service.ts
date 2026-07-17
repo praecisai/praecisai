@@ -38,7 +38,7 @@ export interface ColumnMapping {
   confidence?: number;
 }
 
-// Fuzzy matching hints — alternate names businesses commonly use
+// Fuzzy matching hints: alternate names businesses commonly use
 const FIELD_ALIASES: Record<TargetField, string[]> = {
   customer_name: ['Party Name', 'Customer Name', 'Client', 'Name', 'Party', 'Customer'],
   city: ['City', 'Location', 'Place', 'Town', 'District'],
@@ -129,16 +129,17 @@ export class ImportService {
 
     const rows = this.parseFile(fileBuffer, ext);
 
-    // Preview real data rows — skip subtotal rows, apply the same
+    // Preview real data rows: skip subtotal rows, apply the same
     // party/city split the import will do
     const previewed: Array<{ row_index: number; mapped: any; raw: any; errors: any[] }> = [];
     for (let i = 0; i < rows.length && previewed.length < 5; i++) {
       const mapped = this.applyMapping(rows[i], mappings);
       if (mapped.customer_name && this.isTotalsRow(String(mapped.customer_name))) continue;
-      if (mapped.customer_name && !String(mapped.city ?? '').trim()) {
+      if (mapped.customer_name) {
         const split = this.splitPartyCity(String(mapped.customer_name));
         mapped.customer_name = split.name;
-        if (split.city) mapped.city = split.city;
+        // A dedicated city column always wins over the name-embedded city
+        if (!String(mapped.city ?? '').trim() && split.city) mapped.city = split.city;
       }
       const errors = this.validateRow(mapped, i + 1);
       previewed.push({ row_index: i + 1, mapped, raw: rows[i], errors });
@@ -166,6 +167,19 @@ export class ImportService {
     templateName?: string,
   ) {
     const history = await this.getHistory(businessId, historyId);
+
+    // Without these two columns nothing can be imported: fail fast with a
+    // message the one-click import UI can show directly.
+    const mappedFields = new Set(mappings.map((m) => m.target_field));
+    if (!mappedFields.has('customer_name') || !mappedFields.has('invoice_number')) {
+      const missing = [
+        !mappedFields.has('customer_name') && 'Party/Customer Name',
+        !mappedFields.has('invoice_number') && 'Bill/Invoice Number',
+      ].filter(Boolean).join(' and ');
+      throw new BadRequestException(
+        `Could not detect the ${missing} column(s) in this file. Please check the column headings and try again.`,
+      );
+    }
 
     // Mark as processing
     await this.prisma.importHistory.update({
@@ -200,17 +214,19 @@ export class ImportService {
       const rowNum = i + 1;
       const mapped = this.applyMapping(rows[i], mappings);
 
-      // Skip subtotal/grand-total rows silently — they are not data
+      // Skip subtotal/grand-total rows silently: they are not data
       if (mapped.customer_name && this.isTotalsRow(String(mapped.customer_name))) {
         skipped++;
         continue;
       }
 
-      // Split "PARTY -CITY" suffix when the file has no city column
-      if (mapped.customer_name && !String(mapped.city ?? '').trim()) {
+      // Clean the party name and pull the city out of it ("PARTY -CITY"
+      // suffix or trailing "(CITY)" bracket). A dedicated city column,
+      // when the business provides one, always wins.
+      if (mapped.customer_name) {
         const split = this.splitPartyCity(String(mapped.customer_name));
         mapped.customer_name = split.name;
-        if (split.city) mapped.city = split.city;
+        if (!String(mapped.city ?? '').trim() && split.city) mapped.city = split.city;
       }
 
       const rowErrors = this.validateRow(mapped, rowNum);
@@ -223,7 +239,7 @@ export class ImportService {
       const dueAmount = parseFloat(String(mapped.due_amount ?? '0').replace(/[^0-9.\-]/g, '')) || 0;
       const billAmountRaw = parseFloat(String(mapped.bill_amount ?? '').replace(/[^0-9.\-]/g, ''));
 
-      // A cell can hold several numbers — first is primary, rest are
+      // A cell can hold several numbers: first is primary, rest are
       // fallbacks dialed when the primary goes unanswered.
       const phones = mapped.phone ? parsePhones(mapped.phone) : [];
 
@@ -264,23 +280,26 @@ export class ImportService {
       alt_phones?: string[];
       assigned_agent?: string | null;
     }
+    // Whitespace-insensitive keys: older imports stored names with embedded
+    // line breaks / double spaces: those must still match the cleaned names.
+    const normName = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
     const byPhone = new Map<string, ExistingCustomer>();
     const byName = new Map<string, ExistingCustomer>();
     for (const c of existingCustomers) {
       if (c.phone) byPhone.set(c.phone, c);
-      byName.set(c.customer_name.trim().toLowerCase(), c);
+      byName.set(normName(c.customer_name), c);
     }
 
     // NAME-first identity: in accounting exports the party name is the real
-    // identity — phones can repeat across parties (one proprietor, several
+    // identity: phones can repeat across parties (one proprietor, several
     // shops; or the owner testing with their own number). Matching phone-first
     // would silently merge distinct parties into one customer.
     const resolveExisting = (r: ParsedRow) =>
-      byName.get(r.name.toLowerCase()) || (r.phone && byPhone.get(r.phone)) || null;
+      byName.get(normName(r.name)) || (r.phone && byPhone.get(r.phone)) || null;
 
     // Distinct new customers (first occurrence wins), keyed by name.
     // For matched customers, refresh fallback numbers / agent from the file
-    // (primary phone is never overwritten — manual dashboard edits win).
+    // (primary phone is never overwritten: manual dashboard edits win).
     const newByKey = new Map<string, ParsedRow>();
     const matchedIds = new Set<string>();
     const customerRefreshes = new Map<string, { alt_phones?: string[]; assigned_agent?: string; phone?: string }>();
@@ -348,7 +367,7 @@ export class ImportService {
     });
     const existingByNumber = new Map(existingInvoices.map((i) => [i.invoice_number, i]));
 
-    // Deduplicate within the file — first row of an invoice number wins
+    // Deduplicate within the file: first row of an invoice number wins
     const invoiceByNumber = new Map<string, ParsedRow>();
     for (const r of parsedRows) {
       if (!invoiceByNumber.has(r.invoiceNumber)) invoiceByNumber.set(r.invoiceNumber, r);
@@ -360,7 +379,7 @@ export class ImportService {
 
     for (const r of invoiceByNumber.values()) {
       const customer = resolveExisting(r);
-      if (!customer) continue; // cannot happen — created above
+      if (!customer) continue; // cannot happen: created above
       affectedCustomerIds.add(customer.id);
 
       const status = r.dueAmount <= 0 ? 'PAID' : r.daysOverdue > 0 ? 'OVERDUE' : 'PENDING';
@@ -412,7 +431,7 @@ export class ImportService {
     }
     const invoicesUpdated = invoiceUpdates.length;
 
-    // Bills that disappeared from the report were paid — clear them
+    // Bills that disappeared from the report were paid: clear them
     const cleared = existingInvoices.filter(
       (i) => !invoiceByNumber.has(i.invoice_number) && i.due_amount !== 0,
     );
@@ -603,16 +622,31 @@ export class ImportService {
    * Tally exports often embed the city in the party name as a suffix:
    * "59 COLOURS                    -LUDHIANA". Split at the LAST " -"
    * so names containing brackets/dashes stay intact.
+   * When there is no suffix, fall back to a trailing "(CITY)" bracket —
+   * "A.MISTER FASHION (AMRAVATI)" → city AMRAVATI (the bracket stays in the
+   * name, since it distinguishes branches like "PANJO (BORIVALI)").
+   * Multi-space/newline runs inside names are collapsed to one space.
    */
   private splitPartyCity(name: string): { name: string; city: string | null } {
-    const match = name.match(/^(.*\S)\s+-\s*([A-Za-z0-9 .()&'\/]+)$/);
+    const cleaned = name.replace(/\s+/g, ' ').trim();
+    const match = cleaned.match(/^(.*\S)\s+-\s*([A-Za-z0-9 .()&'\/]+)$/);
     if (match) {
       return { name: match[1].trim(), city: match[2].trim() };
     }
-    return { name: name.trim(), city: null };
+    // Letters-only bracket = place name; digits in brackets are phone/codes.
+    // Common non-city tags ("(NEW)", "(MAIN)") are skipped.
+    const bracket = cleaned.match(/\(([A-Za-z .'&-]{2,})\)\s*$/);
+    if (bracket) {
+      const inner = bracket[1].trim();
+      const NOT_CITIES = new Set(['NEW', 'OLD', 'MAIN', 'HO', 'H.O', 'H.O.', 'SHOP', 'BRANCH', 'RETAIL', 'WHOLESALE']);
+      if (!NOT_CITIES.has(inner.toUpperCase())) {
+        return { name: cleaned, city: inner };
+      }
+    }
+    return { name: cleaned, city: null };
   }
 
-  /** Subtotal/grand-total rows from accounting exports — not real parties. */
+  /** Subtotal/grand-total rows from accounting exports: not real parties. */
   private isTotalsRow(customerName: string): boolean {
     return /^(PARTY|GRAND|SUB)?\s*TOTALS?$/i.test(customerName.trim());
   }
@@ -621,7 +655,7 @@ export class ImportService {
     const results: Array<{ target_field: TargetField; source_column: string; confidence: number }> = [];
     const claimed = new Set<string>();
 
-    // Pass 1 — exact alias matches claim their header
+    // Pass 1: exact alias matches claim their header
     const fuzzyFields: [TargetField, string[]][] = [];
     for (const [field, aliases] of Object.entries(FIELD_ALIASES) as [TargetField, string[]][]) {
       const exactMatch = headers.find(
@@ -636,7 +670,7 @@ export class ImportService {
       }
     }
 
-    // Pass 2 — fuzzy match only over headers no other field has claimed.
+    // Pass 2: fuzzy match only over headers no other field has claimed.
     // High bar (0.65): a wrong auto-mapping (e.g. phone ← "BILL NO.") is far
     // worse than leaving the field for the user to map manually.
     for (const [field, aliases] of fuzzyFields) {

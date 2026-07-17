@@ -1,13 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useCustomers, useVipImport, useUpdateCustomer } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { SegmentBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR } from '../../../lib/utils/format';
-import { Star, Upload, ShieldCheck, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Star, Upload, ShieldCheck, ChevronLeft, ChevronRight, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useDebounce } from '../../../lib/hooks/useDebounce';
 
 function UnstarButton({ customerId, name }: { customerId: string; name: string }) {
   const update = useUpdateCustomer(customerId);
@@ -32,8 +33,12 @@ function UnstarButton({ customerId, name }: { customerId: string; name: string }
 
 export default function VipPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useCustomers({ is_vip: true, page, limit: 20 });
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
+  const { data, isLoading } = useCustomers({ is_vip: true, page, limit: 20, search: debouncedSearch || undefined });
   const vipImport = useVipImport();
+
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [lastResult, setLastResult] = useState<any>(null);
 
@@ -57,7 +62,7 @@ export default function VipPage() {
 
   return (
     <div>
-      <TopHeader title="VIP Customers" subtitle={`${total} VIP customers — protected from automated calls & messages`} />
+      <TopHeader title="VIP Customers" subtitle={`${total} VIP customers: protected from automated calls & messages`} />
 
       <div className="p-4 sm:p-6 space-y-4">
         {/* Explainer + upload */}
@@ -121,6 +126,21 @@ export default function VipPage() {
           </div>
         </div>
 
+        {/* Search */}
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 input-dark max-w-md" style={{ padding: '8px 12px' }}>
+            <Search size={14} className="flex-shrink-0" style={{ color: 'var(--walnut)' }} />
+            <input
+              type="text"
+              placeholder="Search VIP customers…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-transparent border-none outline-none text-sm w-full"
+              style={{ color: 'var(--dark-brown)' }}
+            />
+          </div>
+        </div>
+
         {/* VIP table */}
         <div className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -163,13 +183,13 @@ export default function VipPage() {
                       </span>
                     </Link>
                   </td>
-                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{c.city ?? '—'}</td>
-                  <td className="text-xs font-mono" style={{ color: 'var(--walnut)' }}>{c.phone ?? '—'}</td>
-                  <td className="text-xs" style={{ color: 'var(--walnut)' }}>{c.assigned_agent ?? '—'}</td>
+                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{c.city ?? '-'}</td>
+                  <td className="text-xs font-mono" style={{ color: 'var(--walnut)' }}>{c.phone ?? '-'}</td>
+                  <td className="text-xs" style={{ color: 'var(--walnut)' }}>{c.assigned_agent ?? '-'}</td>
                   <td>
                     {c.outstanding?.segment
                       ? <SegmentBadge segment={c.outstanding.segment} />
-                      : <span className="text-slate-600 text-xs">—</span>}
+                      : <span className="text-slate-600 text-xs">-</span>}
                   </td>
                   <td className="text-right">
                     <span className={`text-sm font-semibold ${(c.outstanding?.total_due ?? 0) > 0 ? 'text-red-500' : ''}`}

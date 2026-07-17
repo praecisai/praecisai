@@ -79,7 +79,7 @@ export class RunDemoDto {
   @IsOptional()
   agentName?: string;
 
-  // All open invoices for this party — rows of the statement table
+  // All open invoices for this party: rows of the statement table
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DemoInvoiceDto)

@@ -14,10 +14,10 @@ const TABS = [
 ];
 
 const SEGMENT_META = [
-  { segment: 'Soft Reminder', color: 'var(--recovery-green)', desc: 'Gentle first reminder — no pressure' },
+  { segment: 'Soft Reminder', color: 'var(--recovery-green)', desc: 'Gentle first reminder: no pressure' },
   { segment: 'Follow-up', color: '#B8860B', desc: 'Friendly follow-up asking for a rough date' },
-  { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful — accounts team update' },
-  { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved — humble but urgent' },
+  { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful: accounts team update' },
+  { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved: humble but urgent' },
 ];
 
 const DEFAULT_BOUNDS = [60, 120, 180];
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Business ID</label>
-                  <p className="text-xs font-mono text-[var(--walnut)] px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>{user?.business_id ?? '—'}</p>
+                  <p className="text-xs font-mono text-[var(--walnut)] px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>{user?.business_id ?? '-'}</p>
                 </div>
                 <button
                   onClick={saveBusiness}
@@ -193,7 +193,7 @@ export default function SettingsPage() {
             <div className="glass-card p-4 sm:p-6">
               <h3 className="font-semibold text-[var(--dark-brown)] mb-1">Segment Rules</h3>
               <p className="text-xs text-[var(--walnut)] mb-5">
-                Day ranges decide each customer&apos;s segment — which controls the AI call script, the WhatsApp
+                Day ranges decide each customer&apos;s segment: which controls the AI call script, the WhatsApp
                 template and the statement colour. Edit the upper bound of the first three segments; saving
                 re-segments every customer instantly.
               </p>

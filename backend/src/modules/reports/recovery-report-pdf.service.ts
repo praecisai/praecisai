@@ -150,7 +150,7 @@ export class RecoveryReportPdfService {
       .fillColor(MUTED)
       .fontSize(7)
       .text(
-        `${params.businessName} | Computer-generated recovery report — based on AI call outcomes.`,
+        `${params.businessName} | Computer-generated recovery report: based on AI call outcomes.`,
         left,
         doc.page.height - 52,
         { width: contentWidth, align: 'center', lineBreak: false },

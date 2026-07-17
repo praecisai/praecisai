@@ -6,6 +6,7 @@ import { getSegment, getAgingBucket, parseSegmentRules } from '../../common/util
 import { PdcService } from '../pdc/pdc.service';
 
 export class OutstandingFiltersDto {
+  @IsOptional() search?: string;
   @IsOptional() segment?: string;
   @IsOptional() aging_bucket?: string;
   @IsOptional() status?: string;
@@ -21,13 +22,22 @@ export class OutstandingService {
   ) {}
 
   async findAll(businessId: string, filters: OutstandingFiltersDto = {}) {
-    const { segment, aging_bucket, status, page = 1, limit = 20 } = filters;
+    const { search, segment, aging_bucket, status, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
     const where: any = { business_id: businessId };
+    const customerWhere: any = {};
     // "VIP" is a pseudo-segment: all VIP customers regardless of day range
-    if (segment === 'VIP') where.customer = { is_vip: true };
+    if (segment === 'VIP') customerWhere.is_vip = true;
     else if (segment) where.segment = segment;
+    if (search) {
+      customerWhere.OR = [
+        { customer_name: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { city: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (Object.keys(customerWhere).length) where.customer = customerWhere;
     if (aging_bucket) where.aging_bucket = aging_bucket;
     if (status) where.status = status;
 
@@ -114,7 +124,7 @@ export class OutstandingService {
       try {
         await this.pdcService.detectClearedCheques(businessId, customerId, prevDue, totalDue);
       } catch (e) {
-        // non-blocking — PDC detection failure should not break import
+        // non-blocking: PDC detection failure should not break import
       }
     }
 
@@ -125,7 +135,7 @@ export class OutstandingService {
    * Set-based recalc for many customers at once (used by import).
    * 2 reads + chunked parallel upserts instead of 4+ queries per customer.
    * PDC cheque detection still runs, but only for the customers whose due
-   * actually decreased — on a fresh import that is nobody.
+   * actually decreased: on a fresh import that is nobody.
    */
   async bulkRecalculate(businessId: string, customerIds: string[]): Promise<number> {
     if (customerIds.length === 0) return 0;
@@ -213,7 +223,7 @@ export class OutstandingService {
       try {
         await this.pdcService.detectClearedCheques(businessId, d.customerId, d.prevDue, d.newDue);
       } catch {
-        // non-blocking — PDC detection failure should not break import
+        // non-blocking: PDC detection failure should not break import
       }
     }
 
@@ -240,7 +250,7 @@ export class OutstandingService {
   }
 
   /**
-   * Per-segment totals for the Outstandings header cards — segments are the
+   * Per-segment totals for the Outstandings header cards: segments are the
    * only grouping concept the product exposes (their day ranges are the
    * business's own segment_rules).
    */

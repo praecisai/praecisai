@@ -14,10 +14,13 @@ import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import { SegmentBadge, StatusBadge } from '../../../components/shared/SegmentBadge';
 import { formatINR, formatNumber } from '../../../lib/utils/format';
-import { ChevronLeft, ChevronRight, Phone, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Phone, MessageCircle, Search } from 'lucide-react';
 import Link from 'next/link';
 import { ConfirmModal } from '../../../components/shared/ConfirmModal';
 import { toast } from 'sonner';
+import { useDebounce } from '../../../lib/hooks/useDebounce';
+
+const AGING_BUCKETS = ['0-60', '61-120', '121-180', '181+'];
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
 
@@ -28,7 +31,7 @@ const SEGMENT_COLORS: Record<string, string> = {
   'Escalation': '#C62828',
 };
 
-// Inline phone editor — most Tally imports carry no phone numbers, so they
+// Inline phone editor: most Tally imports carry no phone numbers, so they
 // get filled in right here before the first call/message.
 function PhoneCell({ customerId, phone }: { customerId: string; phone: string | null }) {
   const [local, setLocal] = useState(phone ?? '');
@@ -63,7 +66,13 @@ function PhoneCell({ customerId, phone }: { customerId: string; phone: string | 
 
 export default function OutstandingsPage() {
   const [filters, setFilters] = useState({ page: 1, limit: 20 } as any);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
   const { data, isLoading } = useOutstandings(filters);
+
+  useEffect(() => {
+    setFilters((f: any) => ({ ...f, search: debouncedSearch || undefined, page: 1 }));
+  }, [debouncedSearch]);
   const { data: segmentTotals = [] } = useSegmentBreakdown();
   const callCustomer = useCallCustomer();
   const sendWhatsApp = useSendWhatsAppStatement();
@@ -177,7 +186,7 @@ export default function OutstandingsPage() {
     <div>
       <TopHeader title="Outstandings" subtitle="Segment-wise recovery workspace" />
       <div className="p-4 sm:p-6 space-y-5">
-        {/* Segment summary cards — click to filter */}
+        {/* Segment summary cards: click to filter */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {segmentTotals.map((b: any) => (
             <button
@@ -198,6 +207,18 @@ export default function OutstandingsPage() {
         {/* Filters */}
         <div className="glass-card p-4">
           <div className="flex flex-wrap gap-3 items-center">
+            {/* Search */}
+            <div className="flex items-center gap-2 flex-1 min-w-44 input-dark" style={{ padding: '8px 12px' }}>
+              <Search size={14} className="flex-shrink-0" style={{ color: 'var(--walnut)' }} />
+              <input
+                type="text"
+                placeholder="Search party, phone, city…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm w-full"
+                style={{ color: 'var(--dark-brown)' }}
+              />
+            </div>
             <Select
               className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
@@ -208,15 +229,25 @@ export default function OutstandingsPage() {
                 { value: 'VIP', label: '⭐ VIP' },
               ]}
             />
-            {filters.segment && (
-              <button onClick={() => setFilters({ page: 1, limit: 20 })}
+            {/* Aging bucket */}
+            <Select
+              className="flex-1 min-w-[110px] sm:flex-none sm:w-36"
+              value={filters.aging_bucket ?? ''}
+              onChange={(v) => setFilters((f: any) => ({ ...f, aging_bucket: v || undefined, page: 1 }))}
+              options={[
+                { value: '', label: 'All Ages' },
+                ...AGING_BUCKETS.map((b) => ({ value: b, label: `${b} days` })),
+              ]}
+            />
+            {(filters.segment || filters.aging_bucket || filters.search) && (
+              <button onClick={() => { setSearch(''); setFilters({ page: 1, limit: 20 }); }}
                 className="px-3 py-2 rounded-lg text-sm border transition-all hover:bg-[rgba(127,85,57,0.06)]"
                 style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.3)' }}>
                 Clear
               </button>
             )}
 
-            {/* Bulk actions — enabled when one segment is selected.
+            {/* Bulk actions: enabled when one segment is selected.
                 VIPs never receive automated sends; bulk actions here are the
                 ONLY way to reach them ("VIP" segment or the VIP-only toggle). */}
             {filters.segment && filters.segment !== 'Cleared' && (
@@ -292,15 +323,15 @@ export default function OutstandingsPage() {
                 <tr key={row.id}>
                   <td>
                     <Link href={`/dashboard/customers/${row.customer?.id}`} className="text-sm font-medium text-[var(--dark-brown)] hover:text-[var(--mahogany)] transition-colors">
-                      {row.customer?.is_vip && <span title="VIP — automated calls/messages are blocked" className="mr-1">⭐</span>}
-                      {row.customer?.customer_name ?? '—'}
+                      {row.customer?.is_vip && <span title="VIP: automated calls/messages are blocked" className="mr-1">⭐</span>}
+                      {row.customer?.customer_name ?? '-'}
                     </Link>
                   </td>
-                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{row.customer?.city ?? '—'}</td>
+                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{row.customer?.city ?? '-'}</td>
                   <td>
                     {row.customer?.id
                       ? <PhoneCell customerId={row.customer.id} phone={row.customer.phone ?? null} />
-                      : <span style={{ color: 'var(--walnut)' }}>—</span>}
+                      : <span style={{ color: 'var(--walnut)' }}>-</span>}
                   </td>
                   <td><SegmentBadge segment={row.segment} /></td>
                   <td className="text-right">
@@ -331,7 +362,7 @@ export default function OutstandingsPage() {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-slate-600 text-xs">—</span>
+                      <span className="text-slate-600 text-xs">-</span>
                     )}
                   </td>
                 </tr>

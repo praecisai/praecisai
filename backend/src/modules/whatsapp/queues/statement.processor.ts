@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { WhatsappService } from '../whatsapp.service';
 
 // Drains bulk statement sends in the background so the HTTP request returns
-// instantly. Sequential (concurrency 1) — each send does PDF generation +
+// instantly. Sequential (concurrency 1): each send does PDF generation +
 // storage upload + AiSensy call, and AiSensy needs no parallelism.
 // Failures are per-customer: sendStatementToCustomer already writes a FAILED
 // WhatsAppLog for AiSensy errors; we log and swallow so one bad customer

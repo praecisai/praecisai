@@ -96,7 +96,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Nav — scrollable, pushes footer to bottom */}
+        {/* Nav: scrollable, pushes footer to bottom */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;

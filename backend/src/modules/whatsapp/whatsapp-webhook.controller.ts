@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { WhatsappService } from './whatsapp.service';
 
 /**
- * Public endpoint for AiSensy inbound-message webhooks. No JWT — external
+ * Public endpoint for AiSensy inbound-message webhooks. No JWT: external
  * service. Protected by a shared secret in the URL (?token=...) matched
  * against AISENSY_INBOUND_TOKEN. Always answers 200 fast so AiSensy does not
  * retry, then processes asynchronously.
@@ -26,7 +26,7 @@ export class WhatsappWebhookController {
     try {
       await this.whatsappService.handleInbound(payload);
     } catch (err) {
-      // Never throw back to AiSensy — already responded 200
+      // Never throw back to AiSensy: already responded 200
       console.error('Inbound WhatsApp handling error:', err);
     }
   }

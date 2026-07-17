@@ -225,7 +225,7 @@ export class CustomerService {
     }
     if (headerIdx === -1) {
       throw new BadRequestException(
-        'Could not find the columns — the file needs a PARTY (or Customer Name) column and a VIP column with Yes/No values',
+        'Could not find the columns: the file needs a PARTY (or Customer Name) column and a VIP column with Yes/No values',
       );
     }
 
@@ -234,8 +234,9 @@ export class CustomerService {
       where: { business_id: businessId },
       select: { id: true, customer_name: true, is_vip: true },
     });
+    const normName = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
     const byName = new Map<string, { id: string; is_vip: boolean }>();
-    for (const c of customers) byName.set(c.customer_name.trim().toLowerCase(), c);
+    for (const c of customers) byName.set(normName(c.customer_name), c);
 
     const stripCity = (name: string) => name.replace(/\s+-\s*[A-Za-z0-9 .()&'\/]+$/, '').trim();
 
@@ -257,7 +258,7 @@ export class CustomerService {
       if (!isVip && !isNotVip) continue;
 
       const match =
-        byName.get(rawName.toLowerCase()) ?? byName.get(stripCity(rawName).toLowerCase());
+        byName.get(normName(rawName)) ?? byName.get(normName(stripCity(rawName)));
       if (!match) {
         unmatched.push(rawName);
         continue;
@@ -286,7 +287,7 @@ export class CustomerService {
       unstarred: toUnstar.length,
       unmatched: unmatched.slice(0, 50),
       unmatched_count: unmatched.length,
-      message: `${toStar.length} customer(s) marked VIP, ${toUnstar.length} removed${unmatched.length ? ` — ${unmatched.length} name(s) not found` : ''}`,
+      message: `${toStar.length} customer(s) marked VIP, ${toUnstar.length} removed${unmatched.length ? `: ${unmatched.length} name(s) not found` : ''}`,
     };
   }
 }

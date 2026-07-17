@@ -8,7 +8,7 @@ import { Download, ThumbsUp, ThumbsDown, PhoneCall } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
-// How each call outcome is decided (mirrors the backend rules) — shown to the
+// How each call outcome is decided (mirrors the backend rules): shown to the
 // user in plain English so the reports are self-explanatory.
 const RULES = [
   { label: 'Willing to Pay', detail: 'Customer acknowledged the amount and is willing to pay → Positive' },
@@ -17,11 +17,11 @@ const RULES = [
   { label: 'Keeps Asking to Call Later', detail: 'More than 6 “call me later” in a row → Negative' },
   { label: 'Not Answering Calls', detail: 'More than 6 unanswered calls in a row → Negative' },
   { label: 'Unclear Response', detail: 'More than 6 unclear calls in a row → Negative' },
-  { label: 'Disputed the Bill', detail: 'Kept out of both reports for now — handled separately' },
+  { label: 'Disputed the Bill', detail: 'Every call first checks if the dispute got resolved. Resolved → normal follow-up continues; still disputing after more than 6 calls in a row → Negative' },
 ];
 
 function formatDate(d: string | Date | null) {
-  if (!d) return '—';
+  if (!d) return '-';
   const date = new Date(d);
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
@@ -30,7 +30,7 @@ function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
   if (!entries?.length) {
     return (
       <p className="text-sm text-center py-10" style={{ color: 'var(--walnut)' }}>
-        No customers fall into this report yet — it fills up as AI calls complete.
+        No customers fall into this report yet: it fills up as AI calls complete.
       </p>
     );
   }
@@ -57,7 +57,7 @@ function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
                 </Link>
                 {e.city && <p className="text-[11px]" style={{ color: 'var(--walnut)' }}>{e.city}</p>}
               </td>
-              <td className="text-xs" style={{ color: 'var(--walnut)' }}>{e.agent ?? '—'}</td>
+              <td className="text-xs" style={{ color: 'var(--walnut)' }}>{e.agent ?? '-'}</td>
               <td className="text-right text-sm font-semibold" style={{ color: accent }}>{formatINR(e.total_due)}</td>
               <td className="text-right text-sm" style={{ color: 'var(--walnut)' }}>{e.total_calls}</td>
               <td className="text-xs" style={{ color: 'var(--walnut)' }}>{formatDate(e.last_call_at)}</td>
@@ -101,8 +101,8 @@ export default function ReportsPage() {
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {([
-            { type: 'positive' as const, icon: ThumbsUp, color: POSITIVE, title: 'Positive Report', desc: 'Customers responding well — willing to pay or promised a date', count: summary?.positive_count ?? 0, amount: summary?.positive_amount ?? 0 },
-            { type: 'negative' as const, icon: ThumbsDown, color: NEGATIVE, title: 'Negative Report', desc: 'Customers the AI cannot recover — need your personal follow-up', count: summary?.negative_count ?? 0, amount: summary?.negative_amount ?? 0 },
+            { type: 'positive' as const, icon: ThumbsUp, color: POSITIVE, title: 'Positive Report', desc: 'Customers responding well: willing to pay or promised a date', count: summary?.positive_count ?? 0, amount: summary?.positive_amount ?? 0 },
+            { type: 'negative' as const, icon: ThumbsDown, color: NEGATIVE, title: 'Negative Report', desc: 'Customers the AI cannot recover: need your personal follow-up', count: summary?.negative_count ?? 0, amount: summary?.negative_amount ?? 0 },
           ]).map(({ type, icon: Icon, color, title, desc, count, amount }) => (
             <div
               key={type}
@@ -143,7 +143,7 @@ export default function ReportsPage() {
             <PhoneCall size={14} style={{ color: 'var(--walnut)' }} />
             <p className="text-sm font-semibold" style={{ color: 'var(--dark-brown)' }}>
               {tab === 'positive' ? 'Positive' : 'Negative'} report
-              {summary && ` — based on ${summary.customers_with_calls} customer(s) with completed AI calls`}
+              {summary && `: based on ${summary.customers_with_calls} customer(s) with completed AI calls`}
             </p>
           </div>
           <div className="p-2">

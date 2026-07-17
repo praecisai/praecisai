@@ -29,7 +29,7 @@ export class CustomerController {
     return this.customerService.getAgents(businessId);
   }
 
-  // Excel with PARTY + VIP (Yes/No) columns — auto-stars/un-stars customers
+  // Excel with PARTY + VIP (Yes/No) columns: auto-stars/un-stars customers
   @Post('vip-import')
   @Roles('MANAGER')
   @UseInterceptors(FileInterceptor('file'))

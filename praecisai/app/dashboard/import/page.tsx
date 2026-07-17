@@ -1,89 +1,82 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
-import { useUploadImport, usePreviewImport, useExecuteImport, useImportTemplates, useSaveTemplate, useImportHistory } from '../../../lib/api/hooks';
-import { formatDate, formatINR } from '../../../lib/utils/format';
+import { useUploadImport, useExecuteImport, useImportHistory } from '../../../lib/api/hooks';
+import { formatDate } from '../../../lib/utils/format';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
-import {
-  Upload, ChevronRight, CheckCircle, AlertCircle, X, Save, Eye,
-  Loader2, FileSpreadsheet, ArrowRight, History,
-} from 'lucide-react';
+import { AlertCircle, FileSpreadsheet, History, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import type { ColumnMapping, TargetField } from '../../../types';
+import type { ColumnMapping } from '../../../types';
 
-// ─── Target field labels ───────────────────────────────────────────────────────
-const TARGET_FIELDS: { field: TargetField; label: string; required: boolean }[] = [
-  { field: 'customer_name', label: 'Customer Name', required: true },
-  { field: 'invoice_number', label: 'Invoice Number', required: true },
-  { field: 'invoice_date', label: 'Invoice Date', required: false },
-  { field: 'due_amount', label: 'Due Amount (₹)', required: false },
-  { field: 'days_overdue', label: 'Days Overdue', required: false },
-  { field: 'phone', label: 'Mobile Number', required: false },
-  { field: 'city', label: 'City', required: false },
-  { field: 'sales_agent', label: 'Sales Agent', required: false },
-  { field: 'call_status', label: 'Call Status', required: false },
+// One-click import: drop the file → columns are auto-detected (Party, Bill No,
+// Due Amount, Mobile, Agent, City …) → data imports immediately. No mapping
+// steps: if the required columns can't be found, the user gets a clear error.
+
+type Phase = 'idle' | 'running' | 'done';
+
+const STAGES = [
+  { at: 0, label: 'Uploading file…' },
+  { at: 30, label: 'Detecting columns (Party, Bill No., Due Amount, Mobile, Agent)…' },
+  { at: 45, label: 'Reading rows & extracting cities from party names…' },
+  { at: 65, label: 'Creating & updating customers and invoices…' },
+  { at: 85, label: 'Recalculating segments & outstanding totals…' },
+  { at: 100, label: 'Done!' },
 ];
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
-function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
+function ProgressBar({ progress }: { progress: number }) {
+  const stage = [...STAGES].reverse().find((s) => progress >= s.at) ?? STAGES[0];
   return (
-    <div className="flex items-center gap-0">
-      {steps.map((s, i) => (
-        <div key={i} className="flex items-center">
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-              i < current ? 'bg-[var(--recovery-green)] text-white' :
-              i === current ? 'bg-[var(--mahogany)] text-white' :
-              'bg-[var(--surface-warm)]/5 text-slate-500'
-            }`}>
-              {i < current ? <CheckCircle size={14} /> : i + 1}
-            </div>
-            <span className={`text-xs font-medium hidden sm:block ${i === current ? 'text-[var(--dark-brown)]' : i < current ? 'text-[var(--recovery-green)]' : 'text-slate-500'}`}>
-              {s}
-            </span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={`w-3 sm:w-8 h-px mx-1 sm:mx-2 ${i < current ? 'bg-[var(--recovery-green)]' : 'bg-[var(--surface-warm)]/10'}`} />
-          )}
-        </div>
-      ))}
+    <div className="max-w-xl mx-auto py-10 px-2">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium" style={{ color: 'var(--dark-brown)' }}>{stage.label}</p>
+        <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--mahogany)' }}>{Math.round(progress)}%</p>
+      </div>
+      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--sand)', border: '1px solid var(--caramel)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${progress}%`,
+            background: 'linear-gradient(90deg, var(--walnut), var(--mahogany))',
+          }}
+        />
+      </div>
+      <p className="text-xs mt-3 text-center" style={{ color: 'var(--walnut)' }}>
+        Please keep this tab open: large Tally exports can take a minute.
+      </p>
     </div>
   );
 }
 
-// ─── Step 1: Drop Zone ────────────────────────────────────────────────────────
-function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
+function DropZone({ onUpload }: { onUpload: (file: File) => void }) {
   const [dragOver, setDragOver] = useState(false);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) onUpload(file);
-  }, [onUpload]);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) onUpload(file);
-  };
-
   return (
     <div
       className={`drop-zone p-8 sm:p-12 text-center cursor-pointer ${dragOver ? 'drag-over' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files[0];
+        if (file) onUpload(file);
+      }}
       onClick={() => document.getElementById('file-input')?.click()}
     >
-      <input id="file-input" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileInput} />
+      <input
+        id="file-input" type="file" accept=".xlsx,.xls,.csv" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ''; }}
+      />
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
         style={{ background: 'rgba(127,85,57,0.12)', border: '1px solid rgba(127,85,57,0.25)' }}>
         <FileSpreadsheet size={28} className="text-[var(--mahogany)]" />
       </div>
-      <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: 'var(--dark-brown)' }}>Drop your Excel or CSV file here</h3>
-      <p className="text-[13px] sm:text-sm mb-4" style={{ color: 'var(--walnut)' }}>Supports .xlsx, .xls, .csv - up to 50MB</p>
+      <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: 'var(--dark-brown)' }}>Drop your outstanding Excel or CSV here</h3>
+      <p className="text-[13px] sm:text-sm mb-1" style={{ color: 'var(--walnut)' }}>
+        Columns are detected automatically: Party, Bill No., Date, Due Amount, Mobile, Agent, City
+      </p>
+      <p className="text-[12px] mb-4" style={{ color: 'var(--walnut)' }}>Supports .xlsx, .xls, .csv: up to 50MB</p>
       <button className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
         style={{ background: 'linear-gradient(135deg, #5C3D2E, #7F5539)', color: '#F5ECD7' }}>
         Browse Files
@@ -92,193 +85,22 @@ function DropZoneStep({ onUpload }: { onUpload: (file: File) => void }) {
   );
 }
 
-// ─── Step 2: Column Mapper ────────────────────────────────────────────────────
-function ColumnMapperStep({
-  headers, suggested, templates, onMappingChange, onSaveTemplate, mappings,
-}: {
-  headers: string[];
-  suggested: { target_field: TargetField; source_column: string; confidence: number }[];
-  templates: any[];
-  mappings: ColumnMapping[];
-  onMappingChange: (field: TargetField, column: string) => void;
-  onSaveTemplate: (name: string) => void;
-}) {
-  const [templateName, setTemplateName] = useState('');
-  const [showSave, setShowSave] = useState(false);
-
-  const getMappedColumn = (field: TargetField) =>
-    mappings.find((m) => m.target_field === field)?.source_column ?? '';
-
-  const getSuggestionConfidence = (field: TargetField) =>
-    suggested.find((s) => s.target_field === field)?.confidence ?? 0;
-
-  return (
-    <div className="space-y-4">
-      {/* Template loader */}
-      {templates.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--sand)', border: '1px solid var(--caramel)' }}>
-          <span className="text-sm text-slate-400">Load saved template:</span>
-          <select className="input-dark text-sm flex-1" style={{ maxWidth: 220 }}
-            onChange={(e) => {
-              if (!e.target.value) return;
-              const t = templates.find((t) => t.id === e.target.value);
-              if (t) {
-                (t.mappings as ColumnMapping[]).forEach((m) => onMappingChange(m.target_field, m.source_column));
-              }
-            }}>
-            <option value="">Select template…</option>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Mapping rows */}
-      <div className="space-y-2">
-        {TARGET_FIELDS.map(({ field, label, required }) => {
-          const mapped = getMappedColumn(field);
-          const conf = getSuggestionConfidence(field);
-
-          return (
-            <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 rounded-lg glass-card">
-              <div className="w-full sm:w-40 flex-shrink-0 flex items-center justify-between sm:block">
-                <p className="text-sm font-medium text-white">
-                  {label}
-                  {required && <span className="text-red-400 ml-1">*</span>}
-                </p>
-                {conf > 0 && mapped && (
-                  <p className="text-[10px] text-[var(--recovery-green)] sm:mt-0.5">
-                    {Math.round(conf * 100)}% match
-                  </p>
-                )}
-              </div>
-              <ArrowRight size={14} className="text-slate-600 flex-shrink-0 hidden sm:block" />
-              <select
-                className={`input-dark text-sm w-full sm:flex-1 ${mapped ? 'border-[rgba(74,124,89,0.45)] text-[var(--recovery-green)]' : ''}`}
-                value={mapped}
-                onChange={(e) => onMappingChange(field, e.target.value)}
-              >
-                <option value="">— Not mapped —</option>
-                {headers.map((h) => <option key={h} value={h}>{h}</option>)}
-              </select>
-              {mapped && (
-                <div className="w-5 flex-shrink-0 hidden sm:block">
-                  <CheckCircle size={16} className="text-[var(--recovery-green)]" />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Save template */}
-      <div className="flex items-center gap-3">
-        {showSave ? (
-          <>
-            <input type="text" placeholder="Template name…" value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              className="input-dark text-sm flex-1" style={{ maxWidth: 220 }} />
-            <button
-              onClick={() => { if (templateName) { onSaveTemplate(templateName); setShowSave(false); setTemplateName(''); } }}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'rgba(74,124,89,0.15)', border: '1px solid rgba(74,124,89,0.35)', color: 'var(--recovery-green)' }}>
-              <Save size={13} className="inline mr-1" /> Save
-            </button>
-            <button onClick={() => setShowSave(false)} className="p-2 text-slate-500 hover:text-white">
-              <X size={14} />
-            </button>
-          </>
-        ) : (
-          <button onClick={() => setShowSave(true)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
-            <Save size={13} /> Save as template
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Step 3: Preview ──────────────────────────────────────────────────────────
-function PreviewStep({ previewData }: { previewData: any }) {
-  if (!previewData) return <div className="text-slate-400 text-center py-8">No preview data</div>;
-
-  const { preview = [], validation_errors = [], total_rows = 0 } = previewData;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-400">
-          Showing first <strong className="text-white">5</strong> of <strong className="text-white">{total_rows}</strong> rows
-        </p>
-        {validation_errors.length > 0 && (
-          <div className="flex items-center gap-1.5 text-sm text-[var(--rust)]">
-            <AlertCircle size={14} />
-            {validation_errors.length} validation warnings
-          </div>
-        )}
-      </div>
-
-      <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-        <table className="data-table w-full min-w-[760px]">
-          <thead>
-            <tr>
-              <th className="text-left">#</th>
-              {TARGET_FIELDS.slice(0, 7).map((f) => (
-                <th key={f.field} className="text-left">{f.label}</th>
-              ))}
-              <th className="text-left">Errors</th>
-            </tr>
-          </thead>
-          <tbody>
-            {preview.map((row: any) => (
-              <tr key={row.row_index} className={row.errors?.length ? 'bg-red-500/5' : ''}>
-                <td className="text-xs text-slate-500">{row.row_index}</td>
-                {TARGET_FIELDS.slice(0, 7).map((f) => (
-                  <td key={f.field} className="text-xs">
-                    {row.mapped[f.field]
-                      ? <span className="text-white">{String(row.mapped[f.field]).slice(0, 25)}</span>
-                      : <span className="text-slate-600">—</span>}
-                  </td>
-                ))}
-                <td>
-                  {row.errors?.length > 0 ? (
-                    <div className="flex flex-col gap-0.5">
-                      {row.errors.map((e: any, i: number) => (
-                        <span key={i} className="text-[10px] text-red-400">{e.field}: {e.message}</span>
-                      ))}
-                    </div>
-                  ) : <CheckCircle size={13} className="text-[var(--recovery-green)]" />}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ─── Step 4: Import Progress ──────────────────────────────────────────────────
-function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boolean }) {
-  if (isRunning) {
-    return (
-      <div className="text-center py-12">
-        <Loader2 size={40} className="text-[var(--mahogany)] animate-spin mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">Importing data…</h3>
-        <p className="text-sm text-slate-400">Processing rows, upserting customers, recalculating segments</p>
-      </div>
-    );
-  }
-
-  if (!result) return null;
-
+function ResultSummary({ result, onReset }: { result: any; onReset: () => void }) {
   const successRate = result.records_total > 0
     ? Math.round((result.records_imported / result.records_total) * 100)
     : 0;
 
   return (
     <div className="space-y-5">
-      {/* Summary */}
+      <div className="flex items-center gap-2">
+        <CheckCircle size={18} className="text-[var(--recovery-green)]" />
+        <p className="text-sm font-semibold" style={{ color: 'var(--dark-brown)' }}>Import complete</p>
+        <button onClick={onReset} className="ml-auto px-4 py-2 rounded-lg text-sm border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+          style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.35)' }}>
+          Import another file
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Rows', value: result.records_total, color: '#7F5539' },
@@ -293,7 +115,6 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
         ))}
       </div>
 
-      {/* Details */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'Customers Created', value: result.customers_created },
@@ -302,17 +123,16 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
         ].map((m) => (
           <div key={m.label} className="glass-card p-4 text-center">
             <p className="text-xs text-slate-400 mb-1">{m.label}</p>
-            <p className="text-xl font-bold text-white">{m.value}</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--dark-brown)' }}>{m.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Error list */}
       {result.errors?.length > 0 && (
         <div className="glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
             <AlertCircle size={14} className="text-red-400" />
-            <span className="text-sm font-medium text-white">Failed Rows ({result.errors.length})</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--dark-brown)' }}>Failed Rows ({result.errors.length})</span>
           </div>
           <div className="max-h-48 overflow-y-auto">
             <table className="data-table w-full">
@@ -338,7 +158,8 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
           View Customers →
         </Link>
         <Link href="/dashboard/outstandings"
-          className="flex-1 py-3 rounded-xl text-center font-semibold text-white border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all text-slate-300">
+          className="flex-1 py-3 rounded-xl text-center font-semibold border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+          style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.35)' }}>
           View Outstandings →
         </Link>
       </div>
@@ -346,115 +167,94 @@ function ImportProgressStep({ result, isRunning }: { result: any; isRunning: boo
   );
 }
 
-// ─── Main Import Page ─────────────────────────────────────────────────────────
-const STEPS = ['Upload', 'Map Columns', 'Preview', 'Import', 'Done'];
-
 export default function ImportPage() {
-  const [step, setStep] = useState(0);
-  const [uploadData, setUploadData] = useState<any>(null);
-  const [mappings, setMappings] = useState<ColumnMapping[]>([]);
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [progress, setProgress] = useState(0);
   const [importResult, setImportResult] = useState<any>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: templates = [] } = useImportTemplates();
   const { data: historyData } = useImportHistory();
   const uploadMutation = useUploadImport();
-  const previewMutation = usePreviewImport();
   const executeMutation = useExecuteImport();
-  const saveTemplateMutation = useSaveTemplate();
+
+  // Crawl the bar toward a ceiling while a request is in flight: real
+  // milestones (upload done, import done) jump it forward.
+  const crawlTo = (ceiling: number) => {
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    progressTimer.current = setInterval(() => {
+      setProgress((p) => (p < ceiling ? p + Math.max(0.3, (ceiling - p) * 0.03) : p));
+    }, 200);
+  };
+  const stopCrawl = () => {
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    progressTimer.current = null;
+  };
+  useEffect(() => () => stopCrawl(), []);
 
   async function handleUpload(file: File) {
+    setPhase('running');
+    setProgress(3);
+    setImportResult(null);
+    crawlTo(28);
+
     try {
+      // 1. Upload + auto-detect columns
       const res = await uploadMutation.mutateAsync(file);
       const data = res.data.data;
-      setUploadData(data);
+      setProgress(32);
+      crawlTo(92);
 
-      // Apply suggested mappings
-      const suggested: ColumnMapping[] = (data.suggested_mappings ?? []).map((s: any) => ({
+      const mappings: ColumnMapping[] = (data.suggested_mappings ?? []).map((s: any) => ({
         target_field: s.target_field,
         source_column: s.source_column,
-        confidence: s.confidence,
       }));
-      setMappings(suggested);
-      setStep(1);
+
+      // 2. Import immediately with the detected columns (the backend
+      // rejects with a clear message if Party / Bill No. weren't found)
+      const exec = await executeMutation.mutateAsync({ history_id: data.history_id, mappings });
+      const result = exec.data.data;
+
+      stopCrawl();
+      setProgress(100);
+      setImportResult(result);
+      setTimeout(() => setPhase('done'), 400);
+
+      toast.success(`Done: ${result.records_imported} rows imported from ${file.name}`, {
+        description: `${result.customers_created} new customers, ${result.invoices_created} new invoices, ${result.invoices_updated ?? 0} updated`,
+        duration: 8000,
+      });
     } catch (err: any) {
-      toast.error('Upload failed', { description: err.message });
+      stopCrawl();
+      setPhase('idle');
+      setProgress(0);
+      toast.error('Import failed', { description: err.message, duration: 10000 });
     }
-  }
-
-  function handleMappingChange(field: TargetField, column: string) {
-    setMappings((prev) => {
-      const existing = prev.findIndex((m) => m.target_field === field);
-      if (column === '') {
-        return prev.filter((m) => m.target_field !== field);
-      }
-      if (existing >= 0) {
-        return prev.map((m, i) => i === existing ? { ...m, source_column: column } : m);
-      }
-      return [...prev, { target_field: field, source_column: column }];
-    });
-  }
-
-  async function handlePreview() {
-    try {
-      const res = await previewMutation.mutateAsync({ history_id: uploadData.history_id, mappings });
-      setPreviewData(res.data.data);
-      setStep(2);
-    } catch (err: any) {
-      toast.error('Preview failed', { description: err.message });
-    }
-  }
-
-  async function handleExecute() {
-    setStep(3);
-    try {
-      const res = await executeMutation.mutateAsync({ history_id: uploadData.history_id, mappings });
-      setImportResult(res.data.data);
-      setStep(4);
-    } catch (err: any) {
-      toast.error('Import failed', { description: err.message });
-      setStep(2);
-    }
-  }
-
-  async function handleSaveTemplate(name: string) {
-    try {
-      await saveTemplateMutation.mutateAsync({ name, mappings });
-    } catch (err: any) {
-      toast.error('Save failed', { description: err.message });
-    }
-  }
-
-  function reset() {
-    setStep(0);
-    setUploadData(null);
-    setMappings([]);
-    setPreviewData(null);
-    setImportResult(null);
   }
 
   return (
     <div>
-      <TopHeader title="Import Center" subtitle="Upload and process your outstanding data" />
+      <TopHeader title="Import Center" subtitle="Drop your outstanding file: everything else is automatic" />
 
       <div className="p-4 sm:p-6 space-y-5">
-        {/* Header actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <StepIndicator current={step} steps={STEPS} />
+          <p className="text-sm" style={{ color: 'var(--walnut)' }}>
+            Each upload is treated as your latest outstanding report: new bills are added,
+            changed dues updated, and missing bills marked as paid.
+          </p>
           <button
             onClick={() => setShowHistory((v) => !v)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all"
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all hover:bg-[rgba(127,85,57,0.06)]"
+            style={{ color: 'var(--walnut)', borderColor: 'rgba(176,137,104,0.35)' }}
           >
             <History size={13} /> History
           </button>
         </div>
 
-        {/* History panel */}
         {showHistory && (
           <div className="glass-card overflow-hidden">
             <div className="px-4 py-3 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white">Import History</h3>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--dark-brown)' }}>Import History</h3>
             </div>
             <div className="overflow-x-auto">
             <table className="data-table w-full min-w-[560px]">
@@ -464,7 +264,7 @@ export default function ImportPage() {
                   <tr key={h.id}>
                     <td className="text-xs text-[var(--mahogany)] font-mono">{h.file_name}</td>
                     <td className="text-xs text-slate-400">{formatDate(h.created_at)}</td>
-                    <td className="text-xs text-white">{h.records_total}</td>
+                    <td className="text-xs" style={{ color: 'var(--dark-brown)' }}>{h.records_total}</td>
                     <td className="text-xs text-[var(--recovery-green)]">{h.records_imported}</td>
                     <td className="text-xs text-red-400">{h.records_failed}</td>
                     <td><StatusBadge status={h.status} /></td>
@@ -479,97 +279,11 @@ export default function ImportPage() {
           </div>
         )}
 
-        {/* Step content */}
         <div className="glass-card p-4 sm:p-6">
-          {step === 0 && (
-            <div>
-              <h2 className="text-base font-semibold text-white mb-1">Step 1: Upload File</h2>
-              <p className="text-sm text-slate-400 mb-5">Upload your Excel or CSV file with outstanding dues data</p>
-              {uploadMutation.isPending ? (
-                <div className="text-center py-12">
-                  <Loader2 size={36} className="text-[var(--mahogany)] animate-spin mx-auto mb-3" />
-                  <p className="text-sm text-slate-400">Uploading and extracting headers…</p>
-                </div>
-              ) : (
-                <DropZoneStep onUpload={handleUpload} />
-              )}
-            </div>
-          )}
-
-          {step === 1 && uploadData && (
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-white">Step 2: Map Columns</h2>
-                  <p className="text-sm text-slate-400 mt-0.5 break-words">
-                    <span className="text-[var(--mahogany)] font-mono text-xs">{uploadData.file_name}</span>
-                    {' '}· {uploadData.row_count} rows · {uploadData.headers.length} columns detected
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setStep(0)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
-                    ← Back
-                  </button>
-                  <button
-                    onClick={handlePreview}
-                    disabled={previewMutation.isPending}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 flex items-center gap-1.5"
-                    style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
-                  >
-                    {previewMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
-                    Preview
-                  </button>
-                </div>
-              </div>
-              <ColumnMapperStep
-                headers={uploadData.headers}
-                suggested={uploadData.suggested_mappings ?? []}
-                templates={templates}
-                mappings={mappings}
-                onMappingChange={handleMappingChange}
-                onSaveTemplate={handleSaveTemplate}
-              />
-            </div>
-          )}
-
-          {step === 2 && (
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-                <div>
-                  <h2 className="text-base font-semibold text-white">Step 3: Preview</h2>
-                  <p className="text-sm text-slate-400 mt-0.5">Review first 5 rows with your column mapping applied</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">← Back</button>
-                  <button
-                    onClick={handleExecute}
-                    className="px-5 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-1.5"
-                    style={{ background: 'var(--recovery-green)' }}
-                  >
-                    <Upload size={13} /> Run Import
-                  </button>
-                </div>
-              </div>
-              <PreviewStep previewData={previewData} />
-            </div>
-          )}
-
-          {(step === 3 || step === 4) && (
-            <div>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-base font-semibold text-white">
-                    {step === 3 ? 'Step 4: Importing…' : 'Step 5: Done!'}
-                  </h2>
-                </div>
-                {step === 4 && (
-                  <button onClick={reset} className="px-4 py-2 rounded-lg text-sm text-slate-400 border border-white/10 hover:bg-[var(--surface-warm)]/5 transition-all">
-                    New Import
-                  </button>
-                )}
-              </div>
-              <ImportProgressStep result={importResult} isRunning={executeMutation.isPending} />
-            </div>
+          {phase === 'idle' && <DropZone onUpload={handleUpload} />}
+          {phase === 'running' && <ProgressBar progress={progress} />}
+          {phase === 'done' && importResult && (
+            <ResultSummary result={importResult} onReset={() => { setPhase('idle'); setProgress(0); setImportResult(null); }} />
           )}
         </div>
       </div>

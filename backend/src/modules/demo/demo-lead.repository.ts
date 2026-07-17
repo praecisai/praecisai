@@ -38,7 +38,7 @@ export class DemoLeadRepository {
     });
   }
 
-  // For call history summary — fetch completed voice call runs for a party with their extraction data
+  // For call history summary: fetch completed voice call runs for a party with their extraction data
   async findCallHistoryForParty(leadId: string, partyName: string) {
     return this.prisma.demoRun.findMany({
       where: {

@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Search } from 'lucide-react';
 
 export type SelectOption = { value: string; label: string };
 
-// Themed replacement for native <select> — the OS option popup can't be
+// Themed replacement for native <select>: the OS option popup can't be
 // styled, so filter dropdowns use this to match the warm palette.
 // The menu renders in a body portal: cards use backdrop-filter/overflow-hidden
 // which would otherwise trap or clip an absolutely-positioned menu.
@@ -17,6 +17,7 @@ export function Select({
   placeholder = 'Select…',
   className = '',
   buttonClassName,
+  searchable,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -24,11 +25,21 @@ export function Select({
   placeholder?: string;
   className?: string;
   buttonClassName?: string;
+  // Shows a filter box at the top of the menu. Defaults on for long lists
+  // (many agents/cities); pass false to force it off.
+  searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [query, setQuery] = useState('');
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const showSearch = searchable ?? options.length > 10;
+  const visibleOptions = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
 
   const updatePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
@@ -37,7 +48,10 @@ export function Select({
 
   useEffect(() => {
     if (!open) return;
+    setQuery('');
     updatePos();
+    // Focus the filter box once the portal mounts
+    setTimeout(() => searchRef.current?.focus(), 0);
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
@@ -93,7 +107,7 @@ export function Select({
         <ul
           ref={menuRef}
           role="listbox"
-          className="fixed z-[100] max-h-64 w-max overflow-y-auto rounded-xl border p-1.5"
+          className="fixed z-[100] max-h-72 w-max overflow-y-auto rounded-xl border p-1.5"
           style={{
             top: pos.top,
             left: pos.left,
@@ -104,7 +118,36 @@ export function Select({
             boxShadow: '0 8px 24px rgba(127,85,57,0.18)',
           }}
         >
-          {options.map((o) => {
+          {showSearch && (
+            <li className="sticky top-0 pb-1.5" style={{ background: 'var(--surface-warm)' }}>
+              <div
+                className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5"
+                style={{ borderColor: 'rgba(176,137,104,0.4)', background: 'var(--sand)' }}
+              >
+                <Search size={12} className="flex-shrink-0" style={{ color: 'var(--walnut)' }} />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={query}
+                  placeholder="Type to filter…"
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter picks the first visible option
+                    if (e.key === 'Enter' && visibleOptions.length > 0) {
+                      onChange(visibleOptions[0].value);
+                      setOpen(false);
+                    }
+                  }}
+                  className="bg-transparent border-none outline-none text-xs w-full"
+                  style={{ color: 'var(--dark-brown)' }}
+                />
+              </div>
+            </li>
+          )}
+          {visibleOptions.length === 0 && (
+            <li className="px-3 py-2 text-xs" style={{ color: 'var(--walnut)' }}>No matches</li>
+          )}
+          {visibleOptions.map((o) => {
             const isSelected = o.value === value;
             return (
               <li key={o.value} role="option" aria-selected={isSelected}>

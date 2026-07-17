@@ -4,7 +4,7 @@ import { CallDisposition } from '@prisma/client';
 
 // ─── Recovery report classification ──────────────────────────────────────────
 // Positive report  = customers responding well to calls.
-// Negative report  = customers the AI cannot recover — needs human action.
+// Negative report  = customers the AI cannot recover: needs human action.
 //
 // Rules (per business owner's spec):
 //   INTERESTED                     → positive (acknowledged debt, willing)
@@ -14,7 +14,10 @@ import { CallDisposition } from '@prisma/client';
 //   CALLBACK        > 6 in a row   → negative (keeps deflecting)
 //   NO_ANSWER       > 6 in a row   → negative (unreachable)
 //   UNKNOWN         > 6 in a row   → negative (calls going nowhere)
-//   DISPUTE                        → excluded for now (handling TBD)
+//   DISPUTE         > 6 in a row   → negative (dispute never resolves).
+//     Every call to a disputing customer starts with a "did it get sorted?"
+//     check (dispute_note in calling.service); a resolved dispute ends the
+//     streak because that call's disposition is no longer DISPUTE.
 
 const CONSECUTIVE_LIMIT = 6; // "more than 6 continuous calls"
 const PTP_LIMIT = 4; // 4+ promises without paying = negative
@@ -120,8 +123,17 @@ export class ReportsService {
         ptp_count: ptpCount,
       };
 
-      // DISPUTE handling is TBD — excluded from both reports for now
-      if (latest === 'DISPUTE') continue;
+      // DISPUTE: still under resolution while the streak is short; a customer
+      // who keeps saying "issue abhi bhi hai" call after call is stalling
+      if (latest === 'DISPUTE') {
+        if (streak > CONSECUTIVE_LIMIT) {
+          negative.push({
+            ...base,
+            reason: `Says the bill is disputed on ${streak} calls in a row: needs manual resolution`,
+          });
+        }
+        continue;
+      }
 
       // ── Negative rules first (they override) ──
       if (ptpCount >= PTP_LIMIT) {
@@ -137,7 +149,7 @@ export class ReportsService {
         continue;
       }
       if (latest === 'CALLBACK' && streak > CONSECUTIVE_LIMIT) {
-        negative.push({ ...base, reason: `Asked to call back ${streak} times in a row — avoiding payment` });
+        negative.push({ ...base, reason: `Asked to call back ${streak} times in a row: avoiding payment` });
         continue;
       }
       if (latest === 'NO_ANSWER' && streak > CONSECUTIVE_LIMIT) {
@@ -165,7 +177,7 @@ export class ReportsService {
       // they belong to neither report yet.
     }
 
-    // Biggest amounts first — that is what the owner acts on
+    // Biggest amounts first: that is what the owner acts on
     positive.sort((a, b) => b.total_due - a.total_due);
     negative.sort((a, b) => b.total_due - a.total_due);
 

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useCustomers, useCustomerCities, useCustomerAgents } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import { SegmentBadge } from '../../../components/shared/SegmentBadge';
 import { CustomScheduleModal, ScheduleTarget } from '../../../components/shared/CustomScheduleModal';
 import { formatINR } from '../../../lib/utils/format';
-import { Search, Star, ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
+import { Search, Star, ChevronLeft, ChevronRight, CalendarClock, Check } from 'lucide-react';
 import Link from 'next/link';
 import type { CustomerFilters } from '../../../types';
 import { useDebounce } from '../../../lib/hooks/useDebounce';
@@ -16,7 +16,29 @@ import { toast } from 'sonner';
 
 const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
 
-// Star toggle — click to mark/unmark a customer as VIP
+// Rounded-square checkbox in the warm palette: native checkboxes can't be
+// themed beyond accent-color, so selection uses this instead.
+function ThemedCheckbox({ checked, onChange, title }: { checked: boolean; onChange: () => void; title?: string }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      title={title}
+      onClick={(e) => { e.stopPropagation(); onChange(); }}
+      className="w-[17px] h-[17px] rounded-[5px] border flex items-center justify-center transition-all flex-shrink-0 hover:border-[var(--mahogany)]"
+      style={
+        checked
+          ? { background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))', borderColor: 'var(--mahogany)' }
+          : { background: 'transparent', borderColor: 'rgba(176,137,104,0.55)' }
+      }
+    >
+      {checked && <Check size={12} color="#FFFDF9" strokeWidth={3.5} />}
+    </button>
+  );
+}
+
+// Star toggle: click to mark/unmark a customer as VIP
 function VipToggle({ customerId, isVip, name }: { customerId: string; isVip: boolean; name: string }) {
   const update = useUpdateCustomer(customerId);
   return (
@@ -53,7 +75,7 @@ export default function CustomersPage() {
   const { data: cities = [] } = useCustomerCities();
   const { data: agents = [] } = useCustomerAgents();
 
-  // Row selection — enables the per-customer Custom Schedule column
+  // Row selection: enables the per-customer Custom Schedule column
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scheduleFor, setScheduleFor] = useState<ScheduleTarget | null>(null);
 
@@ -62,23 +84,13 @@ export default function CustomersPage() {
   const totalPages = Math.ceil(total / (filters.limit ?? 20));
 
   const selectionMode = selected.size > 0;
-  const colCount = selectionMode ? 9 : 8;
+  const colCount = selectionMode ? 8 : 7;
 
   const toggleSelected = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      return next;
-    });
-
-  const pageIds = useMemo(() => customers.map((c: any) => c.id), [customers]);
-  const allPageSelected = pageIds.length > 0 && pageIds.every((id: string) => selected.has(id));
-  const toggleAllPage = () =>
-    setSelected((s) => {
-      const next = new Set(s);
-      if (allPageSelected) pageIds.forEach((id: string) => next.delete(id));
-      else pageIds.forEach((id: string) => next.add(id));
       return next;
     });
 
@@ -120,7 +132,7 @@ export default function CustomersPage() {
               options={[{ value: '', label: 'All Cities' }, ...cities.map((c) => ({ value: c, label: c }))]}
             />
 
-            {/* Segment filter — includes the VIP pseudo-segment */}
+            {/* Segment filter: includes the VIP pseudo-segment */}
             <Select
               className="flex-1 min-w-[118px] sm:flex-none sm:w-44"
               value={filters.segment ?? ''}
@@ -168,7 +180,7 @@ export default function CustomersPage() {
           {selectionMode && (
             <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: 'rgba(221,184,146,0.35)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--mahogany)' }}>
-                {selected.size} selected — use the Custom Schedule column to set per-customer day ranges
+                {selected.size} selected: use the Custom Schedule column to set per-customer day ranges
               </span>
               <button
                 onClick={() => setSelected(new Set())}
@@ -187,22 +199,14 @@ export default function CustomersPage() {
           <table className="data-table w-full min-w-[860px]">
             <thead>
               <tr>
-                <th className="w-8">
-                  <input
-                    type="checkbox"
-                    checked={allPageSelected}
-                    onChange={toggleAllPage}
-                    title="Select all on this page"
-                  />
-                </th>
+                <th className="w-8"></th>
                 <th className="text-left">Customer</th>
                 <th className="text-left">City</th>
                 <th className="text-left">Phone</th>
                 <th className="text-left">Agent</th>
                 <th className="text-left">Segment</th>
-                {selectionMode && <th className="text-left">Custom Schedule</th>}
+                {selectionMode && <th className="text-left whitespace-nowrap">Custom Schedule</th>}
                 <th className="text-right">Total Due</th>
-                <th className="text-left">Tags</th>
               </tr>
             </thead>
             <tbody>
@@ -234,10 +238,10 @@ export default function CustomersPage() {
                 return (
                 <tr key={customer.id} className="cursor-pointer hover:bg-[var(--surface-warm)]/2 transition-colors">
                   <td>
-                    <input
-                      type="checkbox"
+                    <ThemedCheckbox
                       checked={isSelected}
                       onChange={() => toggleSelected(customer.id)}
+                      title={isSelected ? 'Deselect' : 'Select for custom schedule'}
                     />
                   </td>
                   <td>
@@ -266,9 +270,9 @@ export default function CustomersPage() {
                       </Link>
                     </div>
                   </td>
-                  <td className="text-sm text-slate-400">{customer.city ?? '—'}</td>
+                  <td className="text-sm text-slate-400">{customer.city ?? '-'}</td>
                   <td className="text-sm text-slate-400 font-mono text-xs">
-                    {customer.phone ?? '—'}
+                    {customer.phone ?? '-'}
                     {(customer.alt_phones?.length ?? 0) > 0 && (
                       <span
                         className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[var(--sand)]"
@@ -279,11 +283,11 @@ export default function CustomersPage() {
                       </span>
                     )}
                   </td>
-                  <td className="text-sm text-slate-400 text-xs">{customer.assigned_agent ?? '—'}</td>
+                  <td className="text-sm text-slate-400 text-xs">{customer.assigned_agent ?? '-'}</td>
                   <td>
                     {customer.outstanding?.segment
                       ? <SegmentBadge segment={customer.outstanding.segment} />
-                      : <span className="text-slate-600 text-xs">—</span>}
+                      : <span className="text-slate-600 text-xs">-</span>}
                   </td>
                   {selectionMode && (
                     <td>
@@ -296,14 +300,14 @@ export default function CustomersPage() {
                               custom_schedule: customer.custom_schedule ?? null,
                             })
                           }
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all hover:bg-[rgba(127,85,57,0.08)]"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all hover:bg-[rgba(127,85,57,0.08)] whitespace-nowrap"
                           style={{ color: 'var(--mahogany)', borderColor: 'rgba(176,137,104,0.4)' }}
                         >
-                          <CalendarClock size={12} />
+                          <CalendarClock size={12} className="flex-shrink-0" />
                           {hasCustom ? 'Edit schedule' : 'Set schedule'}
                         </button>
                       ) : (
-                        <span className="text-slate-600 text-xs">—</span>
+                        <span className="text-slate-600 text-xs">-</span>
                       )}
                     </td>
                   )}
@@ -311,13 +315,6 @@ export default function CustomersPage() {
                     <span className={`text-sm font-semibold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                       {formatINR(customer.outstanding?.total_due ?? 0)}
                     </span>
-                  </td>
-                  <td>
-                    <div className="flex flex-wrap gap-1">
-                      {(customer.tags ?? []).slice(0, 2).map((tag: string) => (
-                        <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-warm)]/5 text-slate-400">{tag}</span>
-                      ))}
-                    </div>
                   </td>
                 </tr>
                 );

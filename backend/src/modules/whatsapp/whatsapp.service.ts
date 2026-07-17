@@ -99,7 +99,7 @@ export class WhatsappService {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const pdfFilename = `${customer.customer_name}_Statement_${dd}-${mm}-${now.getFullYear()}.pdf`;
 
-    const logMessage = `Statement PDF (${segment}) — Rs.${totalDue.toLocaleString('en-IN')} across ${invoices.length} invoice(s)`;
+    const logMessage = `Statement PDF (${segment}): Rs.${totalDue.toLocaleString('en-IN')} across ${invoices.length} invoice(s)`;
 
     try {
       await this.aisensy.sendStatement({
@@ -180,7 +180,7 @@ export class WhatsappService {
       queued: eligible.length,
       no_phone: noPhone,
       skipped: [],
-      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment} — sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}`,
+      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}: sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}`,
     };
   }
 
@@ -216,7 +216,7 @@ export class WhatsappService {
     // A 10-digit number inside the message = "send it to this number instead"
     const providedNumber = extractIndianMobile(text);
 
-    // Case 2 first — a pending on-call request (matched by recency, not sender,
+    // Case 2 first: a pending on-call request (matched by recency, not sender,
     // because the sender's WA number won't be on file).
     const pendingCall = await this.prisma.callLog.findFirst({
       where: {
@@ -228,7 +228,7 @@ export class WhatsappService {
       select: { id: true, business_id: true, customer_id: true },
     });
 
-    // Case 1 — the sender IS a known customer (their WA number is on file)
+    // Case 1: the sender IS a known customer (their WA number is on file)
     const senderCustomer = await this.prisma.customer.findFirst({
       where: { phone: { endsWith: sender.slice(-10) } },
       select: { id: true, business_id: true },
@@ -239,7 +239,7 @@ export class WhatsappService {
       : null);
 
     if (!target) {
-      this.logger.log(`Inbound WhatsApp from ${sender} — no matching customer or pending request; ignored`);
+      this.logger.log(`Inbound WhatsApp from ${sender}: no matching customer or pending request; ignored`);
       return { handled: false, reason: 'no match' };
     }
 
