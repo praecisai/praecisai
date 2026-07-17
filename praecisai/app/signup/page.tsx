@@ -45,6 +45,10 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
     const supabase = createClient();
+    // Wait for session recovery to settle first: if a stale session is being
+    // cleaned up in the background, it would delete the PKCE code-verifier
+    // cookie that signInWithOAuth writes, breaking the OAuth callback.
+    await supabase.auth.getSession();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

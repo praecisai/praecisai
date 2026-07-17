@@ -13,6 +13,13 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    console.error('Auth callback: code exchange failed:', error.code, error.message);
+  } else {
+    console.error(
+      'Auth callback: no code param:',
+      searchParams.get('error'),
+      searchParams.get('error_description')
+    );
   }
 
   // return the user to an error page with instructions
