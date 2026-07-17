@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Sora, Inter, Geist } from 'next/font/google';
+import { GoogleTagManager } from '@next/third-parties/google';
 import './globals.css';
 import { Providers } from './providers';
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={cn(sora.variable, inter.variable, "font-sans", geist.variable)}>
+      <GoogleTagManager gtmId="GTM-MJ2RJX2F" />
       <body className={cn(inter.className, 'bg-[var(--cream)]')}>
         <Providers>{children}</Providers>
       </body>
