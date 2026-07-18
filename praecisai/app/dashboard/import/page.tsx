@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { useUploadImport, useExecuteImport, useImportHistory } from '../../../lib/api/hooks';
+import api from '../../../lib/api/client';
 import { formatDate } from '../../../lib/utils/format';
 import { StatusBadge } from '../../../components/shared/SegmentBadge';
 import { AlertCircle, FileSpreadsheet, History, CheckCircle } from 'lucide-react';
@@ -173,10 +175,25 @@ export default function ImportPage() {
   const [importResult, setImportResult] = useState<any>(null);
   const [showHistory, setShowHistory] = useState(false);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qc = useQueryClient();
 
   const { data: historyData } = useImportHistory();
   const uploadMutation = useUploadImport();
   const executeMutation = useExecuteImport();
+
+  // The import runs on the server in the background (a big Tally file can
+  // outlive proxy timeouts if held in one request): poll the history row
+  // until it flips to COMPLETED or FAILED.
+  const waitForCompletion = async (historyId: string) => {
+    const deadline = Date.now() + 15 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const res = await api.get(`/import/history/${historyId}`);
+      const hist = res.data.data;
+      if (hist?.status === 'COMPLETED' || hist?.status === 'FAILED') return hist;
+    }
+    throw new Error('The import is taking unusually long: check the History list in a few minutes.');
+  };
 
   // Crawl the bar toward a ceiling while a request is in flight: real
   // milestones (upload done, import done) jump it forward.
@@ -210,18 +227,36 @@ export default function ImportPage() {
         source_column: s.source_column,
       }));
 
-      // 2. Import immediately with the detected columns (the backend
-      // rejects with a clear message if Party / Bill No. weren't found)
-      const exec = await executeMutation.mutateAsync({ history_id: data.history_id, mappings });
-      const result = exec.data.data;
+      // 2. Kick off the import with the detected columns (the backend
+      // rejects with a clear message if Party / Bill No. weren't found).
+      // It returns immediately; the real work continues on the server.
+      await executeMutation.mutateAsync({ history_id: data.history_id, mappings });
+
+      // 3. Poll until the background import finishes
+      const hist = await waitForCompletion(data.history_id);
+      if (hist.status === 'FAILED') {
+        throw new Error(hist.error_log?.[0]?.message ?? 'Import failed: check the file and try again');
+      }
+      const result = hist.result_summary ?? {
+        records_total: hist.records_total,
+        records_imported: hist.records_imported,
+        records_failed: hist.records_failed,
+      };
 
       stopCrawl();
       setProgress(100);
       setImportResult(result);
       setTimeout(() => setPhase('done'), 400);
 
+      // Data changed on the server after the execute call returned: refresh here
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['outstandings'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['import', 'history'] });
+
       toast.success(`Done: ${result.records_imported} rows imported from ${file.name}`, {
-        description: `${result.customers_created} new customers, ${result.invoices_created} new invoices, ${result.invoices_updated ?? 0} updated`,
+        description: `${result.customers_created ?? 0} new customers, ${result.invoices_created ?? 0} new invoices, ${result.invoices_updated ?? 0} updated`,
         duration: 8000,
       });
     } catch (err: any) {

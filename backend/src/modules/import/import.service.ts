@@ -15,6 +15,7 @@ import {
   getAgingBucket,
   DEFAULT_SEGMENT_RULES,
 } from '../../common/utils/segment.util';
+import { Prisma } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import Fuse from 'fuse.js';
 
@@ -184,9 +185,38 @@ export class ImportService {
     // Mark as processing
     await this.prisma.importHistory.update({
       where: { id: historyId },
-      data: { status: 'PROCESSING' },
+      data: { status: 'PROCESSING', result_summary: Prisma.DbNull },
     });
 
+    // Run the heavy pipeline DETACHED from the HTTP request: a multi-thousand
+    // row Tally file can outlive the hosting proxy's timeout (production
+    // imports died at the Railway edge, surfacing in the browser as CORS
+    // errors). The dashboard polls GET /import/history/:id for the result.
+    this.runImport(businessId, historyId, mappings, templateName).catch(async (err) => {
+      this.logger.error(`Background import ${historyId} failed: ${err?.message || err}`);
+      await this.prisma.importHistory
+        .update({
+          where: { id: historyId },
+          data: {
+            status: 'FAILED',
+            error_log: [{ row: 0, field: 'import', message: String(err?.message || err) }] as any,
+          },
+        })
+        .catch(() => undefined);
+    });
+
+    return { history_id: historyId, status: 'PROCESSING' };
+  }
+
+  // The actual import pipeline (phases 1-4). Runs in the background; progress
+  // and the final result live on the ImportHistory row.
+  private async runImport(
+    businessId: string,
+    historyId: string,
+    mappings: ColumnMapping[],
+    templateName?: string,
+  ) {
+    const history = await this.getHistory(businessId, historyId);
     const fileBuffer = await this.storage.downloadFile(history.file_url);
     const ext = history.file_name.split('.').pop()?.toLowerCase() ?? 'xlsx';
     const rows = this.parseFile(fileBuffer, ext);
@@ -455,19 +485,7 @@ export class ImportService {
       await this.saveTemplate(businessId, templateName, mappings);
     }
 
-    // Update history
-    await this.prisma.importHistory.update({
-      where: { id: historyId },
-      data: {
-        status: imported === 0 && failed > 0 ? 'FAILED' : 'COMPLETED',
-        records_total: rows.length,
-        records_imported: imported,
-        records_failed: failed,
-        error_log: errors as any,
-      },
-    });
-
-    return {
+    const summary = {
       history_id: historyId,
       records_total: rows.length,
       records_imported: imported,
@@ -481,6 +499,21 @@ export class ImportService {
       outstanding_updated: outstandingUpdated,
       errors: errors.slice(0, 50), // cap error list
     };
+
+    // Update history: the polling dashboard reads status + result_summary
+    await this.prisma.importHistory.update({
+      where: { id: historyId },
+      data: {
+        status: imported === 0 && failed > 0 ? 'FAILED' : 'COMPLETED',
+        records_total: rows.length,
+        records_imported: imported,
+        records_failed: failed,
+        error_log: errors as any,
+        result_summary: summary as any,
+      },
+    });
+
+    return summary;
   }
 
   // ─── Templates ──────────────────────────────────────────────────────────────
@@ -505,6 +538,11 @@ export class ImportService {
   }
 
   // ─── History ─────────────────────────────────────────────────────────────────
+
+  // Single history row: polled by the dashboard while a background import runs
+  async getHistoryById(businessId: string, historyId: string) {
+    return this.getHistory(businessId, historyId);
+  }
 
   async getHistoryList(businessId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
@@ -567,9 +605,13 @@ export class ImportService {
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
+    // blankrows:false is load-bearing: a re-saved Excel can carry a "used
+    // range" spanning all 1,048,576 rows. Without it, a million empty arrays
+    // get materialized and the import OOMs in production.
     const json = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
       header: 1,
       defval: '',
+      blankrows: false,
     }) as any[][];
 
     if (json.length === 0) return { headers: [], rowCount: 0 };
@@ -595,6 +637,7 @@ export class ImportService {
       defval: '',
       raw: false,
       dateNF: 'DD/MM/YYYY',
+      blankrows: false, // see extractHeadersAndCount: prevents OOM on dirty used ranges
     }) as any[][];
 
     if (grid.length === 0) return [];

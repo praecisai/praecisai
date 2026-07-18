@@ -94,4 +94,11 @@ export class ImportController {
   ) {
     return this.importService.getHistoryList(businessId, page, limit);
   }
+
+  // Single history row: the dashboard polls this while an import runs in the
+  // background (status PROCESSING → COMPLETED/FAILED, result in result_summary)
+  @Get('history/:id')
+  getHistoryById(@BusinessId() businessId: string, @Param('id') id: string) {
+    return this.importService.getHistoryById(businessId, id);
+  }
 }

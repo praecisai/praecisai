@@ -376,6 +376,10 @@ model ImportHistory {
   records_imported Int          @default(0)
   records_failed   Int          @default(0)
   error_log        Json         @default("[]")
+  // Full result stats (customers/invoices created etc.) written when the
+  // background import finishes: imports run detached from the HTTP request
+  // (long Tally files outlive proxy timeouts) and the dashboard polls this.
+  result_summary   Json?
   created_at       DateTime     @default(now())
 
   // Relations
@@ -383,6 +387,20 @@ model ImportHistory {
 
   @@index([business_id])
   @@map("import_histories")
+}
+
+// Created directly in Supabase Table Editor (outside Prisma). Modeled here so
+// `prisma db push` never tries to drop it.
+model ColumnConfig {
+  id              BigInt    @id @default(autoincrement())
+  column_name     String    @unique
+  display_order   Int
+  is_visible      Boolean?
+  data_type       String?
+  validation_rule String?
+  created_at      DateTime? @db.Timestamptz
+
+  @@map("column_config")
 }
 
 // ─── Demo Models ──────────────────────────────────────────────────────────────
