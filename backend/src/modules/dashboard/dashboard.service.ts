@@ -9,17 +9,20 @@ export class DashboardService {
     const [
       totalCustomers,
       totalInvoices,
-      activeCampaigns,
       outstandings,
+      creditNotes,
     ] = await Promise.all([
       this.prisma.customer.count({ where: { business_id: businessId } }),
       this.prisma.invoice.count({ where: { business_id: businessId } }),
-      this.prisma.campaign.count({
-        where: { business_id: businessId, status: { in: ['RUNNING', 'SCHEDULED'] } },
-      }),
       this.prisma.outstanding.findMany({
         where: { business_id: businessId },
         select: { total_due: true, aging_bucket: true, segment: true, status: true },
+      }),
+      // Credit notes (negative dues) are kept out of per-customer total_due;
+      // netting them here makes the headline match Tally's GRAND TOTALS
+      this.prisma.invoice.aggregate({
+        where: { business_id: businessId, due_amount: { lt: 0 } },
+        _sum: { due_amount: true },
       }),
     ]);
 
@@ -27,6 +30,8 @@ export class DashboardService {
     const totalOutstanding = outstandings
       .filter((o) => o.status === 'ACTIVE')
       .reduce((sum, o) => sum + o.total_due, 0);
+    const creditNoteSum = creditNotes._sum.due_amount ?? 0;
+    const netOutstanding = totalOutstanding + creditNoteSum;
 
     // Cleared total (recovery rate denominator)
     const totalCleared = outstandings
@@ -64,10 +69,10 @@ export class DashboardService {
     });
 
     return {
-      total_outstanding: totalOutstanding,
+      total_outstanding: netOutstanding,
+      credit_note_total: creditNoteSum,
       total_customers: totalCustomers,
       total_invoices: totalInvoices,
-      active_campaigns: activeCampaigns,
       recovery_rate: recoveryRate,
       aging_buckets,
       segment_distribution,

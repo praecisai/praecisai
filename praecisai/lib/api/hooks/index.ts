@@ -355,37 +355,6 @@ export function useUpdateCustomerPhone() {
   });
 }
 
-// ─── Campaigns ────────────────────────────────────────────────────────────────
-
-export function useCampaigns(page = 1, limit = 20) {
-  return useQuery({
-    queryKey: ['campaigns', page, limit],
-    queryFn: async () => {
-      const res = await api.get('/campaigns', { params: { page, limit } });
-      return res.data.data;
-    },
-  });
-}
-
-export function useCreateCampaign() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: any) => api.post('/campaigns', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaigns'] }),
-  });
-}
-
-export function useDeleteCampaign() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => api.delete(`/campaigns/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['campaigns'] });
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-    },
-  });
-}
-
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export function useMe() {

@@ -208,7 +208,9 @@ model Invoice {
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
   customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
 
-  @@unique([invoice_number, business_id])
+  // Bill numbers are only unique per party: Tally reuses payment
+  // references ("UPI", "NEFT") as bill numbers across many parties
+  @@unique([customer_id, invoice_number])
   @@index([business_id])
   @@index([customer_id])
   @@index([status])

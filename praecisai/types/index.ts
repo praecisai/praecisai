@@ -6,8 +6,6 @@ export type BusinessStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export type BusinessPlan = 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE';
 export type InvoiceStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'DISPUTED';
 export type OutstandingStatus = 'ACTIVE' | 'CLEARED' | 'DISPUTED' | 'WRITTEN_OFF';
-export type CampaignType = 'WHATSAPP' | 'CALL' | 'EMAIL' | 'SMS';
-export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'RUNNING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
 export type ImportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type CallStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'NO_ANSWER' | 'BUSY';
 export type DeliveryStatus = 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
@@ -84,17 +82,6 @@ export interface Outstanding {
   updated_at: string;
   // Relations
   customer?: Customer;
-}
-
-export interface Campaign {
-  id: string;
-  business_id: string;
-  name: string;
-  type: CampaignType;
-  status: CampaignStatus;
-  scheduled_at: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface WhatsAppLog {
@@ -208,9 +195,10 @@ export interface SegmentCount {
 
 export interface DashboardStats {
   total_outstanding: number;
+  // Negative sum of credit-note invoices already netted into total_outstanding
+  credit_note_total?: number;
   total_customers: number;
   total_invoices: number;
-  active_campaigns: number;
   recovery_rate: number;
   aging_buckets: AgingBucket[];
   segment_distribution: SegmentCount[];

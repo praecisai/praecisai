@@ -328,8 +328,9 @@ export class ImportService {
       byName.get(normName(r.name)) || (r.phone && byPhone.get(r.phone)) || null;
 
     // Distinct new customers (first occurrence wins), keyed by name.
-    // For matched customers, refresh fallback numbers / agent from the file
-    // (primary phone is never overwritten: manual dashboard edits win).
+    // For matched customers, refresh phone / fallback numbers / agent from the
+    // file. The file's phone wins so a re-import corrects stale or test
+    // numbers; a manual dashboard edit lasts until a file next provides one.
     const newByKey = new Map<string, ParsedRow>();
     const matchedIds = new Set<string>();
     const customerRefreshes = new Map<string, { alt_phones?: string[]; assigned_agent?: string; phone?: string }>();
@@ -338,7 +339,7 @@ export class ImportService {
       if (existing) {
         matchedIds.add(existing.id);
         const refresh = customerRefreshes.get(existing.id) ?? {};
-        if (!existing.phone && r.phone) refresh.phone = r.phone;
+        if (r.phone && existing.phone !== r.phone) refresh.phone = r.phone;
         if (r.altPhones.length && JSON.stringify(existing.alt_phones ?? []) !== JSON.stringify(r.altPhones)) {
           refresh.alt_phones = r.altPhones;
         }
@@ -395,25 +396,42 @@ export class ImportService {
       where: { business_id: businessId },
       select: { id: true, invoice_number: true, due_amount: true, days_overdue: true, status: true, customer_id: true },
     });
-    const existingByNumber = new Map(existingInvoices.map((i) => [i.invoice_number, i]));
+    // Bill identity is per PARTY: Tally reuses payment references ("UPI",
+    // "NEFT") as the bill no. across many parties, so a global number key
+    // would silently drop every party's rows after the first.
+    const invKey = (customerId: string, invoiceNumber: string) => `${customerId} ${invoiceNumber}`;
+    const existingByKey = new Map(existingInvoices.map((i) => [invKey(i.customer_id, i.invoice_number), i]));
 
-    // Deduplicate within the file: first row of an invoice number wins
-    const invoiceByNumber = new Map<string, ParsedRow>();
+    // One row per (party, bill no). The same party can also repeat a
+    // reference (six "UPI" payment entries): aggregate those so no amount
+    // is lost — the grand total must match the file.
+    const invoiceByKey = new Map<string, ParsedRow & { customerId: string }>();
     for (const r of parsedRows) {
-      if (!invoiceByNumber.has(r.invoiceNumber)) invoiceByNumber.set(r.invoiceNumber, r);
+      const customer = resolveExisting(r);
+      if (!customer) continue; // cannot happen: created above
+      const key = invKey(customer.id, r.invoiceNumber);
+      const prev = invoiceByKey.get(key);
+      if (!prev) {
+        invoiceByKey.set(key, { ...r, customerId: customer.id });
+      } else {
+        prev.dueAmount += r.dueAmount;
+        prev.billAmount =
+          prev.billAmount === null && r.billAmount === null
+            ? null
+            : (prev.billAmount ?? 0) + (r.billAmount ?? 0);
+        prev.daysOverdue = Math.max(prev.daysOverdue, r.daysOverdue);
+      }
     }
 
     const affectedCustomerIds = new Set<string>();
     const invoiceData: any[] = [];
     const invoiceUpdates: Array<{ id: string; due_amount: number; days_overdue: number; status: string }> = [];
 
-    for (const r of invoiceByNumber.values()) {
-      const customer = resolveExisting(r);
-      if (!customer) continue; // cannot happen: created above
-      affectedCustomerIds.add(customer.id);
+    for (const [key, r] of invoiceByKey) {
+      affectedCustomerIds.add(r.customerId);
 
       const status = r.dueAmount <= 0 ? 'PAID' : r.daysOverdue > 0 ? 'OVERDUE' : 'PENDING';
-      const existing = existingByNumber.get(r.invoiceNumber);
+      const existing = existingByKey.get(key);
 
       if (existing) {
         if (
@@ -428,7 +446,7 @@ export class ImportService {
 
       invoiceData.push({
         business_id: businessId,
-        customer_id: customer.id,
+        customer_id: r.customerId,
         invoice_number: r.invoiceNumber,
         invoice_date: r.invoiceDate,
         amount: r.billAmount ?? Math.abs(r.dueAmount),
@@ -463,7 +481,7 @@ export class ImportService {
 
     // Bills that disappeared from the report were paid: clear them
     const cleared = existingInvoices.filter(
-      (i) => !invoiceByNumber.has(i.invoice_number) && i.due_amount !== 0,
+      (i) => !invoiceByKey.has(invKey(i.customer_id, i.invoice_number)) && i.due_amount !== 0,
     );
     if (cleared.length > 0) {
       await this.prisma.invoice.updateMany({

@@ -12,7 +12,6 @@ import { CustomerModule } from './modules/customer/customer.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { OutstandingModule } from './modules/outstanding/outstanding.module';
 import { ImportModule } from './modules/import/import.module';
-import { CampaignModule } from './modules/campaign/campaign.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { CallingModule } from './modules/calling/calling.module';
 import { AiAnalysisModule } from './modules/ai-analysis/ai-analysis.module';
@@ -64,7 +63,6 @@ import { validate } from './config/env.validation';
     InvoiceModule,
     OutstandingModule,
     ImportModule,
-    CampaignModule,
     WhatsappModule,
     CallingModule,
     AiAnalysisModule,

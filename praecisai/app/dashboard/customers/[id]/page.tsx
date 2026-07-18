@@ -135,7 +135,7 @@ export default function CustomerDetailPage() {
                   ) : (customer.invoices ?? []).map((inv: any) => (
                     <tr key={inv.id}>
                       <td className="text-sm font-mono text-blue-400">{inv.invoice_number}</td>
-                      <td className="text-sm text-slate-400">{formatDate(inv.invoice_date)}</td>
+                      <td className="text-sm text-slate-400 whitespace-nowrap">{formatDate(inv.invoice_date)}</td>
                       <td className="text-right">
                         <span className={`text-sm font-semibold ${inv.due_amount < 0 ? 'text-purple-400' : inv.due_amount === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {formatINR(inv.due_amount)}

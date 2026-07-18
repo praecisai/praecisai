@@ -33,16 +33,6 @@ export const createInvoiceSchema = z.object({
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
-// ─── Campaign ─────────────────────────────────────────────────────────────────
-
-export const createCampaignSchema = z.object({
-  name: z.string().min(1, 'Campaign name is required'),
-  type: z.enum(['WHATSAPP', 'CALL', 'EMAIL', 'SMS']),
-  scheduled_at: z.string().optional(),
-});
-
-export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
-
 // ─── Import ───────────────────────────────────────────────────────────────────
 
 const targetFields = [

@@ -10,7 +10,7 @@ import {
   PieChart, Pie, Legend,
 } from 'recharts';
 import {
-  IndianRupee, Users, FileText, Megaphone,
+  IndianRupee, Users, FileText,
   TrendingUp, AlertTriangle, Phone, MessageCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -91,11 +91,15 @@ export default function DashboardPage() {
 
       <div className="p-4 sm:p-6 space-y-6">
         {/* Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <MetricCard
             title="Total Outstanding"
             value={isLoading ? '...' : formatINR(stats?.total_outstanding ?? 0)}
-            sub="Active receivables"
+            sub={
+              (stats?.credit_note_total ?? 0) < 0
+                ? `Net of ${formatINR(Math.abs(stats?.credit_note_total ?? 0))} credit notes`
+                : 'Active receivables'
+            }
             icon={IndianRupee}
             color="#7F5539"
             loading={isLoading}
@@ -114,14 +118,6 @@ export default function DashboardPage() {
             sub="All time"
             icon={FileText}
             color="#4A7C59"
-            loading={isLoading}
-          />
-          <MetricCard
-            title="Active Campaigns"
-            value={isLoading ? '...' : String(stats?.active_campaigns ?? 0)}
-            sub="Running + scheduled"
-            icon={Megaphone}
-            color="#DDB892"
             loading={isLoading}
           />
         </div>

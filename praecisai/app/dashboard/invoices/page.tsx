@@ -123,7 +123,7 @@ export default function InvoicesPage() {
                     </Link>
                     {inv.customer?.city && <p className="text-xs mt-0.5" style={{ color: 'var(--walnut)' }}>{inv.customer.city}</p>}
                   </td>
-                  <td className="text-sm" style={{ color: 'var(--walnut)' }}>{formatDate(inv.invoice_date)}</td>
+                  <td className="text-sm whitespace-nowrap" style={{ color: 'var(--walnut)' }}>{formatDate(inv.invoice_date)}</td>
                   <td className="text-sm" style={{ color: 'var(--walnut)' }}>{inv.sales_agent ?? '-'}</td>
                   <td className="text-right">
                     <span className={`text-sm font-semibold ${

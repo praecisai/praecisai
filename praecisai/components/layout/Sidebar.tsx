@@ -7,7 +7,7 @@ import { createClient } from '../../lib/supabase/client';
 import {
   LayoutDashboard, Users, FileText, TrendingDown,
   Upload, Settings, LogOut, Star, ClipboardList,
-  ChevronRight, Bell, Search, FileSpreadsheet, Menu, X, Activity,
+  ChevronRight, FileSpreadsheet, Menu, X, Activity,
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { Logo } from '../../app/components/landing/Logo';
@@ -178,18 +178,6 @@ export function TopHeader({ title, subtitle }: { title: string; subtitle?: strin
           <h1 className="text-base sm:text-lg font-semibold text-[var(--dark-brown)] truncate">{title}</h1>
           {subtitle && <p className="text-[11px] sm:text-xs text-[var(--walnut)] mt-0.5 truncate">{subtitle}</p>}
         </div>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <button className="p-2 rounded-lg text-[var(--walnut)] hover:text-[var(--mahogany)] transition-all hidden sm:block" style={{ background: 'transparent' }}>
-          <Search size={16} strokeWidth={1.75} />
-        </button>
-        <button
-          className="p-2 rounded-lg text-[var(--walnut)] hover:text-[var(--mahogany)] transition-all relative"
-          style={{ background: 'transparent' }}
-        >
-          <Bell size={16} strokeWidth={1.75} />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[var(--rust)]"></span>
-        </button>
       </div>
     </header>
   );
