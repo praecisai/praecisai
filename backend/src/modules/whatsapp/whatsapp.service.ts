@@ -88,12 +88,13 @@ export class WhatsappService {
 
     const totalDue = invoices.reduce((s, i) => s + i.dueAmount, 0);
     const maxDays = Math.max(...invoices.map((i) => i.daysOverdue));
-    // VIPs inside the business's VIP range use its chosen template/colour
+    // VIPs inside the business's VIP range use its chosen template/colour.
+    // An explicit per-customer custom schedule outranks the VIP rule.
     const segment = applyVipRule(
       getSegment(maxDays, totalDue, rules),
       customer.is_vip,
       maxDays,
-      parseVipRule(customer.business.vip_rule),
+      customer.custom_schedule ? null : parseVipRule(customer.business.vip_rule),
     );
 
     // The No Follow-up range receives NOTHING: not even manual messages

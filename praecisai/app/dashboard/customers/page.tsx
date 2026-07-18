@@ -225,6 +225,7 @@ export default function CustomersPage() {
                           id: customer.id,
                           customer_name: customer.customer_name,
                           custom_schedule: customer.custom_schedule ?? null,
+                          is_vip: !!customer.is_vip,
                         })
                       }
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all hover:bg-[rgba(127,85,57,0.08)] whitespace-nowrap"

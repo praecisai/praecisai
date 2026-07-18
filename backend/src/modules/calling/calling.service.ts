@@ -124,12 +124,13 @@ export class CallingService {
     const maxDays = Math.max(...customer.invoices.map((i) => i.days_overdue));
     const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
     // VIPs inside the business's VIP range use its chosen script instead of
-    // the day-range segment (VIP calls are always manually triggered)
+    // the day-range segment (VIP calls are always manually triggered).
+    // An explicit per-customer custom schedule outranks the VIP rule.
     const segment = applyVipRule(
       getSegment(maxDays, totalDue, rules),
       customer.is_vip,
       maxDays,
-      parseVipRule(customer.business.vip_rule),
+      customer.custom_schedule ? null : parseVipRule(customer.business.vip_rule),
     );
 
     // The No Follow-up range receives NOTHING: not even manual calls

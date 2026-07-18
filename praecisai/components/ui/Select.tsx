@@ -33,7 +33,7 @@ export function Select({
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [query, setQuery] = useState('');
   const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLUListElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const showSearch = searchable ?? options.length > 10;
@@ -104,10 +104,9 @@ export function Select({
       </button>
 
       {open && pos && createPortal(
-        <ul
+        <div
           ref={menuRef}
-          role="listbox"
-          className="fixed z-[100] max-h-72 w-max overflow-y-auto rounded-xl border p-1.5"
+          className="fixed z-[100] w-max rounded-xl border p-1.5"
           style={{
             top: pos.top,
             left: pos.left,
@@ -118,8 +117,9 @@ export function Select({
             boxShadow: '0 8px 24px rgba(127,85,57,0.18)',
           }}
         >
+          {/* Search sits outside the scroll area so options never slide behind it */}
           {showSearch && (
-            <li className="sticky top-0 pb-1.5" style={{ background: 'var(--surface-warm)' }}>
+            <div className="pb-1.5">
               <div
                 className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5"
                 style={{ borderColor: 'rgba(176,137,104,0.4)', background: 'var(--sand)' }}
@@ -142,34 +142,42 @@ export function Select({
                   style={{ color: 'var(--dark-brown)' }}
                 />
               </div>
-            </li>
+            </div>
           )}
-          {visibleOptions.length === 0 && (
-            <li className="px-3 py-2 text-xs" style={{ color: 'var(--walnut)' }}>No matches</li>
-          )}
-          {visibleOptions.map((o) => {
-            const isSelected = o.value === value;
-            return (
-              <li key={o.value} role="option" aria-selected={isSelected}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(o.value);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    isSelected
-                      ? 'bg-[var(--sand)] font-semibold text-[var(--mahogany)]'
-                      : 'text-[var(--dark-brown)] hover:bg-[var(--sand)] hover:text-[var(--mahogany)]'
-                  }`}
-                >
-                  {o.label}
-                  {isSelected && <Check size={13} className="flex-shrink-0 text-[var(--mahogany)]" strokeWidth={2} />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>,
+          <ul
+            role="listbox"
+            className={
+              // Short lists (e.g. segments) render in full: scrollbars only for long ones
+              options.length > 8 ? 'max-h-64 overflow-y-auto' : ''
+            }
+          >
+            {visibleOptions.length === 0 && (
+              <li className="px-3 py-2 text-xs" style={{ color: 'var(--walnut)' }}>No matches</li>
+            )}
+            {visibleOptions.map((o) => {
+              const isSelected = o.value === value;
+              return (
+                <li key={o.value} role="option" aria-selected={isSelected}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(o.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      isSelected
+                        ? 'bg-[var(--sand)] font-semibold text-[var(--mahogany)]'
+                        : 'text-[var(--dark-brown)] hover:bg-[var(--sand)] hover:text-[var(--mahogany)]'
+                    }`}
+                  >
+                    {o.label}
+                    {isSelected && <Check size={13} className="flex-shrink-0 text-[var(--mahogany)]" strokeWidth={2} />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>,
         document.body,
       )}
     </div>

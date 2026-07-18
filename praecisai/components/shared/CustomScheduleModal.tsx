@@ -5,6 +5,7 @@ import { CalendarClock, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../lib/api/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMe } from '../../lib/api/hooks';
 import type { SegmentRule } from '../../types';
 
 // Per-customer segment schedule editor: same shape as the business-level
@@ -52,6 +53,7 @@ export type ScheduleTarget = {
   id: string;
   customer_name: string;
   custom_schedule: SegmentRule[] | null;
+  is_vip?: boolean;
 };
 
 export function CustomScheduleModal({
@@ -65,18 +67,34 @@ export function CustomScheduleModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const [bounds, setBounds] = useState<number[]>(boundsFromRules(target.custom_schedule));
+  const { data: user } = useMe();
+  const businessRules = user?.business?.segment_rules as SegmentRule[] | null | undefined;
+  const vipRule = user?.business?.vip_rule as
+    | { min_days: number; max_days: number | null; segment: string }
+    | null
+    | undefined;
+  const hasCustom = Array.isArray(target.custom_schedule) && target.custom_schedule.length > 0;
+  // Without a custom schedule, start from the business-wide Segment Rules (Settings)
+  const seedRules = hasCustom ? target.custom_schedule : businessRules;
+
+  const [bounds, setBounds] = useState<number[]>(boundsFromRules(seedRules));
+  const [touched, setTouched] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setBounds(boundsFromRules(target.custom_schedule));
+    setBounds(boundsFromRules(seedRules));
+    setTouched(false);
     setApplyToAll(false);
   }, [target.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Business rules can arrive after the modal opens: reseed unless the user already typed
+  useEffect(() => {
+    if (!touched && !hasCustom) setBounds(boundsFromRules(businessRules));
+  }, [businessRules]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const boundsValid =
     bounds[0] >= 0 && bounds[1] > bounds[0] && bounds[2] > bounds[1] && bounds[3] > bounds[2];
-  const hasCustom = Array.isArray(target.custom_schedule) && target.custom_schedule.length > 0;
 
   const patchCustomers = async (customSchedule: SegmentRule[] | null) => {
     const ids = applyToAll ? [target.id, ...others.map((o) => o.id)] : [target.id];
@@ -105,7 +123,7 @@ export function CustomScheduleModal({
       onClick={onClose}
     >
       <div
-        className="glass-card w-full max-w-lg p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+        className="glass-card w-full max-w-xl p-5 flex flex-col gap-3 max-h-[92vh] overflow-y-auto"
         style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -124,30 +142,44 @@ export function CustomScheduleModal({
               These day ranges apply to this customer only, instead of the business-wide segment
               rules. They decide the call tone, WhatsApp template and statement colour.
             </p>
+            {!hasCustom && (
+              <p className="text-[11px] mt-1.5 font-medium" style={{ color: 'var(--mahogany)' }}>
+                Pre-filled with your business Segment Rules from Settings: adjust any boundary to
+                make it custom for this customer.
+              </p>
+            )}
+            {target.is_vip && vipRule && (
+              <p className="text-[11px] mt-1.5 font-medium" style={{ color: '#B8860B' }}>
+                {hasCustom
+                  ? '⭐ VIP: this custom schedule overrides the business VIP rule for this customer.'
+                  : `⭐ VIP rule active: ${vipRule.min_days}–${vipRule.max_days ?? '∞'} days overdue uses the ${vipRule.segment} script. Saving a custom schedule replaces it for this customer.`}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           {SEGMENT_META.map(({ segment, color, desc }, i) => (
-            <div key={segment} className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
+            <div key={segment} className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium" style={{ color: 'var(--dark-brown)' }}>{segment}</p>
                 <p className="text-[11px]" style={{ color: 'var(--walnut)' }}>{desc}</p>
               </div>
-              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--walnut)' }}>
+              <div className="flex items-center gap-2 text-sm flex-shrink-0 pl-2" style={{ color: 'var(--walnut)' }}>
                 {i < 4 ? (
                   <>
-                    <span>{i === 0 ? 0 : bounds[i - 1] + 1} –</span>
+                    <span className="w-14 text-right whitespace-nowrap tabular-nums">{i === 0 ? 0 : bounds[i - 1] + 1} –</span>
                     <input
                       type="number"
                       min={0}
                       value={bounds[i]}
                       onChange={(e) => {
                         const v = parseInt(e.target.value) || 0;
+                        setTouched(true);
                         setBounds((b) => b.map((x, j) => (j === i ? v : x)));
                       }}
-                      className="input-dark w-20 text-center"
+                      className="input-dark w-20 text-center !py-1.5"
                     />
                     <span>days</span>
                   </>
