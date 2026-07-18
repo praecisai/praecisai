@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRecoveryReport, useDownloadRecoveryPdf } from '../../../lib/api/hooks';
+import { useRecoveryReport, useDownloadRecoveryPdf, useSegmentOverview, useDownloadReportPdf } from '../../../lib/api/hooks';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { formatINR } from '../../../lib/utils/format';
-import { Download, ThumbsUp, ThumbsDown, PhoneCall } from 'lucide-react';
+import { Download, ThumbsUp, ThumbsDown, PhoneCall, Flame, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 const RULES = [
   { label: 'Willing to Pay', detail: 'Customer acknowledged the amount and is willing to pay → Positive' },
   { label: 'Promised to Pay', detail: 'Gave a payment date. Up to 3 promises → Positive; 4 or more promises without paying → Negative' },
-  { label: 'Refused to Pay', detail: 'More than 6 refusals in a row → Negative' },
+  { label: 'Refused to Pay', detail: 'Any refusal on the latest call → Negative immediately; each row shows the total refusals so far. A later promise or willingness moves them back out' },
   { label: 'Keeps Asking to Call Later', detail: 'More than 6 “call me later” in a row → Negative' },
   { label: 'Not Answering Calls', detail: 'More than 6 unanswered calls in a row → Negative' },
   { label: 'Unclear Response', detail: 'More than 6 unclear calls in a row → Negative' },
@@ -26,7 +26,7 @@ function formatDate(d: string | Date | null) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
+function ReportTable({ entries, accent, showRefusals }: { entries: any[]; accent: string; showRefusals?: boolean }) {
   if (!entries?.length) {
     return (
       <p className="text-sm text-center py-10" style={{ color: 'var(--walnut)' }}>
@@ -43,6 +43,7 @@ function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
             <th className="text-left">Agent</th>
             <th className="text-right">Total Due</th>
             <th className="text-right">Calls</th>
+            {showRefusals && <th className="text-right">Refusals</th>}
             <th className="text-left">Last Call</th>
             <th className="text-left">Status</th>
             <th className="text-left">Why</th>
@@ -60,6 +61,11 @@ function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
               <td className="text-xs" style={{ color: 'var(--walnut)' }}>{e.agent ?? '-'}</td>
               <td className="text-right text-sm font-semibold" style={{ color: accent }}>{formatINR(e.total_due)}</td>
               <td className="text-right text-sm" style={{ color: 'var(--walnut)' }}>{e.total_calls}</td>
+              {showRefusals && (
+                <td className="text-right text-sm font-semibold" style={{ color: (e.refusal_count ?? 0) > 0 ? accent : 'var(--walnut)' }}>
+                  {e.refusal_count ?? 0}
+                </td>
+              )}
               <td className="text-xs" style={{ color: 'var(--walnut)' }}>{formatDate(e.last_call_at)}</td>
               <td>
                 <span
@@ -80,18 +86,33 @@ function ReportTable({ entries, accent }: { entries: any[]; accent: string }) {
 
 export default function ReportsPage() {
   const { data, isLoading } = useRecoveryReport();
+  const { data: overview, isLoading: overviewLoading } = useSegmentOverview();
   const download = useDownloadRecoveryPdf();
+  const downloadPdf = useDownloadReportPdf();
   const [tab, setTab] = useState<'positive' | 'negative'>('positive');
 
   const summary = data?.summary;
   const POSITIVE = '#2E7D32';
   const NEGATIVE = '#C62828';
+  const ESCALATION = '#E65100';
+  const OVERVIEW = '#7F5539';
+
+  const escalationSeg = overview?.segments?.find((s: any) => s.segment === 'Escalation');
 
   const handleDownload = (type: 'positive' | 'negative') =>
     download.mutate(type, {
       onSuccess: () => toast.success(`${type === 'positive' ? 'Positive' : 'Negative'} report downloaded`),
       onError: (e: any) => toast.error('Download failed', { description: e.message }),
     });
+
+  const handleExtraDownload = (path: string, filename: string, title: string) =>
+    downloadPdf.mutate(
+      { path, filename },
+      {
+        onSuccess: () => toast.success(`${title} downloaded`),
+        onError: (e: any) => toast.error('Download failed', { description: e.message }),
+      },
+    );
 
   return (
     <div>
@@ -135,6 +156,60 @@ export default function ReportsPage() {
               </div>
             </div>
           ))}
+
+          {/* Escalation parties report */}
+          <div className="glass-card p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${ESCALATION}15` }}>
+                  <Flame size={17} style={{ color: ESCALATION }} strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: 'var(--dark-brown)' }}>Escalation Report</p>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--walnut)' }}>Every party in the Escalation range: oldest bills, call history</p>
+                  <p className="text-lg font-bold mt-2" style={{ color: ESCALATION }}>
+                    {overviewLoading ? '…' : `${escalationSeg?.count ?? 0} parties · ${formatINR(escalationSeg?.amount ?? 0)}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleExtraDownload('/reports/escalation/pdf', 'escalation-parties-report', 'Escalation report')}
+                disabled={downloadPdf.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0 disabled:opacity-50 hover:opacity-90 transition-all"
+                style={{ background: ESCALATION }}
+              >
+                <Download size={13} />
+                PDF
+              </button>
+            </div>
+          </div>
+
+          {/* Segment overview report */}
+          <div className="glass-card p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${OVERVIEW}15` }}>
+                  <LayoutGrid size={17} style={{ color: OVERVIEW }} strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: 'var(--dark-brown)' }}>Segment Overview</p>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--walnut)' }}>All segments in detail: counts, amounts and every party per segment</p>
+                  <p className="text-lg font-bold mt-2" style={{ color: OVERVIEW }}>
+                    {overviewLoading ? '…' : `${overview?.total_customers ?? 0} parties · ${formatINR(overview?.total_outstanding ?? 0)}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleExtraDownload('/reports/overview/pdf', 'segment-overview-report', 'Segment overview')}
+                disabled={downloadPdf.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0 disabled:opacity-50 hover:opacity-90 transition-all"
+                style={{ background: OVERVIEW }}
+              >
+                <Download size={13} />
+                PDF
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Active report table */}
@@ -146,6 +221,20 @@ export default function ReportsPage() {
               {summary && `: based on ${summary.customers_with_calls} customer(s) with completed AI calls`}
             </p>
           </div>
+          {/* Per-rule counts: how many customers each negative rule caught */}
+          {tab === 'negative' && (summary?.negative_breakdown?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2 px-4 pt-3">
+              {summary.negative_breakdown.map((b: any) => (
+                <span
+                  key={b.category}
+                  className="text-[11px] px-2.5 py-1 rounded-full font-medium"
+                  style={{ background: 'rgba(198,40,40,0.08)', color: NEGATIVE, border: '1px solid rgba(198,40,40,0.25)' }}
+                >
+                  {b.category}: <b>{b.count}</b> · {formatINR(b.amount)}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="p-2">
             {isLoading ? (
               <div className="p-4 space-y-2">
@@ -155,6 +244,7 @@ export default function ReportsPage() {
               <ReportTable
                 entries={tab === 'positive' ? data?.positive ?? [] : data?.negative ?? []}
                 accent={tab === 'positive' ? POSITIVE : NEGATIVE}
+                showRefusals={tab === 'negative'}
               />
             )}
           </div>

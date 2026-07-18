@@ -21,6 +21,12 @@ export class ReportsController {
     return this.reportsService.getRecoveryReport(businessId);
   }
 
+  // Segment overview (also feeds the Escalation card count on the UI)
+  @Get('overview')
+  getOverview(@BusinessId() businessId: string) {
+    return this.reportsService.getSegmentOverview(businessId);
+  }
+
   // Downloadable PDF: ?type=positive|negative
   @Get('recovery/pdf')
   async downloadPdf(
@@ -41,13 +47,48 @@ export class ReportsController {
       type,
       businessName: business?.name ?? 'PraecisAI',
       entries: type === 'positive' ? report.positive : report.negative,
+      breakdown: type === 'negative' ? report.summary.negative_breakdown : undefined,
     });
 
+    this.sendPdf(res, buffer, `${type}-recovery-report`);
+  }
+
+  // Downloadable PDF: every party currently in the Escalation range
+  @Get('escalation/pdf')
+  async downloadEscalationPdf(@BusinessId() businessId: string, @Res() res: Response) {
+    const [entries, business] = await Promise.all([
+      this.reportsService.getEscalationReport(businessId),
+      this.prisma.business.findUnique({ where: { id: businessId }, select: { name: true } }),
+    ]);
+
+    const buffer = await this.pdfService.generateEscalation({
+      businessName: business?.name ?? 'PraecisAI',
+      entries,
+    });
+    this.sendPdf(res, buffer, 'escalation-parties-report');
+  }
+
+  // Downloadable PDF: all segments in detail for the owner
+  @Get('overview/pdf')
+  async downloadOverviewPdf(@BusinessId() businessId: string, @Res() res: Response) {
+    const [data, business] = await Promise.all([
+      this.reportsService.getSegmentOverview(businessId),
+      this.prisma.business.findUnique({ where: { id: businessId }, select: { name: true } }),
+    ]);
+
+    const buffer = await this.pdfService.generateOverview({
+      businessName: business?.name ?? 'PraecisAI',
+      data,
+    });
+    this.sendPdf(res, buffer, 'segment-overview-report');
+  }
+
+  private sendPdf(res: Response, buffer: Buffer, baseName: string) {
     const today = new Date();
     const stamp = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${type}-recovery-report_${stamp}.pdf"`,
+      'Content-Disposition': `attachment; filename="${baseName}_${stamp}.pdf"`,
       'Content-Length': buffer.length,
     });
     res.send(buffer);

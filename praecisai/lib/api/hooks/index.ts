@@ -151,6 +151,38 @@ export function useRecoveryReport() {
   });
 }
 
+// Segments with counts/amounts + full party lists (drives the Escalation
+// and Segment Overview report cards)
+export function useSegmentOverview() {
+  return useQuery({
+    queryKey: ['reports', 'overview'],
+    queryFn: async () => {
+      const res = await api.get('/reports/overview');
+      return res.data.data ?? res.data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+// Generic PDF download for the report endpoints
+export function useDownloadReportPdf() {
+  return useMutation({
+    mutationFn: async ({ path, filename }: { path: string; filename: string }) => {
+      const res = await api.get(path, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      const today = new Date();
+      const stamp = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+      a.href = url;
+      a.download = `${filename}_${stamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
 export function useDownloadRecoveryPdf() {
   return useMutation({
     mutationFn: async (type: 'positive' | 'negative') => {
