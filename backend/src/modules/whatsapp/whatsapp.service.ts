@@ -5,7 +5,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
 import { AisensyService } from './aisensy.service';
 import { StorageService } from '../storage/storage.service';
-import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
+import {
+  getSegment,
+  parseSegmentRules,
+  parseVipRule,
+  applyVipRule,
+  NO_FOLLOWUP_SEGMENT,
+} from '../../common/utils/segment.util';
 
 @Injectable()
 export class WhatsappService {
@@ -47,7 +53,7 @@ export class WhatsappService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true } },
+        business: { select: { name: true, segment_rules: true, vip_rule: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -66,18 +72,36 @@ export class WhatsappService {
     // A per-customer custom schedule overrides the business segment rules
     const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
 
-    const invoices: StatementInvoice[] = customer.invoices.map((inv) => ({
-      billNo: inv.invoice_number,
-      billDate: formatIndianDate(inv.invoice_date),
-      billAmount: inv.amount || inv.due_amount,
-      dueAmount: inv.due_amount,
-      daysOverdue: inv.days_overdue,
-      status: getSegment(inv.days_overdue, inv.due_amount, rules),
-    }));
+    const invoices: StatementInvoice[] = customer.invoices.map((inv) => {
+      const rowSegment = getSegment(inv.days_overdue, inv.due_amount, rules);
+      return {
+        billNo: inv.invoice_number,
+        billDate: formatIndianDate(inv.invoice_date),
+        billAmount: inv.amount || inv.due_amount,
+        dueAmount: inv.due_amount,
+        daysOverdue: inv.days_overdue,
+        // "No Follow-up" is an internal contact policy, not a bill state:
+        // a fresh bill on the statement simply reads "New"
+        status: rowSegment === NO_FOLLOWUP_SEGMENT ? 'New' : rowSegment,
+      };
+    });
 
     const totalDue = invoices.reduce((s, i) => s + i.dueAmount, 0);
     const maxDays = Math.max(...invoices.map((i) => i.daysOverdue));
-    const segment = getSegment(maxDays, totalDue, rules);
+    // VIPs inside the business's VIP range use its chosen template/colour
+    const segment = applyVipRule(
+      getSegment(maxDays, totalDue, rules),
+      customer.is_vip,
+      maxDays,
+      parseVipRule(customer.business.vip_rule),
+    );
+
+    // The No Follow-up range receives NOTHING: not even manual messages
+    if (segment === NO_FOLLOWUP_SEGMENT) {
+      throw new BadRequestException(
+        `${customer.customer_name} is in the "${NO_FOLLOWUP_SEGMENT}" range (${maxDays} days overdue): no calls or messages are sent to this segment.`,
+      );
+    }
     const agentName = customer.invoices.find((i) => i.sales_agent)?.sales_agent ?? undefined;
 
     const pdfBuffer = await this.statementPdf.generate({
@@ -147,6 +171,12 @@ export class WhatsappService {
   // whatsapp-statements worker drains the queue in the background; per-customer
   // failures are logged there (and in WhatsAppLog) without stopping the run.
   async sendSegmentStatements(businessId: string, segment: string, vipOnly = false) {
+    // The No Follow-up range receives no contact at all
+    if (segment === NO_FOLLOWUP_SEGMENT) {
+      throw new BadRequestException(
+        `"${NO_FOLLOWUP_SEGMENT}" customers are never called or messaged.`,
+      );
+    }
     // VIP protection: VIPs NEVER receive bulk messages unless explicitly
     // targeted (vipOnly toggle, or the special "VIP" segment = all VIPs).
     const isVipSegment = segment === 'VIP';

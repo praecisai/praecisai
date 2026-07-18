@@ -12,7 +12,7 @@ export type ImportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type CallStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'NO_ANSWER' | 'BUSY';
 export type DeliveryStatus = 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 export type PTPStatus = 'PENDING' | 'KEPT' | 'BROKEN' | 'RESCHEDULED';
-export type Segment = 'Soft Reminder' | 'Follow-up' | 'Strong Follow-up' | 'Escalation' | 'Cleared' | 'Credit Note';
+export type Segment = 'No Follow-up' | 'Soft Reminder' | 'Follow-up' | 'Strong Follow-up' | 'Escalation' | 'Cleared' | 'Credit Note';
 
 // ─── Core Entities ────────────────────────────────────────────────────────────
 
@@ -288,11 +288,20 @@ export interface SegmentRule {
 }
 
 export const DEFAULT_SEGMENT_RULES: SegmentRule[] = [
-  { min_days: 0, max_days: 60, segment: 'Soft Reminder' },
+  { min_days: 0, max_days: 0, segment: 'No Follow-up' },
+  { min_days: 1, max_days: 60, segment: 'Soft Reminder' },
   { min_days: 61, max_days: 120, segment: 'Follow-up' },
   { min_days: 121, max_days: 180, segment: 'Strong Follow-up' },
   { min_days: 181, max_days: null, segment: 'Escalation' },
 ];
+
+// VIP-only override: VIPs whose days overdue fall in this range are contacted
+// (manually) with the chosen segment's script/template.
+export interface VipRule {
+  min_days: number;
+  max_days: number | null;
+  segment: Segment;
+}
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 

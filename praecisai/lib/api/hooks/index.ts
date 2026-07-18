@@ -330,8 +330,12 @@ export function useSendSegmentStatements() {
 export function useUpdateBusiness() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name?: string; handoff_number?: string; segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }> }) =>
-      api.patch('/business/me', data),
+    mutationFn: (data: {
+      name?: string;
+      handoff_number?: string;
+      segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
+      vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
+    }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });
       qc.invalidateQueries({ queryKey: ['outstandings'] });

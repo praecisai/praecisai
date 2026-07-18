@@ -5,7 +5,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus } from '@prisma/client';
 import { CallExtractionService } from './call-extraction.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
-import { getSegment, parseSegmentRules } from '../../common/utils/segment.util';
+import {
+  getSegment,
+  parseSegmentRules,
+  parseVipRule,
+  applyVipRule,
+  NO_FOLLOWUP_SEGMENT,
+} from '../../common/utils/segment.util';
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import {
   amountToHindi,
@@ -64,7 +70,7 @@ export class CallingService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true, handoff_number: true } },
+        business: { select: { name: true, segment_rules: true, handoff_number: true, vip_rule: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -117,7 +123,21 @@ export class CallingService {
     const totalDue = customer.invoices.reduce((s, i) => s + i.due_amount, 0);
     const maxDays = Math.max(...customer.invoices.map((i) => i.days_overdue));
     const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
-    const segment = getSegment(maxDays, totalDue, rules);
+    // VIPs inside the business's VIP range use its chosen script instead of
+    // the day-range segment (VIP calls are always manually triggered)
+    const segment = applyVipRule(
+      getSegment(maxDays, totalDue, rules),
+      customer.is_vip,
+      maxDays,
+      parseVipRule(customer.business.vip_rule),
+    );
+
+    // The No Follow-up range receives NOTHING: not even manual calls
+    if (segment === NO_FOLLOWUP_SEGMENT) {
+      throw new BadRequestException(
+        `${customer.customer_name} is in the "${NO_FOLLOWUP_SEGMENT}" range (${maxDays} days overdue): no calls or messages are sent to this segment.`,
+      );
+    }
 
     const multiInvoiceNote =
       customer.invoices.length > 1
@@ -230,6 +250,12 @@ export class CallingService {
   // Per-customer guards (sensitive cooldown, 60-min gap) still apply: those
   // customers are reported as skipped, not errors.
   async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
+    // The No Follow-up range receives no contact at all
+    if (segment === NO_FOLLOWUP_SEGMENT) {
+      throw new BadRequestException(
+        `"${NO_FOLLOWUP_SEGMENT}" customers are never called or messaged.`,
+      );
+    }
     // VIP protection: VIPs NEVER receive automated/bulk calls unless the user
     // explicitly targets them (vipOnly toggle, or the special "VIP" segment
     // which means "all VIP customers regardless of segment").

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import { Prisma } from '@prisma/client';
 import { IsString, IsOptional, IsEmail, IsBoolean, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 import * as XLSX from 'xlsx';
 
 export class CreateCustomerDto {
@@ -23,7 +24,11 @@ export class UpdateCustomerDto {
   @IsOptional() @IsBoolean() is_vip?: boolean;
   // Per-customer segment day ranges (same shape as business segment_rules);
   // null clears the override. Validated structurally in the service.
-  @IsOptional() custom_schedule?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
+  // @Type(() => Object) guards against the ValidationPipe's implicit
+  // conversion mangling arrays of plain objects (see UpdateBusinessDto).
+  @IsOptional()
+  @Type(() => Object)
+  custom_schedule?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
 }
 
 export class CustomerFiltersDto {

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
+import { Select } from '../../../components/ui/Select';
 import { useMe, useUpdateBusiness, useBolnaCredits } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Coins } from 'lucide-react';
+import { Settings, Users, Shield, Coins, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TABS = [
@@ -14,27 +15,41 @@ const TABS = [
 ];
 
 const SEGMENT_META = [
+  { segment: 'No Follow-up', color: '#6B7280', desc: 'No calls or messages at all: fresh bills in this range are left alone' },
   { segment: 'Soft Reminder', color: 'var(--recovery-green)', desc: 'Gentle first reminder: no pressure' },
   { segment: 'Follow-up', color: '#B8860B', desc: 'Friendly follow-up asking for a rough date' },
   { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful: accounts team update' },
   { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved: humble but urgent' },
 ];
 
-const DEFAULT_BOUNDS = [60, 120, 180];
+// Scripts the AI can speak: the VIP range must map to one of these
+const CONTACT_SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation'];
+
+// Upper bounds of [No Follow-up, Soft Reminder, Follow-up, Strong Follow-up]
+const DEFAULT_BOUNDS = [0, 60, 120, 180];
 
 function boundsFromRules(rules: any): number[] {
-  if (!Array.isArray(rules) || rules.length !== 4) return DEFAULT_BOUNDS;
+  if (!Array.isArray(rules)) return DEFAULT_BOUNDS;
   const sorted = [...rules].sort((a, b) => a.min_days - b.min_days);
-  const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days];
-  return bounds.every((b) => typeof b === 'number') ? (bounds as number[]) : DEFAULT_BOUNDS;
+  if (sorted.length === 5) {
+    const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days, sorted[3]?.max_days];
+    if (bounds.every((b) => typeof b === 'number')) return bounds as number[];
+  }
+  // Legacy 4-rule config from before No Follow-up existed: its range is 0
+  if (sorted.length === 4) {
+    const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days];
+    if (bounds.every((b) => typeof b === 'number')) return [0, ...(bounds as number[])];
+  }
+  return DEFAULT_BOUNDS;
 }
 
 function rulesFromBounds(bounds: number[]) {
   return [
-    { min_days: 0, max_days: bounds[0], segment: 'Soft Reminder' },
-    { min_days: bounds[0] + 1, max_days: bounds[1], segment: 'Follow-up' },
-    { min_days: bounds[1] + 1, max_days: bounds[2], segment: 'Strong Follow-up' },
-    { min_days: bounds[2] + 1, max_days: null, segment: 'Escalation' },
+    { min_days: 0, max_days: bounds[0], segment: 'No Follow-up' },
+    { min_days: bounds[0] + 1, max_days: bounds[1], segment: 'Soft Reminder' },
+    { min_days: bounds[1] + 1, max_days: bounds[2], segment: 'Follow-up' },
+    { min_days: bounds[2] + 1, max_days: bounds[3], segment: 'Strong Follow-up' },
+    { min_days: bounds[3] + 1, max_days: null, segment: 'Escalation' },
   ];
 }
 
@@ -46,14 +61,30 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('');
   const [handoffNumber, setHandoffNumber] = useState('');
   const [bounds, setBounds] = useState<number[]>(DEFAULT_BOUNDS);
+  // VIP override: day range + which segment's call/template VIPs in it receive
+  const [vipEnabled, setVipEnabled] = useState(false);
+  const [vipMin, setVipMin] = useState(0);
+  const [vipMax, setVipMax] = useState(180);
+  const [vipSegment, setVipSegment] = useState('Soft Reminder');
 
   useEffect(() => {
     if (user?.business?.name) setBusinessName(user.business.name);
     setHandoffNumber(user?.business?.handoff_number ?? '');
     setBounds(boundsFromRules(user?.business?.segment_rules));
-  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules]);
+    const vr = user?.business?.vip_rule;
+    if (vr && typeof vr.min_days === 'number') {
+      setVipEnabled(true);
+      setVipMin(vr.min_days);
+      setVipMax(typeof vr.max_days === 'number' ? vr.max_days : 9999);
+      setVipSegment(vr.segment ?? 'Soft Reminder');
+    } else {
+      setVipEnabled(false);
+    }
+  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules, user?.business?.vip_rule]);
 
-  const boundsValid = bounds[0] >= 1 && bounds[1] > bounds[0] && bounds[2] > bounds[1];
+  const boundsValid =
+    bounds[0] >= 0 && bounds[1] > bounds[0] && bounds[2] > bounds[1] && bounds[3] > bounds[2];
+  const vipValid = !vipEnabled || (vipMin >= 0 && vipMax >= vipMin);
   // Empty is allowed (falls back to platform default); otherwise must look like a phone number.
   const handoffValid = /^(\+?[0-9]{10,15})?$/.test(handoffNumber.trim());
 
@@ -72,9 +103,14 @@ export default function SettingsPage() {
   };
 
   const saveSegments = async () => {
-    if (!boundsValid) return;
+    if (!boundsValid || !vipValid) return;
     try {
-      await updateBusiness.mutateAsync({ segment_rules: rulesFromBounds(bounds) });
+      await updateBusiness.mutateAsync({
+        segment_rules: rulesFromBounds(bounds),
+        vip_rule: vipEnabled
+          ? { min_days: vipMin, max_days: vipMax, segment: vipSegment }
+          : null,
+      });
       toast.success('Segment rules saved', {
         description: 'All customers were re-segmented with the new day ranges.',
       });
@@ -89,7 +125,8 @@ export default function SettingsPage() {
     `0 – ${bounds[0]} days`,
     `${bounds[0] + 1} – ${bounds[1]} days`,
     `${bounds[1] + 1} – ${bounds[2]} days`,
-    `${bounds[2] + 1}+ days`,
+    `${bounds[2] + 1} – ${bounds[3]} days`,
+    `${bounds[3] + 1}+ days`,
   ];
 
   return (
@@ -194,8 +231,8 @@ export default function SettingsPage() {
               <h3 className="font-semibold text-[var(--dark-brown)] mb-1">Segment Rules</h3>
               <p className="text-xs text-[var(--walnut)] mb-5">
                 Day ranges decide each customer&apos;s segment: which controls the AI call script, the WhatsApp
-                template and the statement colour. Edit the upper bound of the first three segments; saving
-                re-segments every customer instantly.
+                template and the statement colour. Customers in <b>No Follow-up</b> receive no calls or messages
+                at all. Saving re-segments every customer instantly.
               </p>
               <div className="space-y-3">
                 {SEGMENT_META.map(({ segment, color, desc }, i) => (
@@ -206,12 +243,12 @@ export default function SettingsPage() {
                       <p className="text-xs text-[var(--walnut)]">{desc}</p>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-[var(--walnut)]">
-                      {i < 3 ? (
+                      {i < 4 ? (
                         <>
                           <span>{i === 0 ? 0 : bounds[i - 1] + 1} –</span>
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             value={bounds[i]}
                             onChange={(e) => {
                               const v = parseInt(e.target.value) || 0;
@@ -222,7 +259,7 @@ export default function SettingsPage() {
                           <span>days</span>
                         </>
                       ) : (
-                        <span className="text-sm font-medium" style={{ color }}>{ranges[3]}</span>
+                        <span className="text-sm font-medium" style={{ color }}>{ranges[4]}</span>
                       )}
                     </div>
                   </div>
@@ -233,9 +270,57 @@ export default function SettingsPage() {
                   Each boundary must be larger than the previous one.
                 </p>
               )}
+
+              {/* VIP override: only applies to starred customers */}
+              <div className="mt-5 p-3 rounded-lg border" style={{ background: 'rgba(234,179,8,0.06)', borderColor: 'rgba(234,179,8,0.35)' }}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Star size={14} className="text-yellow-500 flex-shrink-0" fill="currentColor" />
+                  <div className="flex-1 min-w-44">
+                    <p className="text-sm font-medium text-[var(--dark-brown)]">VIP Range</p>
+                    <p className="text-xs text-[var(--walnut)]">
+                      Only for VIP customers: within this day range, VIP calls and messages use the chosen
+                      script below instead of the normal segment. VIPs are still contacted only when you
+                      trigger them manually.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: 'var(--dark-brown)' }}>
+                    <input type="checkbox" checked={vipEnabled} onChange={(e) => setVipEnabled(e.target.checked)} />
+                    Enabled
+                  </label>
+                </div>
+                {vipEnabled && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3 text-sm text-[var(--walnut)]">
+                    <input
+                      type="number" min={0} value={vipMin}
+                      onChange={(e) => setVipMin(parseInt(e.target.value) || 0)}
+                      className="input-dark w-20 text-center" title="Start (days overdue)"
+                    />
+                    <span>–</span>
+                    <input
+                      type="number" min={0} value={vipMax}
+                      onChange={(e) => setVipMax(parseInt(e.target.value) || 0)}
+                      className="input-dark w-20 text-center" title="End (days overdue)"
+                    />
+                    <span>days, send</span>
+                    <Select
+                      className="w-44"
+                      value={vipSegment}
+                      onChange={(v) => setVipSegment(v)}
+                      options={CONTACT_SEGMENTS.map((s) => ({ value: s, label: s }))}
+                    />
+                    <span>call / template</span>
+                  </div>
+                )}
+                {!vipValid && (
+                  <p className="text-xs mt-2" style={{ color: '#C62828' }}>
+                    The VIP range end must be greater than or equal to its start.
+                  </p>
+                )}
+              </div>
+
               <button
                 onClick={saveSegments}
-                disabled={updateBusiness.isPending || !boundsValid}
+                disabled={updateBusiness.isPending || !boundsValid || !vipValid}
                 className="mt-5 px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                 {updateBusiness.isPending ? 'Saving…' : 'Save Segment Rules'}

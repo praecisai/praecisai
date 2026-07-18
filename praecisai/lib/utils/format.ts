@@ -54,6 +54,7 @@ export function formatRelative(dateStr: string): string {
  */
 export function getSegmentClass(segment: Segment | string): string {
   const map: Record<string, string> = {
+    'No Follow-up': 'nofollowup',
     'Soft Reminder': 'soft',
     'Follow-up': 'followup',
     'Strong Follow-up': 'strong',

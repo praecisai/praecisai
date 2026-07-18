@@ -108,6 +108,11 @@ model Business {
   // Number the AI transfers a call to when the customer asks for a human/senior.
   // Null = fall back to the platform default (BOLNA_HANDOFF_NUMBER env var).
   handoff_number String?
+  // VIP-only override: { min_days, max_days, segment }. VIP customers whose
+  // days overdue fall in this range are contacted (manually: VIPs are never
+  // auto-contacted) with the chosen segment's script/template instead of the
+  // day-range segment. Null = no override.
+  vip_rule Json?
   created_at DateTime       @default(now())
   updated_at DateTime       @updatedAt
 

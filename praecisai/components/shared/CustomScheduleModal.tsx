@@ -13,27 +13,38 @@ import type { SegmentRule } from '../../types';
 // Strong Follow-up → Escalation, overriding the business defaults.
 
 const SEGMENT_META = [
+  { segment: 'No Follow-up', color: '#6B7280', desc: 'No calls or messages at all in this range' },
   { segment: 'Soft Reminder', color: 'var(--recovery-green, #4A7C59)', desc: 'Gentle first reminder: no pressure' },
   { segment: 'Follow-up', color: '#B8860B', desc: 'Friendly follow-up asking for a rough date' },
   { segment: 'Strong Follow-up', color: '#E65100', desc: 'Firm but respectful: accounts team update' },
   { segment: 'Escalation', color: '#C62828', desc: 'Senior team involved: humble but urgent' },
 ];
 
-const DEFAULT_BOUNDS = [60, 120, 180];
+// Upper bounds of [No Follow-up, Soft Reminder, Follow-up, Strong Follow-up]
+const DEFAULT_BOUNDS = [0, 60, 120, 180];
 
 function boundsFromRules(rules: SegmentRule[] | null | undefined): number[] {
-  if (!Array.isArray(rules) || rules.length !== 4) return DEFAULT_BOUNDS;
+  if (!Array.isArray(rules)) return DEFAULT_BOUNDS;
   const sorted = [...rules].sort((a, b) => a.min_days - b.min_days);
-  const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days];
-  return bounds.every((b) => typeof b === 'number') ? (bounds as number[]) : DEFAULT_BOUNDS;
+  if (sorted.length === 5) {
+    const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days, sorted[3]?.max_days];
+    if (bounds.every((b) => typeof b === 'number')) return bounds as number[];
+  }
+  // Legacy 4-rule schedule (saved before No Follow-up existed): its range is 0
+  if (sorted.length === 4) {
+    const bounds = [sorted[0]?.max_days, sorted[1]?.max_days, sorted[2]?.max_days];
+    if (bounds.every((b) => typeof b === 'number')) return [0, ...(bounds as number[])];
+  }
+  return DEFAULT_BOUNDS;
 }
 
 function rulesFromBounds(bounds: number[]): SegmentRule[] {
   return [
-    { min_days: 0, max_days: bounds[0], segment: 'Soft Reminder' },
-    { min_days: bounds[0] + 1, max_days: bounds[1], segment: 'Follow-up' },
-    { min_days: bounds[1] + 1, max_days: bounds[2], segment: 'Strong Follow-up' },
-    { min_days: bounds[2] + 1, max_days: null, segment: 'Escalation' },
+    { min_days: 0, max_days: bounds[0], segment: 'No Follow-up' },
+    { min_days: bounds[0] + 1, max_days: bounds[1], segment: 'Soft Reminder' },
+    { min_days: bounds[1] + 1, max_days: bounds[2], segment: 'Follow-up' },
+    { min_days: bounds[2] + 1, max_days: bounds[3], segment: 'Strong Follow-up' },
+    { min_days: bounds[3] + 1, max_days: null, segment: 'Escalation' },
   ] as SegmentRule[];
 }
 
@@ -63,7 +74,8 @@ export function CustomScheduleModal({
     setApplyToAll(false);
   }, [target.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const boundsValid = bounds[0] >= 1 && bounds[1] > bounds[0] && bounds[2] > bounds[1];
+  const boundsValid =
+    bounds[0] >= 0 && bounds[1] > bounds[0] && bounds[2] > bounds[1] && bounds[3] > bounds[2];
   const hasCustom = Array.isArray(target.custom_schedule) && target.custom_schedule.length > 0;
 
   const patchCustomers = async (customSchedule: SegmentRule[] | null) => {
@@ -124,12 +136,12 @@ export function CustomScheduleModal({
                 <p className="text-[11px]" style={{ color: 'var(--walnut)' }}>{desc}</p>
               </div>
               <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--walnut)' }}>
-                {i < 3 ? (
+                {i < 4 ? (
                   <>
                     <span>{i === 0 ? 0 : bounds[i - 1] + 1} –</span>
                     <input
                       type="number"
-                      min={1}
+                      min={0}
                       value={bounds[i]}
                       onChange={(e) => {
                         const v = parseInt(e.target.value) || 0;
@@ -140,7 +152,7 @@ export function CustomScheduleModal({
                     <span>days</span>
                   </>
                 ) : (
-                  <span className="text-sm font-medium" style={{ color }}>{bounds[2] + 1}+ days</span>
+                  <span className="text-sm font-medium" style={{ color }}>{bounds[3] + 1}+ days</span>
                 )}
               </div>
             </div>

@@ -4,12 +4,56 @@ export interface SegmentRule {
   segment: string;
 }
 
+// Customers in this segment receive NO calls and NO messages: not even
+// manual ones. It always starts at 0 days; only its upper bound is editable.
+export const NO_FOLLOWUP_SEGMENT = 'No Follow-up';
+
 export const DEFAULT_SEGMENT_RULES: SegmentRule[] = [
-  { min_days: 0, max_days: 60, segment: 'Soft Reminder' },
+  { min_days: 0, max_days: 0, segment: NO_FOLLOWUP_SEGMENT },
+  { min_days: 1, max_days: 60, segment: 'Soft Reminder' },
   { min_days: 61, max_days: 120, segment: 'Follow-up' },
   { min_days: 121, max_days: 180, segment: 'Strong Follow-up' },
   { min_days: 181, max_days: null, segment: 'Escalation' },
 ];
+
+// VIP-only override stored on businesses.vip_rule:
+// VIPs whose days overdue fall inside [min_days, max_days] are contacted
+// (always manually) with `segment`'s script/template instead of the day-range
+// segment. Null/malformed = no override.
+export interface VipRule {
+  min_days: number;
+  max_days: number | null;
+  segment: string;
+}
+
+export function parseVipRule(raw: unknown): VipRule | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as any;
+  if (
+    typeof r.min_days !== 'number' ||
+    (r.max_days !== null && typeof r.max_days !== 'number') ||
+    typeof r.segment !== 'string' ||
+    !r.segment
+  ) {
+    return null;
+  }
+  return { min_days: r.min_days, max_days: r.max_days, segment: r.segment };
+}
+
+/** The segment to actually use when contacting a customer: VIPs inside the
+ *  business's VIP range use the range's chosen segment. */
+export function applyVipRule(
+  segment: string,
+  isVip: boolean,
+  daysOverdue: number,
+  vipRule: VipRule | null,
+): string {
+  if (!isVip || !vipRule) return segment;
+  const inRange =
+    daysOverdue >= vipRule.min_days &&
+    (vipRule.max_days === null || daysOverdue <= vipRule.max_days);
+  return inRange ? vipRule.segment : segment;
+}
 
 /**
  * Parse a business's stored segment_rules JSON (from businesses.segment_rules).

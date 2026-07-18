@@ -22,9 +22,13 @@ import { useDebounce } from '../../../lib/hooks/useDebounce';
 
 const AGING_BUCKETS = ['0-60', '61-120', '121-180', '181+'];
 
-const SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
+const SEGMENTS = ['No Follow-up', 'Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared'];
+
+// Segments that never receive calls/messages: no bulk or per-row actions
+const NO_CONTACT_SEGMENTS = ['No Follow-up', 'Cleared'];
 
 const SEGMENT_COLORS: Record<string, string> = {
+  'No Follow-up': '#6B7280',
   'Soft Reminder': '#4A7C59',
   'Follow-up': '#B8860B',
   'Strong Follow-up': '#E65100',
@@ -249,8 +253,9 @@ export default function OutstandingsPage() {
 
             {/* Bulk actions: enabled when one segment is selected.
                 VIPs never receive automated sends; bulk actions here are the
-                ONLY way to reach them ("VIP" segment or the VIP-only toggle). */}
-            {filters.segment && filters.segment !== 'Cleared' && (
+                ONLY way to reach them ("VIP" segment or the VIP-only toggle).
+                No Follow-up and Cleared receive nothing at all. */}
+            {filters.segment && !NO_CONTACT_SEGMENTS.includes(filters.segment) && (
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
                 {filters.segment !== 'VIP' && (
                 <label
@@ -342,7 +347,7 @@ export default function OutstandingsPage() {
                   </td>
                   <td><StatusBadge status={row.status} /></td>
                   <td>
-                    {row.total_due > 0 && row.customer?.id ? (
+                    {row.total_due > 0 && row.customer?.id && !NO_CONTACT_SEGMENTS.includes(row.segment) ? (
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleWhatsApp(row)}
