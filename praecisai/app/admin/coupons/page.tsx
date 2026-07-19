@@ -17,7 +17,6 @@ export default function AdminCouponsPage() {
 
   const [code, setCode] = useState('');
   const [percent, setPercent] = useState(10);
-  const [maxUses, setMaxUses] = useState(1);
   const [expiresAt, setExpiresAt] = useState('');
 
   function submit(e: React.FormEvent) {
@@ -26,7 +25,7 @@ export default function AdminCouponsPage() {
       {
         code: code.trim().toUpperCase(),
         percent,
-        maxUses,
+        maxUses: 2147483647, // effectively unlimited
         ...(expiresAt ? { expiresAt } : {}),
       },
       {
@@ -44,7 +43,7 @@ export default function AdminCouponsPage() {
       <div>
         <h1 className="text-lg font-bold text-[var(--dark-brown)]">Coupons</h1>
         <p className="text-xs text-[var(--walnut)]">
-          A coupon is compulsory at onboarding checkout: the percent applies to the ₹50,000 base before GST
+          Coupon codes give a percentage discount on the ₹50,000 onboarding fee (before GST). Coupons are optional at checkout.
         </p>
       </div>
 
@@ -62,23 +61,12 @@ export default function AdminCouponsPage() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-semibold text-[var(--walnut)] uppercase mb-1">Percent</label>
+          <label className="block text-[11px] font-semibold text-[var(--walnut)] uppercase mb-1">Discount</label>
           <Select
             value={String(percent)}
             onChange={(v) => setPercent(Number(v))}
             className="w-28"
-            options={[5, 10, 15, 20, 25, 30].map((p) => ({ value: String(p), label: `${p}%` }))}
-          />
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-[var(--walnut)] uppercase mb-1">Max uses</label>
-          <input
-            type="number"
-            min={1}
-            value={maxUses}
-            onChange={(e) => setMaxUses(Number(e.target.value) || 1)}
-            className="px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)] w-24"
-            style={{ borderColor: 'var(--caramel)' }}
+            options={[5, 10, 15, 20, 25, 30].map((p) => ({ value: String(p), label: `${p}% off` }))}
           />
         </div>
         <div>
@@ -106,13 +94,12 @@ export default function AdminCouponsPage() {
         {isLoading ? (
           <p className="text-sm text-[var(--walnut)] p-6 text-center">Loading coupons…</p>
         ) : (
-          <table className="data-table w-full min-w-[720px]">
+          <table className="data-table w-full min-w-[580px]">
             <thead>
               <tr>
                 <th className="text-left">Code</th>
-                <th className="text-right">Percent</th>
+                <th className="text-right">Discount</th>
                 <th className="text-right">Used</th>
-                <th className="text-left">Used by</th>
                 <th className="text-left">Expires</th>
                 <th className="text-left">Status</th>
                 <th className="text-right">Action</th>
@@ -126,11 +113,12 @@ export default function AdminCouponsPage() {
                       <TicketPercent size={14} className="text-[var(--mahogany)]" /> {c.code}
                     </span>
                   </td>
-                  <td className="text-right text-sm text-[var(--dark-brown)]">{c.percent}%</td>
-                  <td className="text-right text-sm text-[var(--walnut)]">{c.used_count}/{c.max_uses}</td>
-                  <td className="text-xs text-[var(--walnut)]">{c.used_by?.name ?? '-'}</td>
+                  <td className="text-right text-sm text-[var(--dark-brown)]">{c.percent}% off</td>
+                  <td className="text-right text-sm text-[var(--walnut)]">
+                    {c.used_count} <span className="text-[11px] text-[var(--walnut)]">/ Unlimited</span>
+                  </td>
                   <td className="text-xs text-[var(--walnut)]">
-                    {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-IN') : '-'}
+                    {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-IN') : '—'}
                   </td>
                   <td>
                     <span
@@ -162,7 +150,7 @@ export default function AdminCouponsPage() {
               ))}
               {coupons?.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-sm text-[var(--walnut)] py-8">No coupons yet</td>
+                  <td colSpan={6} className="text-center text-sm text-[var(--walnut)] py-8">No coupons yet</td>
                 </tr>
               )}
             </tbody>

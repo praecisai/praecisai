@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -104,12 +104,36 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [hasToken, setHasToken] = useState<boolean>(() => !!getAdminToken());
+  // Always start false to match the server (localStorage is browser-only).
+  // useEffect runs only on the client, so hasToken is set correctly after hydration.
+  const [hasToken, setHasToken] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { data, isLoading, isError, error } = useAdminMe();
 
-  // No token stored, or the stored token was rejected → show login
+  useEffect(() => {
+    const token = getAdminToken();
+    setHasToken(!!token);
+    setMounted(true);
+  }, []);
+
+  // Clear a rejected token (run as effect, not during render)
   const rejected = isError && (error as any)?.status === 401;
-  if (rejected && getAdminToken()) setAdminToken(null);
+  useEffect(() => {
+    if (rejected && getAdminToken()) {
+      setAdminToken(null);
+      setHasToken(false);
+    }
+  }, [rejected]);
+
+  // Wait for client-side mount before deciding which branch to show
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cream)' }}>
+        <p className="text-sm text-[var(--walnut)]">Loading…</p>
+      </div>
+    );
+  }
+
   if (!hasToken || rejected) {
     return <AdminLogin onSuccess={() => setHasToken(true)} />;
   }
