@@ -14,6 +14,20 @@ import {
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
 import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle } from 'lucide-react';
 
+/** Plan-aware label for the payment row so trial vs full onboarding is clear. */
+function paymentLabel(checklist: any): string {
+  const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN');
+  if (checklist.plan_paid === 'ONBOARDING') return 'Onboarding payment done · Full plan';
+  if (checklist.plan_paid === 'TRIAL') {
+    if (checklist.trial_active && checklist.trial_ends_at) {
+      return `Paid · 10-day trial (till ${fmt(checklist.trial_ends_at)})`;
+    }
+    if (checklist.trial_ends_at) return `Trial paid · expired ${fmt(checklist.trial_ends_at)}`;
+    return 'Paid · 10-day trial';
+  }
+  return 'Onboarding payment pending';
+}
+
 function ChecklistItem({
   done,
   label,
@@ -126,7 +140,27 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2">Onboarding checklist</h2>
             <ChecklistItem done={checklist.bolna_connected} label="Bolna connected" />
             <ChecklistItem done={checklist.aisensy_connected} label="AiSensy connected" />
-            <ChecklistItem done={checklist.onboarding_paid} label="Onboarding payment done" />
+            <ChecklistItem
+              done={checklist.onboarding_paid || checklist.trial_paid || checklist.trial_active}
+              label={paymentLabel(checklist)}
+              action={
+                checklist.plan_paid === 'TRIAL' ? (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: '#B8860B18', color: '#B8860B', border: '1px solid #B8860B40' }}
+                  >
+                    Trial
+                  </span>
+                ) : checklist.plan_paid === 'ONBOARDING' ? (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: '#2E7D3218', color: '#2E7D32', border: '1px solid #2E7D3240' }}
+                  >
+                    Full plan
+                  </span>
+                ) : null
+              }
+            />
             <ChecklistItem
               done={checklist.test_call_passed}
               label="Test call passed"

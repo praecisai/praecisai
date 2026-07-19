@@ -158,6 +158,7 @@ export class AdminService {
         bolna_api_key: true,
         bolna_agent_id: true,
         aisensy_api_key: true,
+        trial_ends_at: true,
         created_at: true,
         billing_subscriptions: true,
         users: { select: { email: true, role: true, status: true } },
@@ -165,7 +166,7 @@ export class AdminService {
     });
     if (!business) throw new NotFoundException('Tenant not found');
 
-    const [previews, allowedEmails, onboardingPayment] = await Promise.all([
+    const [previews, allowedEmails, onboardingPayment, trialPayment] = await Promise.all([
       this.tenantKeys.keyPreviews(id),
       this.prisma.allowedEmail.findMany({
         where: { note: { startsWith: `${TENANT_NOTE_PREFIX}${id}` } },
@@ -174,9 +175,14 @@ export class AdminService {
       this.prisma.billingPayment.findFirst({
         where: { business_id: id, type: 'ONBOARDING', status: 'PAID' },
       }),
+      this.prisma.billingPayment.findFirst({
+        where: { business_id: id, type: 'TRIAL', status: 'PAID' },
+        orderBy: { paid_at: 'desc' },
+      }),
     ]);
 
     const { bolna_api_key, aisensy_api_key, bolna_agent_id, ...safe } = business;
+    const trialActive = !!business.trial_ends_at && business.trial_ends_at > new Date();
 
     return {
       ...safe,
@@ -186,6 +192,16 @@ export class AdminService {
         bolna_connected: !!bolna_api_key,
         aisensy_connected: !!aisensy_api_key,
         onboarding_paid: !!onboardingPayment,
+        // Which plan the money actually came in on, so the admin sees "Full
+        // onboarding" vs "10-day trial" instead of a bare unticked row.
+        trial_paid: !!trialPayment,
+        trial_active: trialActive,
+        trial_ends_at: business.trial_ends_at,
+        plan_paid: onboardingPayment
+          ? 'ONBOARDING'
+          : trialPayment || trialActive
+            ? 'TRIAL'
+            : null,
         test_call_passed: business.test_call_passed,
       },
     };
