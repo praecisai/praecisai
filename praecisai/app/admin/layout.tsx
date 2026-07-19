@@ -13,6 +13,7 @@ import {
   Building2, Bell, TicketPercent, ReceiptText, ArrowLeft,
   ShieldCheck, LogOut, KeyRound,
 } from 'lucide-react';
+import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
 
 const NAV = [
   { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
@@ -135,6 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <AnimatedThemeToggler />
           <Link
             href="/dashboard"
             className="flex items-center gap-1.5 text-xs font-medium text-[var(--walnut)] hover:text-[var(--mahogany)]"

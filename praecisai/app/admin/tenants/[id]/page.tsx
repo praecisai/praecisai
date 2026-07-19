@@ -1,6 +1,7 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   useAdminTenant,
@@ -8,9 +9,10 @@ import {
   useAdminToggleTestCall,
   useAdminLinkUsers,
   useAdminPollBolna,
+  useAdminDeleteTenant,
 } from '../../../../lib/api/hooks';
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
-import { CheckCircle2, Circle, RefreshCcw, Users, Link2 } from 'lucide-react';
+import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle } from 'lucide-react';
 
 function ChecklistItem({
   done,
@@ -38,11 +40,15 @@ function ChecklistItem({
 
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: tenant, isLoading } = useAdminTenant(id);
   const update = useAdminUpdateTenant(id);
   const toggleTest = useAdminToggleTestCall(id);
   const linkUsers = useAdminLinkUsers(id);
   const pollBolna = useAdminPollBolna(id);
+  const deleteTenant = useAdminDeleteTenant();
+  const [deleteInput, setDeleteInput] = useState('');
+  const [showDelete, setShowDelete] = useState(false);
 
   if (isLoading || !tenant) {
     return <p className="text-sm text-[var(--walnut)]">Loading tenant…</p>;
@@ -174,6 +180,67 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               ))
             ) : (
               <p className="text-xs text-[var(--walnut)]">No subscription yet</p>
+            )}
+          </div>
+
+          {/* Danger zone */}
+          <div className="glass-card p-5" style={{ border: '1px solid #C6282840' }}>
+            <h2 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#C62828' }}>
+              <AlertTriangle size={15} /> Danger zone
+            </h2>
+            {!showDelete ? (
+              <button
+                onClick={() => setShowDelete(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border"
+                style={{ borderColor: '#C6282860', color: '#C62828' }}
+              >
+                <Trash2 size={13} /> Delete this business
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-[var(--walnut)]">
+                  This permanently deletes <b>{tenant.name}</b> with ALL its customers, invoices,
+                  call logs and billing history. Type the business name to confirm:
+                </p>
+                <input
+                  value={deleteInput}
+                  onChange={(e) => setDeleteInput(e.target.value)}
+                  placeholder={tenant.name}
+                  className="w-full px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]"
+                  style={{ borderColor: '#C6282860' }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      deleteTenant.mutate(
+                        { id, confirmName: deleteInput },
+                        {
+                          onSuccess: () => {
+                            toast.success(`${tenant.name} deleted`);
+                            router.push('/admin/tenants');
+                          },
+                          onError: (e: any) => toast.error(e.message),
+                        },
+                      )
+                    }
+                    disabled={deleteInput !== tenant.name || deleteTenant.isPending}
+                    className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40"
+                    style={{ background: '#C62828', color: '#fff' }}
+                  >
+                    {deleteTenant.isPending ? 'Deleting…' : 'Delete forever'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDelete(false);
+                      setDeleteInput('');
+                    }}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border text-[var(--walnut)]"
+                    style={{ borderColor: 'var(--caramel)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

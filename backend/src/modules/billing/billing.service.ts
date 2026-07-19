@@ -54,7 +54,9 @@ export class BillingService {
       throw new BadRequestException('This coupon has expired');
     if (coupon.used_count >= coupon.max_uses)
       throw new BadRequestException('This coupon has already been used');
-    if (coupon.used_by_tenant_id && coupon.used_by_tenant_id !== businessId)
+    // Single-use coupons are tied to whoever used them first; multi-use
+    // marketing codes (max_uses > 1) are shareable across tenants.
+    if (coupon.max_uses === 1 && coupon.used_by_tenant_id && coupon.used_by_tenant_id !== businessId)
       throw new BadRequestException('This coupon belongs to another account');
     if (!isAllowedCouponPercent(coupon.percent))
       throw new BadRequestException('Coupon has an invalid percent');
@@ -138,7 +140,7 @@ export class BillingService {
     };
   }
 
-  // ─── Trial checkout (₹10,000 ex-GST · 7 days of full access) ───────────────
+  // ─── Trial checkout (₹10,000 ex-GST · 10 days of full access) ───────────────
 
   async createTrialCheckout(businessId: string) {
     const business = await this.prisma.business.findUnique({ where: { id: businessId } });
@@ -213,11 +215,62 @@ export class BillingService {
     return paid;
   }
 
+  // ─── Checkout-callback verification ────────────────────────────────────────
+  // Razorpay Checkout hands the browser a payment id + signature on success.
+  // Verifying that signature server-side lets activation happen IMMEDIATELY,
+  // without waiting for a webhook: essential on localhost where webhooks
+  // can't be delivered. The webhook remains the source of truth in
+  // production; both paths are idempotent so double-processing is harmless.
+
+  async verifyTrialCheckout(
+    businessId: string,
+    dto: { order_id: string; payment_id: string; signature: string },
+  ) {
+    const pending = await this.prisma.billingPayment.findFirst({
+      where: { business_id: businessId, razorpay_order_id: dto.order_id, type: 'TRIAL' },
+    });
+    if (!pending) throw new BadRequestException('No trial checkout found for this order');
+    const ok = this.razorpay.verifyOrderPaymentSignature({
+      orderId: dto.order_id,
+      paymentId: dto.payment_id,
+      signature: dto.signature,
+    });
+    if (!ok) throw new BadRequestException('Payment verification failed');
+    return this.handleTrialCaptured({
+      razorpayOrderId: dto.order_id,
+      razorpayPaymentId: dto.payment_id,
+    });
+  }
+
+  async verifyOnboardingCheckout(
+    businessId: string,
+    dto: { subscription_id: string; payment_id: string; signature: string },
+  ) {
+    const pending = await this.prisma.billingPayment.findFirst({
+      where: {
+        business_id: businessId,
+        razorpay_subscription_id: dto.subscription_id,
+        type: 'ONBOARDING',
+      },
+    });
+    if (!pending) throw new BadRequestException('No onboarding checkout found for this subscription');
+    const ok = this.razorpay.verifySubscriptionPaymentSignature({
+      paymentId: dto.payment_id,
+      subscriptionId: dto.subscription_id,
+      signature: dto.signature,
+    });
+    if (!ok) throw new BadRequestException('Payment verification failed');
+    return this.handleOnboardingCaptured({
+      razorpaySubscriptionId: dto.subscription_id,
+      razorpayPaymentId: dto.payment_id,
+    });
+  }
+
   // ─── Entitlement: who gets past the paywall ────────────────────────────────
   // A logged-in user reaches the dashboard when ANY of these hold:
   //  · their email is in allowed_emails (manually onboarded clients like Aeromen)
   //  · their business has paid onboarding (PAID / ACTIVE)
-  //  · their business has an unexpired 1-week trial
+  //  · their business has an unexpired 10-day trial
   async access(businessId: string, userEmail?: string | null) {
     const [business, allowed] = await Promise.all([
       this.prisma.business.findUnique({

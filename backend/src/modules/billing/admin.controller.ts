@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -79,6 +80,11 @@ export class AdminController {
   @Patch('tenants/:id')
   updateTenant(@Param('id') id: string, @Body() dto: UpsertTenantDto) {
     return this.admin.updateTenant(id, dto);
+  }
+
+  @Delete('tenants/:id')
+  deleteTenant(@Param('id') id: string, @Body() body: { confirmName: string }) {
+    return this.admin.deleteTenant(id, body?.confirmName ?? '');
   }
 
   @Patch('tenants/:id/test-call')

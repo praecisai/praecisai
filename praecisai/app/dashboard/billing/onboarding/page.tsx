@@ -8,6 +8,7 @@ import {
   useValidateCoupon,
   useCreateOnboardingCheckout,
   useSimulateOnboardingPaid,
+  useVerifyOnboardingCheckout,
   useBillingSummary,
   formatPaise,
 } from '../../../../lib/api/hooks';
@@ -38,6 +39,7 @@ export default function OnboardingPaymentPage() {
   const validate = useValidateCoupon();
   const checkout = useCreateOnboardingCheckout();
   const simulate = useSimulateOnboardingPaid();
+  const verify = useVerifyOnboardingCheckout();
 
   const [code, setCode] = useState('');
   const [applied, setApplied] = useState<any>(null); // { coupon, quote }
@@ -84,11 +86,27 @@ export default function OnboardingPaymentPage() {
         name: 'PraecisAI',
         description: 'Onboarding (setup + first month) incl. GST',
         theme: { color: '#7F5539' },
-        handler: () => {
-          // Server-side webhook is the source of truth; this is just UX
-          setPhase('success');
-          toast.success('Payment received. Activating your account…');
-          setTimeout(() => router.push('/dashboard/billing'), 2500);
+        handler: (response: any) => {
+          // Verify the signature server-side and activate immediately: works
+          // on localhost too, where Razorpay webhooks can't reach us.
+          verify.mutate(
+            {
+              subscription_id: data.subscription_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            },
+            {
+              onSuccess: () => {
+                setPhase('success');
+                toast.success('Payment verified. Your account is active.');
+                setTimeout(() => router.push('/dashboard/billing'), 2500);
+              },
+              onError: (err: any) => {
+                setPhase('failed');
+                toast.error(`Payment received but verification failed: ${err.message}. Contact support if access does not open shortly.`);
+              },
+            },
+          );
         },
         modal: { ondismiss: () => setPhase('idle') },
       });

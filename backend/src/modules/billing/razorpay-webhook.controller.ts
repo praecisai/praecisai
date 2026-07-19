@@ -78,7 +78,7 @@ export class RazorpayWebhookController {
               mandateType: payment.method,
             });
           } else if (payment?.id && payment?.order_id) {
-            // Order payments without a subscription: the 1-week trial
+            // Order payments without a subscription: the 10-day trial
             await this.billing.handleTrialCaptured({
               razorpayOrderId: payment.order_id,
               razorpayPaymentId: payment.id,

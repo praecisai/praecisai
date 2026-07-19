@@ -20,6 +20,34 @@ class UsageQueryDto {
   month?: string;
 }
 
+class VerifyOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  order_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  payment_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  signature: string;
+}
+
+class VerifySubscriptionDto {
+  @IsString()
+  @IsNotEmpty()
+  subscription_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  payment_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  signature: string;
+}
+
 /**
  * Client-facing billing endpoints (tenant-scoped via JwtAuthGuard).
  * No secret: Razorpay key secret, tenant API keys, encryption key: is ever
@@ -36,7 +64,7 @@ export class BillingController {
 
   /**
    * Paywall probe: is this account entitled to the dashboard?
-   * Entitled = allowlisted email, paid onboarding, or active 1-week trial.
+   * Entitled = allowlisted email, paid onboarding, or active 10-day trial.
    */
   @Get('access')
   access(@BusinessId() businessId: string, @CurrentUser() user: any) {
@@ -51,6 +79,17 @@ export class BillingController {
   @Post('checkout/trial')
   createTrialCheckout(@BusinessId() businessId: string) {
     return this.billing.createTrialCheckout(businessId);
+  }
+
+  /** Browser-side checkout success: verify signature, activate immediately. */
+  @Post('checkout/trial/verify')
+  verifyTrialCheckout(@BusinessId() businessId: string, @Body() dto: VerifyOrderDto) {
+    return this.billing.verifyTrialCheckout(businessId, dto);
+  }
+
+  @Post('checkout/onboarding/verify')
+  verifyOnboardingCheckout(@BusinessId() businessId: string, @Body() dto: VerifySubscriptionDto) {
+    return this.billing.verifyOnboardingCheckout(businessId, dto);
   }
 
   @Post('checkout/onboarding')

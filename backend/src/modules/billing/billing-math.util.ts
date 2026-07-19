@@ -18,9 +18,9 @@ export const SUBSCRIPTION_PLAN_PAISE_INCL_GST = Math.round(
   SUBSCRIPTION_MONTHLY_PAISE * (1 + GST_RATE),
 ); // ₹5,900 per month charged by the Razorpay plan
 
-// 1-week paid trial: full platform access for 7 days, no coupon, no mandate
+// Paid trial: full platform access for 10 days, no coupon, no mandate
 export const TRIAL_PAISE = 10000 * 100; // ₹10,000 ex-GST
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 10;
 
 export interface TrialQuote {
   baseAmount: number; // ₹10,000 in paise, ex-GST
@@ -39,7 +39,7 @@ export function computeTrialQuote(): TrialQuote {
   };
 }
 
-export const ALLOWED_COUPON_PERCENTS = [5, 10, 15, 20] as const;
+export const ALLOWED_COUPON_PERCENTS = [5, 10, 15, 20, 25, 30] as const;
 export type CouponPercent = (typeof ALLOWED_COUPON_PERCENTS)[number];
 
 export interface OnboardingQuote {
@@ -66,7 +66,9 @@ export function isAllowedCouponPercent(p: number): p is CouponPercent {
 
 export function computeOnboardingQuote(couponPercent: number): OnboardingQuote {
   if (!isAllowedCouponPercent(couponPercent)) {
-    throw new Error(`Invalid coupon percent: ${couponPercent}. Allowed: 5, 10, 15, 20`);
+    throw new Error(
+      `Invalid coupon percent: ${couponPercent}. Allowed: ${ALLOWED_COUPON_PERCENTS.join(', ')}`,
+    );
   }
   const baseAmount = ONBOARDING_BASE_PAISE;
   const discountAmount = Math.round((baseAmount * couponPercent) / 100);

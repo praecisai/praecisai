@@ -8,7 +8,8 @@ code paths the real webhooks use.
 ## 1. One-time setup (already done by the build)
 
 - Prisma schema pushed (additive only) and client regenerated.
-- Test coupons seeded: `TEST5`, `TEST10`, `TEST15`, `TEST20` (999 uses each).
+- Coupons seeded: test codes `TEST5/10/15/20` plus real marketing codes
+  `TRY05` 5% · `SAVE10` 10% · `WELCOME15` 15% · `FLASH20` 20% · `FESTIVE25` 25% · `BUNDLE30` 30% (multi-use).
 - Aeromen's Bolna + AiSensy keys copied (encrypted) into its tenant record.
 - `backend/.env` got new entries:
   - `BILLING_ENCRYPTION_KEY` : freshly generated. Do NOT change it once tenant
@@ -65,10 +66,10 @@ Start both apps as usual (`npm run start:dev` in `backend`, `npm run dev` in
    the red banner appears on the dashboard and Billing, and bulk call
    dispatch is blocked with a clear reason until a (simulated) charge succeeds.
 4. **Trial plan (paywall)**: a fresh login that is not allowlisted/paid lands
-   on the plans screen (Trial ₹10,000 · Onboarding ₹50,000 · ₹5,000/month).
-   "Start 1-week trial" → in mock mode "Simulate trial payment" activates 7
+   on the plans screen (Trial ₹10,000 (10 days) · Onboarding ₹50,000 · ₹5,000/month).
+   "Start 10-day trial" → in mock mode "Simulate trial payment" activates 10
    days of full access (trial invoice + banner with days left on the
-   dashboard and Billing). When the week ends, access closes automatically
+   dashboard and Billing). When the 10 days end, access closes automatically
    and the plans screen returns with "trial already used".
 5. **Admin panel** (`/admin`, credential login viru-admin + password):
    - Tenants: health table (Bolna balance · mandate · calls · onboarding · trial).

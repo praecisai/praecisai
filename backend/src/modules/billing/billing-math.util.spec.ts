@@ -15,6 +15,8 @@ describe('computeOnboardingQuote', () => {
     [10, 5000, 45000, 40000, 8100, 53100],
     [15, 7500, 42500, 37500, 7650, 50150],
     [20, 10000, 40000, 35000, 7200, 47200],
+    [25, 12500, 37500, 32500, 6750, 44250],
+    [30, 15000, 35000, 30000, 6300, 41300],
   ] as const;
 
   it.each(CASES)(
@@ -41,14 +43,14 @@ describe('computeOnboardingQuote', () => {
     expect(q.setupComponent).toBe(4000000);
   });
 
-  it('rejects percents outside 5/10/15/20', () => {
-    for (const bad of [0, 1, 25, 50, -5, 7]) {
+  it('rejects percents outside the allowed tiers', () => {
+    for (const bad of [0, 1, 22, 50, -5, 7]) {
       expect(() => computeOnboardingQuote(bad)).toThrow();
     }
   });
 
   it('all amounts are integer paise (no fractional paise)', () => {
-    for (const p of [5, 10, 15, 20] as const) {
+    for (const p of [5, 10, 15, 20, 25, 30] as const) {
       const q = computeOnboardingQuote(p);
       for (const v of Object.values(q)) {
         expect(Number.isInteger(v)).toBe(true);

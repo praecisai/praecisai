@@ -13,10 +13,18 @@ const prisma = new PrismaClient();
 
 async function main() {
   const coupons = [
+    // Local-testing codes
     { code: 'TEST5', percent: 5 },
     { code: 'TEST10', percent: 10 },
     { code: 'TEST15', percent: 15 },
     { code: 'TEST20', percent: 20 },
+    // Real marketing codes (multi-use; deactivate anytime in /admin/coupons)
+    { code: 'TRY05', percent: 5 },
+    { code: 'SAVE10', percent: 10 },
+    { code: 'WELCOME15', percent: 15 },
+    { code: 'FLASH20', percent: 20 },
+    { code: 'FESTIVE25', percent: 25 },
+    { code: 'BUNDLE30', percent: 30 },
   ];
 
   for (const c of coupons) {

@@ -105,7 +105,7 @@ export class BillingInvoiceService {
         : payment.type === 'TRIAL'
           ? [
               {
-                description: 'PraecisAI 1-week trial: full platform access for 7 days',
+                description: 'PraecisAI 10-day trial: full platform access for 10 days',
                 amount: payment.base_amount,
               },
             ]

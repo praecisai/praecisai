@@ -21,6 +21,21 @@ export class RazorpayService {
 
   constructor(private config: ConfigService) {}
 
+  /** Boot-time visibility of which mode the gateway is running in. */
+  onModuleInit() {
+    if (this.isMock) {
+      this.logger.warn('Razorpay running in MOCK mode (no keys / RAZORPAY_MOCK=true)');
+    } else {
+      const live = this.keyId?.startsWith('rzp_live');
+      this.logger.log(
+        `Razorpay running in ${live ? 'LIVE' : 'TEST'} mode (key ${this.keyId?.slice(0, 12)}...)`,
+      );
+      if (!this.config.get<string>('RAZORPAY_WEBHOOK_SECRET')) {
+        this.logger.warn('RAZORPAY_WEBHOOK_SECRET missing: webhooks will be rejected');
+      }
+    }
+  }
+
   get isMock(): boolean {
     if (this.config.get<string>('RAZORPAY_MOCK') === 'true') return true;
     return !this.keyId || !this.keySecret;
@@ -121,7 +136,7 @@ export class RazorpayService {
     });
   }
 
-  /** One-time order (used for the 1-week trial). */
+  /** One-time order (used for the 10-day trial). */
   async createOrder(opts: {
     amountPaise: number;
     receipt: string;

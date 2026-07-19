@@ -181,6 +181,34 @@ export function useSimulateTrialPaid() {
   });
 }
 
+/** Server-side signature check after Razorpay Checkout succeeds in the browser. */
+export function useVerifyTrialCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { order_id: string; payment_id: string; signature: string }) =>
+      api.post('/billing/checkout/trial/verify', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useVerifyOnboardingCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { subscription_id: string; payment_id: string; signature: string }) =>
+      api.post('/billing/checkout/onboarding/verify', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useAdminDeleteTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) =>
+      adminApi.delete(`/admin/tenants/${id}`, { data: { confirmName } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
+  });
+}
+
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
 export function useAdminLogin() {

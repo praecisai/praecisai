@@ -8,6 +8,7 @@ import {
   useAdminSetCouponActive,
 } from '../../../lib/api/hooks';
 import { Plus, TicketPercent } from 'lucide-react';
+import { Select } from '../../../components/ui/Select';
 
 export default function AdminCouponsPage() {
   const { data: coupons, isLoading } = useAdminCoupons();
@@ -62,16 +63,12 @@ export default function AdminCouponsPage() {
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-[var(--walnut)] uppercase mb-1">Percent</label>
-          <select
-            value={percent}
-            onChange={(e) => setPercent(Number(e.target.value))}
-            className="px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]"
-            style={{ borderColor: 'var(--caramel)' }}
-          >
-            {[5, 10, 15, 20].map((p) => (
-              <option key={p} value={p}>{p}%</option>
-            ))}
-          </select>
+          <Select
+            value={String(percent)}
+            onChange={(v) => setPercent(Number(v))}
+            className="w-28"
+            options={[5, 10, 15, 20, 25, 30].map((p) => ({ value: String(p), label: `${p}%` }))}
+          />
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-[var(--walnut)] uppercase mb-1">Max uses</label>

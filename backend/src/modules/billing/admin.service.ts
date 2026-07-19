@@ -227,6 +227,29 @@ export class AdminService {
     return this.getTenant(id);
   }
 
+  /**
+   * Permanently delete a tenant and everything under it (customers, invoices,
+   * call logs, billing records: all cascade). The UI double-confirms by
+   * requiring the exact business name to be typed.
+   */
+  async deleteTenant(id: string, confirmName: string) {
+    const business = await this.prisma.business.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    if (!business) throw new NotFoundException('Tenant not found');
+    if (confirmName?.trim() !== business.name) {
+      throw new BadRequestException('Confirmation name does not match the business name');
+    }
+    // Remove this tenant's allowlist rows first (no FK: matched by note)
+    await this.prisma.allowedEmail.deleteMany({
+      where: { note: { startsWith: `${TENANT_NOTE_PREFIX}${id}` } },
+    });
+    await this.prisma.business.delete({ where: { id } });
+    this.logger.warn(`Tenant DELETED: ${business.name} (${id})`);
+    return { success: true };
+  }
+
   async toggleTestCall(id: string, passed: boolean) {
     await this.prisma.business.update({
       where: { id },
@@ -294,7 +317,7 @@ export class AdminService {
     const code = dto.code?.trim().toUpperCase();
     if (!code) throw new BadRequestException('Coupon code is required');
     if (!isAllowedCouponPercent(Number(dto.percent))) {
-      throw new BadRequestException('Percent must be 5, 10, 15 or 20');
+      throw new BadRequestException('Percent must be 5, 10, 15, 20, 25 or 30');
     }
     try {
       return await this.prisma.coupon.create({

@@ -8,6 +8,7 @@ import {
   useAdminMarkNotificationRead,
 } from '../../../lib/api/hooks';
 import { AlertTriangle, PauseCircle, BadgeCheck, MessageCircleWarning, Check } from 'lucide-react';
+import { Select } from '../../../components/ui/Select';
 
 const KIND_META: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   BOLNA_LOW: { label: 'Bolna low balance', color: '#E65100', icon: AlertTriangle },
@@ -29,17 +30,15 @@ export default function AdminNotificationsPage() {
           <h1 className="text-lg font-bold text-[var(--dark-brown)]">Notifications</h1>
           <p className="text-xs text-[var(--walnut)]">Low credits, AiSensy issues, mandate failures and debits across all tenants</p>
         </div>
-        <select
+        <Select
           value={tenantId}
-          onChange={(e) => setTenantId(e.target.value)}
-          className="px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]"
-          style={{ borderColor: 'var(--caramel)' }}
-        >
-          <option value="">All tenants</option>
-          {(tenants ?? []).map((t: any) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
+          onChange={setTenantId}
+          className="w-56"
+          options={[
+            { value: '', label: 'All tenants' },
+            ...(tenants ?? []).map((t: any) => ({ value: t.id, label: t.name })),
+          ]}
+        />
       </div>
 
       <div className="space-y-2">

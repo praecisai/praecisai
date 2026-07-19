@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   useBillingAccess,
   useCreateTrialCheckout,
   useSimulateTrialPaid,
+  useVerifyTrialCheckout,
   formatPaise,
 } from '../../lib/api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { DashboardShell } from '../layout/Sidebar';
+import { Logo } from '../../app/components/landing/Logo';
+import { createClient } from '../../lib/supabase/client';
 import {
-  Sparkles, Rocket, CalendarClock, CheckCircle2, FlaskConical, Loader2, Clock3,
+  Sparkles, Rocket, CalendarClock, CheckCircle2, FlaskConical, Loader2, Clock3, LogOut,
 } from 'lucide-react';
 
 declare global {
@@ -41,27 +45,67 @@ const FEATURES = [
 
 /**
  * Paywall around the dashboard. Entitled accounts (allowlisted, paid, or on
- * an active 1-week trial) pass straight through; everyone else sees the plans
- * screen. Billing routes stay reachable so checkout is always possible.
+ * an active 10-day trial) get the full dashboard shell; locked accounts get
+ * a BARE plans page: no sidebar, no dashboard chrome. Billing/checkout
+ * routes stay reachable (also bare while locked) so payment is always
+ * possible.
  */
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: access, isLoading } = useBillingAccess();
 
-  // Checkout and billing pages must never be locked behind the paywall
-  if (pathname.startsWith('/dashboard/billing')) return <>{children}</>;
-
   if (isLoading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--cream)' }}
+      >
         <Loader2 size={22} className="animate-spin text-[var(--walnut)]" />
       </div>
     );
   }
 
-  if (access?.entitled) return <>{children}</>;
+  if (access?.entitled) return <DashboardShell>{children}</DashboardShell>;
 
-  return <PlansScreen trialExpired={!!access?.trial_expired} />;
+  // Locked: billing/checkout pages render without the dashboard shell
+  if (pathname.startsWith('/dashboard/billing')) {
+    return <BareChrome>{children}</BareChrome>;
+  }
+
+  return (
+    <BareChrome>
+      <PlansScreen trialExpired={!!access?.trial_expired} />
+    </BareChrome>
+  );
+}
+
+/** Minimal chrome for locked accounts: logo bar + sign out, no sidebar. */
+function BareChrome({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  async function signOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/');
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--cream)' }}>
+      <header
+        className="px-4 sm:px-6 py-4 border-b flex items-center justify-between"
+        style={{ background: 'var(--surface-warm)', borderColor: 'rgba(221,184,146,0.4)' }}
+      >
+        <Logo />
+        <button
+          onClick={signOut}
+          className="flex items-center gap-1.5 text-xs font-medium text-[var(--walnut)] hover:text-[var(--mahogany)]"
+        >
+          <LogOut size={13} /> Sign out
+        </button>
+      </header>
+      {children}
+    </div>
+  );
 }
 
 function PlanCard({
@@ -117,8 +161,10 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
   const qc = useQueryClient();
   const trialCheckout = useCreateTrialCheckout();
   const simulateTrial = useSimulateTrialPaid();
+  const verifyTrial = useVerifyTrialCheckout();
   const [mockPending, setMockPending] = useState<any>(null);
   const [paying, setPaying] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   async function startTrial() {
     setPaying(true);
@@ -137,17 +183,35 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
         amount: data.amount_paise,
         currency: 'INR',
         name: 'PraecisAI',
-        description: '1-week full access trial incl. 18% GST',
+        description: '10-day full access trial incl. 18% GST',
         theme: { color: '#7F5539' },
-        handler: () => {
-          toast.success('Payment received: your trial is being activated');
-          setTimeout(() => qc.invalidateQueries({ queryKey: ['billing'] }), 2500);
+        handler: (response: any) => {
+          // Verify the signature server-side and activate immediately: no
+          // webhook required, so this also works on localhost.
+          setActivating(true);
+          verifyTrial.mutate(
+            {
+              order_id: data.order_id,
+              payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            },
+            {
+              onSuccess: () => {
+                toast.success('Payment verified: your 10-day trial is active');
+                qc.invalidateQueries({ queryKey: ['billing'] });
+              },
+              onError: (err: any) => {
+                setActivating(false);
+                toast.error(`Payment received but verification failed: ${err.message}. Contact support if access does not open shortly.`);
+              },
+            },
+          );
         },
         modal: { ondismiss: () => setPaying(false) },
       });
       rzp.on('payment.failed', () => {
         setPaying(false);
-        toast.error('Payment failed: nothing was activated. You can try again.');
+        toast.error('Payment failed: nothing was charged as activated. You can try again.');
       });
       rzp.open();
     } catch (err: any) {
@@ -159,10 +223,19 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
   async function simulate() {
     try {
       await simulateTrial.mutateAsync();
-      toast.success('Trial activated (test mode): 1 week of full access');
+      toast.success('Trial activated (test mode): 10 days of full access');
     } catch (err: any) {
       toast.error(err.message);
     }
+  }
+
+  if (activating) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 size={26} className="animate-spin text-[var(--mahogany)]" />
+        <p className="text-sm text-[var(--walnut)]">Verifying payment and opening your dashboard…</p>
+      </div>
+    );
   }
 
   return (
@@ -177,7 +250,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
             className="inline-flex items-center gap-2 text-xs font-semibold mt-3 px-3 py-1.5 rounded-full"
             style={{ background: '#C6282815', color: '#C62828', border: '1px solid #C6282840' }}
           >
-            <Clock3 size={13} /> Your 1-week trial has ended. Continue with onboarding to keep going.
+            <Clock3 size={13} /> Your 10-day trial has ended. Continue with onboarding to keep going.
           </p>
         )}
       </div>
@@ -187,10 +260,10 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
         <PlanCard
           highlight={!trialExpired}
           icon={Sparkles}
-          title="1-Week Trial"
+          title="10-Day Trial"
           price="₹10,000"
-          priceSub={`+ 18% GST (${formatPaise(1180000)} total) · one-time · 7 days of full access`}
-          points={[...FEATURES, 'Access closes automatically after 7 days']}
+          priceSub={`+ 18% GST (${formatPaise(1180000)} total) · one-time · 10 days of full access`}
+          points={[...FEATURES, 'Access closes automatically after 10 days']}
           footer={
             trialExpired ? (
               <p className="text-xs text-center text-[var(--walnut)] py-2">Trial already used</p>
@@ -209,7 +282,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
                 className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50"
                 style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
               >
-                {paying ? 'Opening checkout…' : 'Start 1-week trial'}
+                {paying ? 'Opening checkout…' : 'Start 10-day trial'}
               </button>
             )
           }
@@ -246,7 +319,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
           points={[
             'Continues automatically after onboarding',
             'First month already included in onboarding',
-            'GST invoice emailed every month',
+            'GST invoice for every debit',
             'Cancel anytime with the Praecis team',
           ]}
           footer={

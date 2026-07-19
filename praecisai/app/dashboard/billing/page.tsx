@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { BillingBanners } from '../../../components/shared/BillingBanners';
+import { Select } from '../../../components/ui/Select';
 import {
   useBillingSummary,
   useBillingUsage,
@@ -168,7 +169,7 @@ export default function BillingPage() {
                           {inv.payment?.type === 'ONBOARDING'
                             ? 'Onboarding'
                             : inv.payment?.type === 'TRIAL'
-                              ? 'Trial (1 week)'
+                              ? 'Trial (10 days)'
                               : 'Subscription'}
                         </td>
                         <td className="text-xs text-[var(--walnut)]">{fmtDate(inv.created_at)}</td>
@@ -200,16 +201,13 @@ export default function BillingPage() {
               <PhoneCall size={18} className="text-[var(--mahogany)]" />
               <h2 className="font-semibold text-[var(--dark-brown)]">Usage: {monthOptions().find((m) => m.value === month)?.label}</h2>
             </div>
-            <select
+            <Select
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]"
-              style={{ borderColor: 'var(--caramel)' }}
-            >
-              {monthOptions().map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+              onChange={setMonth}
+              className="w-48"
+              searchable={false}
+              options={monthOptions()}
+            />
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

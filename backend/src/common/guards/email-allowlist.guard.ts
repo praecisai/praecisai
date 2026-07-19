@@ -11,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
  * WhatsApp sends). A request passes when ANY of these hold:
  *  · the email is in allowed_emails (manually onboarded clients)
  *  · the business has paid onboarding (PAID / ACTIVE)
- *  · the business has an unexpired 1-week trial (trial_ends_at in future)
+ *  · the business has an unexpired 10-day trial (trial_ends_at in future)
  * A lapsed trial automatically fails here again: access closes by itself.
  *
  * Use AFTER JwtAuthGuard (needs request.user / request.businessId).
