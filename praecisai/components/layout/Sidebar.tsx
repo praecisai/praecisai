@@ -7,7 +7,7 @@ import { createClient } from '../../lib/supabase/client';
 import {
   LayoutDashboard, Users, FileText, TrendingDown,
   Upload, Settings, LogOut, Star, ClipboardList,
-  ChevronRight, FileSpreadsheet, Menu, X, Activity,
+  ChevronRight, FileSpreadsheet, Menu, X, Activity, CreditCard,
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { Logo } from '../../app/components/landing/Logo';
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/activity', label: 'Activity', icon: Activity },
   { href: '/dashboard/import', label: 'Import Center', icon: Upload },
   { href: '/dashboard/pdc',       label: 'PDC Cheques', icon: FileSpreadsheet },
+  { href: '/dashboard/billing',   label: 'Billing & Usage', icon: CreditCard },
   { href: '/dashboard/settings',  label: 'Settings', icon: Settings },
 ];
 

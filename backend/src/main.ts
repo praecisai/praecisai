@@ -9,6 +9,9 @@ import helmet from 'helmet';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug'],
+    // Keeps the raw request body available (req.rawBody) so the Razorpay
+    // webhook signature can be verified against the exact bytes received.
+    rawBody: true,
   });
 
   // Security

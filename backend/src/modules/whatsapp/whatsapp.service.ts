@@ -5,6 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
 import { AisensyService } from './aisensy.service';
 import { StorageService } from '../storage/storage.service';
+import { TenantKeysService } from '../billing/tenant-keys.service';
+import { BillingNotificationService } from '../billing/billing-notification.service';
 import {
   getSegment,
   parseSegmentRules,
@@ -22,6 +24,8 @@ export class WhatsappService {
     private statementPdf: StatementPdfService,
     private aisensy: AisensyService,
     private storage: StorageService,
+    private tenantKeys: TenantKeysService,
+    private billingNotifications: BillingNotificationService,
     @InjectQueue('whatsapp-statements') private statementQueue: Queue,
   ) {}
 
@@ -126,6 +130,9 @@ export class WhatsappService {
 
     const logMessage = `Statement PDF (${segment}): Rs.${totalDue.toLocaleString('en-IN')} across ${invoices.length} invoice(s)`;
 
+    // Tenant-record AiSensy key first, platform env fallback (pre-migration)
+    const tenantAisensyKey = await this.tenantKeys.getAisensyKey(businessId);
+
     try {
       await this.aisensy.sendStatement({
         segment,
@@ -135,8 +142,9 @@ export class WhatsappService {
         invoiceCount: invoices.length,
         pdfUrl,
         pdfFilename,
+        apiKeyOverride: tenantAisensyKey ?? undefined,
       });
-    } catch (err) {
+    } catch (err: any) {
       await this.prisma.whatsAppLog.create({
         data: {
           business_id: businessId,
@@ -145,6 +153,11 @@ export class WhatsappService {
           delivery_status: 'FAILED',
         },
       });
+      // Balance/plan failures raise an AISENSY_LOW billing alert (deep link
+      // to the AiSensy dashboard); ordinary delivery failures are ignored.
+      await this.billingNotifications
+        .flagAisensyFailureIfBalance(businessId, err?.message || String(err))
+        .catch(() => {});
       throw err;
     }
 

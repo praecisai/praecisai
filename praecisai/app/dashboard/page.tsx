@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useDashboardStats, useDashboardActivity } from '../../lib/api/hooks';
 import { TopHeader } from '../../components/layout/Sidebar';
+import { BillingBanners } from '../../components/shared/BillingBanners';
 import { formatINR, formatNumber, formatDate } from '../../lib/utils/format';
 import { SegmentBadge } from '../../components/shared/SegmentBadge';
 import {
@@ -90,6 +91,9 @@ export default function DashboardPage() {
       <TopHeader title="Dashboard" subtitle="Your accounts receivable overview" />
 
       <div className="p-4 sm:p-6 space-y-6">
+        {/* Billing alerts: low platform balances, paused campaigns */}
+        <BillingBanners />
+
         {/* Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <MetricCard

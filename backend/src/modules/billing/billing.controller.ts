@@ -1,0 +1,103 @@
+import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
+import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { BusinessId } from '../../common/decorators/current-user.decorator';
+import { BillingService } from './billing.service';
+import { BillingInvoiceService } from './billing-invoice.service';
+import { BillingNotificationService } from './billing-notification.service';
+
+class CouponDto {
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
+class UsageQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}$/)
+  month?: string;
+}
+
+/**
+ * Client-facing billing endpoints (tenant-scoped via JwtAuthGuard).
+ * No secret: Razorpay key secret, tenant API keys, encryption key: is ever
+ * present in any response here.
+ */
+@Controller('billing')
+@UseGuards(JwtAuthGuard)
+export class BillingController {
+  constructor(
+    private billing: BillingService,
+    private invoices: BillingInvoiceService,
+    private notifications: BillingNotificationService,
+  ) {}
+
+  @Post('coupon/validate')
+  validateCoupon(@BusinessId() businessId: string, @Body() dto: CouponDto) {
+    return this.billing.quoteOnboarding(dto.code, businessId);
+  }
+
+  @Post('checkout/onboarding')
+  createOnboardingCheckout(@BusinessId() businessId: string, @Body() dto: CouponDto) {
+    return this.billing.createOnboardingCheckout(businessId, dto.code);
+  }
+
+  @Get('summary')
+  summary(@BusinessId() businessId: string) {
+    return this.billing.summary(businessId);
+  }
+
+  @Get('usage')
+  usage(@BusinessId() businessId: string, @Query() query: UsageQueryDto) {
+    return this.billing.monthlyUsage(businessId, query.month);
+  }
+
+  @Get('platforms')
+  platforms(@BusinessId() businessId: string) {
+    return this.billing.platforms(businessId);
+  }
+
+  @Get('notifications')
+  notifications_(@BusinessId() businessId: string) {
+    return this.notifications.listForTenant(businessId);
+  }
+
+  @Patch('notifications/:id/read')
+  markRead(@BusinessId() businessId: string, @Param('id') id: string) {
+    return this.notifications.markRead(id, businessId);
+  }
+
+  @Get('invoices')
+  listInvoices(@BusinessId() businessId: string) {
+    return this.invoices.listForTenant(businessId);
+  }
+
+  @Get('invoices/:id/pdf')
+  async invoicePdf(
+    @BusinessId() businessId: string,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const url = await this.invoices.signedPdfUrl(businessId, id);
+    res.json({ success: true, data: { url } });
+  }
+
+  // ─── Dev simulator: only usable while Razorpay is in mock mode ────────────
+
+  @Post('dev/simulate-onboarding-paid')
+  simulateOnboardingPaid(@BusinessId() businessId: string) {
+    return this.billing.simulateOnboardingPaid(businessId);
+  }
+
+  @Post('dev/simulate-monthly-charge')
+  simulateMonthlyCharge(@BusinessId() businessId: string) {
+    return this.billing.simulateMonthlyCharge(businessId);
+  }
+
+  @Post('dev/simulate-mandate-failure')
+  simulateMandateFailure(@BusinessId() businessId: string) {
+    return this.billing.simulateMandateFailure(businessId);
+  }
+}

@@ -71,6 +71,60 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   AISENSY_INBOUND_TOKEN?: string;
+
+  // ─── Billing (all optional: Razorpay mock mode runs without any of them) ──
+
+  // Master key for AES-256-GCM encryption of tenant API keys (64-char hex or
+  // any passphrase). REQUIRED before storing tenant keys via the admin panel.
+  @IsOptional()
+  @IsString()
+  BILLING_ENCRYPTION_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_KEY_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_WEBHOOK_SECRET?: string;
+
+  // Reuse an existing ₹5,900/month plan instead of creating one at runtime
+  @IsOptional()
+  @IsString()
+  RAZORPAY_PLAN_ID?: string;
+
+  // Force mock mode even when keys are present
+  @IsOptional()
+  @IsString()
+  RAZORPAY_MOCK?: string;
+
+  // IMMEDIATE_NEXT_FIRST (default) | FIRST_AFTER_FULL_MONTH
+  @IsOptional()
+  @IsString()
+  BILLING_ANCHOR_MODE?: string;
+
+  // Comma-separated Praecis staff emails allowed into /admin
+  @IsOptional()
+  @IsString()
+  ADMIN_EMAILS?: string;
+
+  // Optional email nudges (low balance / mandate failure) via Resend
+  @IsOptional()
+  @IsString()
+  RESEND_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  BILLING_EMAIL_FROM?: string;
+
+  // Bolna API base override (default https://api.bolna.dev)
+  @IsOptional()
+  @IsString()
+  BOLNA_API_BASE?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

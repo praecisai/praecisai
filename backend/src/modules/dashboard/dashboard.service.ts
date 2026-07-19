@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TenantKeysService } from '../billing/tenant-keys.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private tenantKeys: TenantKeysService,
+  ) {}
 
   async getStats(businessId: string) {
     const [
@@ -123,14 +127,20 @@ export class DashboardService {
     };
   }
 
-  private creditsCache: { data: object; fetchedAt: number } | null = null;
+  // Per-business cache: tenants hold their OWN Bolna accounts
+  private creditsCache = new Map<string, { data: object; fetchedAt: number }>();
 
-  async getCredits() {
-    if (this.creditsCache && Date.now() - this.creditsCache.fetchedAt < 60_000) {
-      return this.creditsCache.data;
+  async getCredits(businessId: string) {
+    const cached = this.creditsCache.get(businessId);
+    if (cached && Date.now() - cached.fetchedAt < 60_000) {
+      return cached.data;
     }
 
-    const headers = { Authorization: `Bearer ${process.env.BOLNA_API_KEY}` };
+    // Tenant-record key first, platform env fallback (pre-migration tenants)
+    const { apiKey, agentId } = await this.tenantKeys.getBolnaKeys(businessId);
+    if (!apiKey) throw new Error('No Bolna account connected for this business');
+
+    const headers = { Authorization: `Bearer ${apiKey}` };
     const meRes = await fetch('https://api.bolna.dev/me', { headers });
     if (!meRes.ok) throw new Error('Could not fetch Bolna credits');
     const me = await meRes.json();
@@ -139,7 +149,7 @@ export class DashboardService {
     let avgCallCostUsd: number | null = null;
     try {
       const exRes = await fetch(
-        `https://api.bolna.dev/v2/agent/${process.env.BOLNA_AGENT_ID}/executions?page_size=5`,
+        `https://api.bolna.dev/v2/agent/${agentId}/executions?page_size=5`,
         { headers },
       );
       if (exRes.ok) {
@@ -186,7 +196,7 @@ export class DashboardService {
           : null,
       deepgramUsd,
     };
-    this.creditsCache = { data, fetchedAt: Date.now() };
+    this.creditsCache.set(businessId, { data, fetchedAt: Date.now() });
     return data;
   }
 }

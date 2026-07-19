@@ -7,10 +7,12 @@ import { StatementPdfService } from './statement-pdf.service';
 import { AisensyService } from './aisensy.service';
 import { StatementProcessor } from './queues/statement.processor';
 import { StorageModule } from '../storage/storage.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
     StorageModule,
+    BillingModule,
     BullModule.registerQueue({
       name: 'whatsapp-statements',
     }),

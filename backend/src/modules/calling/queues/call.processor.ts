@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DemoRunStatus, CallStatus } from '@prisma/client';
+import { TenantKeysService } from '../../billing/tenant-keys.service';
 
 @Processor('outbound-calls', {
   concurrency: 1,
@@ -9,27 +10,40 @@ import { DemoRunStatus, CallStatus } from '@prisma/client';
   maxStalledCount: 1,
 })
 export class CallProcessor extends WorkerHost {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantKeys: TenantKeysService,
+  ) {
     super();
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { demoLeadId, callLogId, phoneNumber, context } = job.data;
+    const { demoLeadId, callLogId, businessId, phoneNumber, context } = job.data;
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
     console.log(
       `Processing call for ${callLogId ? `callLog: ${callLogId}` : `demoLead: ${demoLeadId}`} to ${formattedPhone} [${context.segment}]`,
     );
 
+    // Production calls dial on the TENANT's own Bolna account (env fallback
+    // until the key migration runs). Demo calls stay on the platform account.
+    let apiKey = process.env.BOLNA_API_KEY;
+    let agentId = process.env.BOLNA_AGENT_ID;
+    if (callLogId && businessId) {
+      const keys = await this.tenantKeys.getBolnaKeys(businessId);
+      if (keys.apiKey) apiKey = keys.apiKey;
+      if (keys.agentId) agentId = keys.agentId;
+    }
+
     try {
       const response = await fetch('https://api.bolna.dev/call', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.BOLNA_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agent_id: process.env.BOLNA_AGENT_ID,
+          agent_id: agentId,
           recipient_phone_number: formattedPhone,
           user_data: {
             business_name: context.business_name,

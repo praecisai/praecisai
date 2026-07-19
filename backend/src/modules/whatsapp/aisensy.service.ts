@@ -20,6 +20,9 @@ export interface SendStatementParams {
   invoiceCount: number;
   pdfUrl: string;
   pdfFilename: string;
+  // Per-tenant AiSensy key (tenants hold their own accounts). Falls back to
+  // the platform AISENSY_API_KEY env for the demo flow / pre-migration tenants.
+  apiKeyOverride?: string;
 }
 
 @Injectable()
@@ -38,8 +41,8 @@ export class AisensyService {
    * Template variables: {{1}} party name, {{2}} amount, {{3}} invoice count.
    */
   async sendStatement(params: SendStatementParams): Promise<void> {
-    const apiKey = this.config.get<string>('AISENSY_API_KEY');
-    if (!apiKey) throw new BadRequestException('AISENSY_API_KEY not configured');
+    const apiKey = params.apiKeyOverride || this.config.get<string>('AISENSY_API_KEY');
+    if (!apiKey) throw new BadRequestException('No AiSensy API key configured for this business');
 
     const digits = params.destinationPhone.replace(/\D/g, '');
     const destination =

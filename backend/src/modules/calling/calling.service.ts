@@ -13,6 +13,7 @@ import {
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
+import { BillingGateService } from '../billing/billing-gate.service';
 import {
   amountToHindi,
   numberToHindiWords,
@@ -32,6 +33,7 @@ export class CallingService {
     private readonly prisma: PrismaService,
     private readonly extractionService: CallExtractionService,
     private readonly whatsappService: WhatsappService,
+    private readonly billingGate: BillingGateService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
     @InjectQueue('callback-redials') private readonly callbackQueue: Queue,
   ) {}
@@ -273,6 +275,16 @@ export class CallingService {
 
     const eligible = outstandings.filter((o) => o.customer?.phone);
     const noPhone = outstandings.length - eligible.length;
+
+    // Billing gate: batches are skipped while the subscription mandate is
+    // halted or the tenant's Bolna balance can't cover the estimated cost.
+    if (eligible.length > 0) {
+      const gate = await this.billingGate.checkCallDispatch(businessId, eligible.length);
+      if (!gate.allowed) {
+        this.logger.warn(`Batch dispatch skipped for ${businessId}: ${gate.reason}`);
+        throw new BadRequestException(gate.reason);
+      }
+    }
 
     let queued = 0;
     const skipped: Array<{ customer: string; reason: string }> = [];

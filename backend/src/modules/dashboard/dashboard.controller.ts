@@ -22,7 +22,7 @@ export class DashboardController {
   }
 
   @Get('credits')
-  getCredits() {
-    return this.dashboardService.getCredits();
+  getCredits(@BusinessId() businessId: string) {
+    return this.dashboardService.getCredits(businessId);
   }
 }

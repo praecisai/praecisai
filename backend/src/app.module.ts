@@ -23,6 +23,7 @@ import { DemoModule } from './modules/demo/demo.module';
 import { PdcModule } from './modules/pdc/pdc.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { validate } from './config/env.validation';
 
 @Module({
@@ -74,6 +75,7 @@ import { validate } from './config/env.validation';
     PdcModule,
     ReportsModule,
     HealthModule,
+    BillingModule,
   ],
 })
 // Tenant resolution (request.businessId) happens inside JwtAuthGuard —

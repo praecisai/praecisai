@@ -7,11 +7,13 @@ import { CallbackProcessor } from './queues/callback.processor';
 import { CallExtractionService } from './call-extraction.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
     PrismaModule,
     WhatsappModule,
+    BillingModule,
     BullModule.registerQueue({
       name: 'outbound-calls',
     }),

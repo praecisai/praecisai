@@ -96,15 +96,55 @@ enum PTPStatus {
   RESCHEDULED
 }
 
+// ─── Billing Enums ────────────────────────────────────────────────────────────
+
+enum OnboardingStatus {
+  PENDING
+  KEYS_ADDED
+  PAID
+  ACTIVE
+}
+
+enum BillingPaymentType {
+  ONBOARDING
+  SUBSCRIPTION
+}
+
+enum BillingPaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum BillingSubscriptionStatus {
+  ACTIVE
+  PENDING
+  HALTED
+  CANCELLED
+}
+
+enum UsageSource {
+  BOLNA
+  AISENSY
+}
+
+enum BillingNotificationKind {
+  BOLNA_LOW
+  AISENSY_LOW
+  MANDATE_FAILED
+  DEBIT_SUCCESS
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Business {
-  id            String         @id @default(uuid())
-  name          String
-  status        BusinessStatus @default(ACTIVE)
-  plan          BusinessPlan   @default(FREE)
+  id             String         @id @default(uuid())
+  name           String
+  status         BusinessStatus @default(ACTIVE)
+  plan           BusinessPlan   @default(FREE)
   // Per-business segment day ranges; null = platform defaults
-  segment_rules Json?
+  segment_rules  Json?
   // Number the AI transfers a call to when the customer asks for a human/senior.
   // Null = fall back to the platform default (BOLNA_HANDOFF_NUMBER env var).
   handoff_number String?
@@ -112,24 +152,45 @@ model Business {
   // days overdue fall in this range are contacted (manually: VIPs are never
   // auto-contacted) with the chosen segment's script/template instead of the
   // day-range segment. Null = no override.
-  vip_rule Json?
-  created_at DateTime       @default(now())
-  updated_at DateTime       @updatedAt
+  vip_rule       Json?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+
+  // ─── Billing: per-tenant third-party accounts + Razorpay linkage ──────────
+  // API keys are AES-256-GCM encrypted with BILLING_ENCRYPTION_KEY. They are
+  // NEVER returned by any API and never logged: only last-4 previews leave
+  // the backend.
+  bolna_api_key             String?
+  bolna_agent_id            String?
+  aisensy_api_key           String?
+  low_balance_threshold_usd Float            @default(5)
+  billing_email             String?
+  gstin                     String?
+  razorpay_customer_id      String?
+  onboarding_status         OnboardingStatus @default(PENDING)
+  // Admin checklist: manually toggled after a successful live test call
+  test_call_passed          Boolean          @default(false)
 
   // Relations
-  users           User[]
-  customers       Customer[]
-  invoices        Invoice[]
-  outstandings    Outstanding[]
-  campaigns       Campaign[]
-  whatsapp_logs   WhatsAppLog[]
-  call_logs       CallLog[]
-  ai_analyses     AIAnalysis[]
-  promises_to_pay PromiseToPay[]
-  import_templates     ImportTemplate[]
-  import_histories     ImportHistory[]
-  pdc_cheques          PdcCheque[]
-  pdc_upload_histories PdcUploadHistory[]
+  users                 User[]
+  customers             Customer[]
+  invoices              Invoice[]
+  outstandings          Outstanding[]
+  campaigns             Campaign[]
+  whatsapp_logs         WhatsAppLog[]
+  call_logs             CallLog[]
+  ai_analyses           AIAnalysis[]
+  promises_to_pay       PromiseToPay[]
+  import_templates      ImportTemplate[]
+  import_histories      ImportHistory[]
+  pdc_cheques           PdcCheque[]
+  pdc_upload_histories  PdcUploadHistory[]
+  billing_payments      BillingPayment[]
+  billing_subscriptions BillingSubscription[]
+  billing_invoices      BillingInvoice[]
+  usage_snapshots       UsageSnapshot[]
+  billing_notifications BillingNotification[]
+  coupons_used          Coupon[]
 
   @@map("businesses")
 }
@@ -154,24 +215,24 @@ model User {
 }
 
 model Customer {
-  id            String   @id @default(uuid())
-  business_id   String
-  customer_name String
-  phone         String?
+  id              String   @id @default(uuid())
+  business_id     String
+  customer_name   String
+  phone           String?
   // Fallback numbers (Excel rows can carry several) — dialed in order when the
   // primary number goes unanswered; the chain stops at the first answered call.
-  alt_phones    String[] @default([])
-  email         String?
-  city          String?
-  tags          String[] @default([])
-  is_vip        Boolean  @default(false)
+  alt_phones      String[] @default([])
+  email           String?
+  city            String?
+  tags            String[] @default([])
+  is_vip          Boolean  @default(false)
   // Sales agent from the latest import (Excel AGENT column, party-level)
-  assigned_agent String?
+  assigned_agent  String?
   // Per-customer segment day-range override; same shape as
   // businesses.segment_rules. Null = follow the business rules.
   custom_schedule Json?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   // Relations
   business        Business       @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -205,8 +266,8 @@ model Invoice {
   updated_at     DateTime      @updatedAt
 
   // Relations
-  business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
-  customer Customer  @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
 
   // Bill numbers are only unique per party: Tally reuses payment
   // references ("UPI", "NEFT") as bill numbers across many parties
@@ -218,17 +279,17 @@ model Invoice {
 }
 
 model Outstanding {
-  id           String            @id @default(uuid())
-  business_id  String
-  customer_id  String            @unique
-  total_due    Float             @default(0)
-  aging_bucket String            @default("0-60")
-  segment      String            @default("Soft Reminder")
-  status               OutstandingStatus @default(ACTIVE)
-  pdc_cooldown_until   DateTime?
-  total_pdc_cleared    Float             @default(0)
-  created_at           DateTime          @default(now())
-  updated_at           DateTime          @updatedAt
+  id                 String            @id @default(uuid())
+  business_id        String
+  customer_id        String            @unique
+  total_due          Float             @default(0)
+  aging_bucket       String            @default("0-60")
+  segment            String            @default("Soft Reminder")
+  status             OutstandingStatus @default(ACTIVE)
+  pdc_cooldown_until DateTime?
+  total_pdc_cleared  Float             @default(0)
+  created_at         DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
 
   // Relations
   business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -309,6 +370,9 @@ model CallLog {
   // The number actually dialed (primary or an alt_phones fallback) — lets the
   // webhook pick the NEXT number when this one goes unanswered.
   dialed_phone             String?
+  // Per-call Bolna cost in USD, backfilled by the usage poller from
+  // /v2/agent/:id/executions. Null until the poller sees the execution.
+  bolna_cost_usd           Float?
 
   // Relations
   business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -340,14 +404,14 @@ model AIAnalysis {
 }
 
 model PromiseToPay {
-  id               String    @id @default(uuid())
-  business_id      String
-  customer_id      String
-  promised_amount  Float
-  promised_date    DateTime
-  status           PTPStatus @default(PENDING)
-  notes            String?
-  created_at       DateTime  @default(now())
+  id              String    @id @default(uuid())
+  business_id     String
+  customer_id     String
+  promised_amount Float
+  promised_date   DateTime
+  status          PTPStatus @default(PENDING)
+  notes           String?
+  created_at      DateTime  @default(now())
 
   // Relations
   business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -491,7 +555,7 @@ model DemoLead {
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
 
-  runs              DemoRun[]
+  runs DemoRun[]
 
   @@map("demo_leads")
 }
@@ -502,10 +566,10 @@ model DemoRun {
   demo_type          DemoType
   party_name         String
   bill_amount        Float
-  status             DemoRunStatus   @default(PENDING)
-  retell_call_id     String?         @unique
+  status             DemoRunStatus @default(PENDING)
+  retell_call_id     String?       @unique
   call_recording_url String?
-  created_at         DateTime        @default(now())
+  created_at         DateTime      @default(now())
 
   // Structured extraction fields (populated after call_analyzed webhook, no raw transcript stored)
   call_summary             String?
@@ -571,4 +635,137 @@ model PdcCheque {
   @@index([customer_id])
   @@index([status])
   @@map("pdc_cheques")
+}
+
+// ─── Billing Models ───────────────────────────────────────────────────────────
+// PraecisAI charges tenants exactly two things via Razorpay: a one-time
+// onboarding fee (₹50,000 ex-GST, includes the first month) and a ₹5,000/month
+// ex-GST subscription auto-debited on the 1st. All stored amounts are PAISE
+// integers, ex-GST unless the field name says otherwise. Bolna/AiSensy money
+// never flows through Praecis: tenants pay those platforms directly.
+
+model Coupon {
+  id                String    @id @default(uuid())
+  code              String    @unique
+  percent           Int // 5 | 10 | 15 | 20 (validated in service)
+  max_uses          Int       @default(1)
+  used_count        Int       @default(0)
+  expires_at        DateTime?
+  active            Boolean   @default(true)
+  used_by_tenant_id String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  used_by  Business?        @relation(fields: [used_by_tenant_id], references: [id], onDelete: SetNull)
+  payments BillingPayment[]
+
+  @@index([code])
+  @@map("coupons")
+}
+
+model BillingPayment {
+  id                       String               @id @default(uuid())
+  business_id              String
+  type                     BillingPaymentType
+  razorpay_order_id        String?
+  razorpay_payment_id      String?              @unique
+  razorpay_subscription_id String?
+  // All amounts in PAISE. base/discount/setup/subscription are ex-GST.
+  base_amount              Int
+  discount_amount          Int                  @default(0)
+  setup_component          Int                  @default(0)
+  subscription_component   Int                  @default(0)
+  gst_amount               Int
+  total_amount             Int
+  status                   BillingPaymentStatus @default(CREATED)
+  paid_at                  DateTime?
+  coupon_id                String?
+  created_at               DateTime             @default(now())
+  updated_at               DateTime             @updatedAt
+
+  business Business        @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  coupon   Coupon?         @relation(fields: [coupon_id], references: [id], onDelete: SetNull)
+  invoice  BillingInvoice?
+
+  @@index([business_id])
+  @@index([razorpay_subscription_id])
+  @@map("billing_payments")
+}
+
+model BillingSubscription {
+  id                       String                    @id @default(uuid())
+  business_id              String                    @unique
+  razorpay_subscription_id String?                   @unique
+  plan_amount              Int                       @default(500000) // ₹5,000 ex-GST in paise
+  status                   BillingSubscriptionStatus @default(PENDING)
+  next_debit_date          DateTime?
+  mandate_type             String? // upi | card | emandate (as reported by Razorpay)
+  created_at               DateTime                  @default(now())
+  updated_at               DateTime                  @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("billing_subscriptions")
+}
+
+model BillingInvoice {
+  id             String   @id @default(uuid())
+  business_id    String
+  payment_id     String?  @unique
+  invoice_number String   @unique // PRAE/25-26/0001 (financial-year prefixed)
+  line_items     Json // [{ description, amount }] amounts in paise, ex-GST
+  taxable_value  Int // paise
+  gst            Int // paise
+  total          Int // paise
+  pdf_url        String? // storage path inside the billing-invoices bucket
+  created_at     DateTime @default(now())
+
+  business Business        @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  payment  BillingPayment? @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+
+  @@index([business_id])
+  @@map("billing_invoices")
+}
+
+model UsageSnapshot {
+  id          String      @id @default(uuid())
+  business_id String
+  source      UsageSource
+  balance     Float // USD for Bolna
+  captured_at DateTime    @default(now())
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id, source, captured_at])
+  @@map("usage_snapshots")
+}
+
+model BillingNotification {
+  id          String                  @id @default(uuid())
+  business_id String
+  kind        BillingNotificationKind
+  message     String
+  read_at     DateTime?
+  // Set when the condition self-heals (e.g. balance recovered above the
+  // threshold): an open (resolved_at = null) low-balance notification also
+  // suppresses duplicate alerts on every poll.
+  resolved_at DateTime?
+  created_at  DateTime                @default(now())
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id, kind])
+  @@index([read_at])
+  @@map("billing_notifications")
+}
+
+// Razorpay webhook idempotency: one row per processed event id. A replayed or
+// duplicated delivery finds the row and is acknowledged without re-processing.
+model RazorpayEvent {
+  event_id     String   @id
+  event_type   String
+  processed_at DateTime @default(now())
+
+  @@map("razorpay_events")
 }
