@@ -38,8 +38,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={cn(sora.variable, inter.variable, "font-sans", geist.variable)}>
-      <GoogleTagManager gtmId="GTM-MJ2RJX2F" />
       <body className={cn(inter.className, 'bg-[var(--cream)]')}>
+        <GoogleTagManager gtmId="GTM-MJ2RJX2F" />
         <Providers>{children}</Providers>
       </body>
     </html>
