@@ -12,8 +12,8 @@ const productLinks = [
 const companyLinks = [
   { label: 'About',          href: '#founder' },
   { label: 'Contact',        href: 'mailto:hello@praecisai.in' },
-  { label: 'Privacy Policy', href: '#' },
-  { label: 'Terms',          href: '#' },
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Terms',          href: '/terms' },
 ];
 
 export default function Footer() {

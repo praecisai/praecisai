@@ -124,6 +124,65 @@ body {
   font-family: var(--font-inter), 'Inter', sans-serif;
 }
 
+/* ─── Legal pages (privacy / terms) ───────────────────────────── */
+.legal-prose h1 {
+  font-family: var(--font-sora), 'Sora', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--dark-brown);
+}
+
+.legal-prose .legal-updated {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--walnut);
+}
+
+.legal-prose h2 {
+  font-family: var(--font-sora), 'Sora', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--mahogany);
+  margin-top: 40px;
+}
+
+.legal-prose p,
+.legal-prose li {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--dark-brown);
+}
+
+.legal-prose p {
+  margin-top: 14px;
+}
+
+.legal-prose ul {
+  margin-top: 14px;
+  padding-left: 22px;
+  list-style: disc;
+}
+
+.legal-prose li {
+  margin-top: 6px;
+}
+
+.legal-prose li::marker {
+  color: var(--walnut);
+}
+
+.legal-prose a {
+  color: var(--rust);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-prose a:hover {
+  color: var(--mahogany);
+}
+
 /* ─── Grain texture overlay (splash + CTA) ────────────────────── */
 .grain-overlay {
   pointer-events: none;
