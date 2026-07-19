@@ -60,9 +60,28 @@ export class AdminService {
         billing_subscriptions: {
           select: { status: true, next_debit_date: true, mandate_type: true },
         },
+        // Owner email identifies a self-registered account
+        users: {
+          where: { role: 'BUSINESS_OWNER' },
+          orderBy: { created_at: 'asc' },
+          take: 1,
+          select: { email: true },
+        },
+        // Any captured online payment = they paid through the site themselves
+        billing_payments: {
+          where: { status: 'PAID', type: { in: ['ONBOARDING', 'TRIAL'] } },
+          orderBy: { paid_at: 'asc' },
+          take: 1,
+          select: { paid_at: true, type: true },
+        },
         _count: { select: { customers: true } },
       },
     });
+
+    // "New" = created or first paid within the last 14 days: surfaces
+    // freshly self-registered tenants at a glance for the operator.
+    const NEW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
 
     const results = [] as any[];
     for (const b of businesses) {
@@ -86,9 +105,18 @@ export class AdminService {
       ]);
 
       const sub = b.billing_subscriptions[0] ?? null;
+      const paidOnline = b.billing_payments[0] ?? null;
+      const paidAtMs = paidOnline?.paid_at ? new Date(paidOnline.paid_at).getTime() : null;
+      const isNew =
+        now - new Date(b.created_at).getTime() < NEW_WINDOW_MS ||
+        (paidAtMs !== null && now - paidAtMs < NEW_WINDOW_MS);
       results.push({
         id: b.id,
         name: b.name,
+        owner_email: b.users[0]?.email ?? null,
+        paid_online: !!paidOnline,
+        paid_online_type: paidOnline?.type ?? null,
+        is_new: isNew,
         status: b.status,
         onboarding_status: b.onboarding_status,
         trial_active: !!b.trial_ends_at && b.trial_ends_at > new Date(),

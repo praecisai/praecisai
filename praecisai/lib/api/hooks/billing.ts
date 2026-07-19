@@ -75,6 +75,44 @@ export function useBillingPlatforms() {
   });
 }
 
+// ─── Self-serve platform keys ─────────────────────────────────────────────────
+
+/** Connection status + last-4 previews for the tenant's own Bolna/AiSensy keys. */
+export function useTenantKeys() {
+  return useQuery({
+    queryKey: ['billing', 'keys'],
+    queryFn: async () => {
+      const res = await api.get('/billing/keys');
+      return res.data.data as {
+        bolna_connected: boolean;
+        aisensy_connected: boolean;
+        bolna_key_last4: string | null;
+        bolna_agent_id: string | null;
+        aisensy_key_last4: string | null;
+      };
+    },
+  });
+}
+
+/** Save the tenant's own keys; on success credits/platforms refresh live. */
+export function useSaveTenantKeys() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      bolnaApiKey?: string;
+      bolnaAgentId?: string;
+      aisensyApiKey?: string;
+    }) => {
+      const res = await api.patch('/billing/keys', data);
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['billing'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'credits'] });
+    },
+  });
+}
+
 export function useBillingNotifications() {
   return useQuery({
     queryKey: ['billing', 'notifications'],

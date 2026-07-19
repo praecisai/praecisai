@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
-import { useMe, useUpdateBusiness, useBolnaCredits } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Coins, Star } from 'lucide-react';
+import {
+  useMe, useUpdateBusiness, useBolnaCredits, useTenantKeys, useSaveTenantKeys,
+} from '../../../lib/api/hooks';
+import {
+  Settings, Users, Shield, Coins, Star, Plug, PhoneCall, MessageCircle,
+  CheckCircle2, ExternalLink, Loader2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
+  { id: 'integrations', label: 'Integrations', icon: Plug },
   { id: 'users', label: 'Users & Roles', icon: Users },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
   { id: 'credits', label: 'Credit Status', icon: Coins },
@@ -55,6 +61,11 @@ function rulesFromBounds(bounds: number[]) {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('business');
+  // Deep-link support: /dashboard/settings?tab=integrations opens that tab.
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
+  }, []);
   const { data: user } = useMe();
   const updateBusiness = useUpdateBusiness();
 
@@ -328,9 +339,197 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {activeTab === 'integrations' && <IntegrationsSettings />}
+
           {activeTab === 'credits' && <CreditStatus />}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatusPill({ connected }: { connected: boolean }) {
+  return connected ? (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+      style={{ background: '#2E7D3218', color: '#2E7D32', border: '1px solid #2E7D3240' }}
+    >
+      <CheckCircle2 size={12} /> Connected
+    </span>
+  ) : (
+    <span
+      className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+      style={{ background: 'var(--sand)', color: 'var(--walnut)', border: '1px solid var(--caramel)' }}
+    >
+      Not connected
+    </span>
+  );
+}
+
+/**
+ * Self-serve integrations: the business owner connects their OWN Bolna and
+ * AiSensy accounts. The Bolna key is verified server-side on save, and the
+ * balance is fetched immediately so credits appear here without any wait or
+ * Praecis staff involvement.
+ */
+function IntegrationsSettings() {
+  const { data: keys, isLoading } = useTenantKeys();
+  const { data: credits } = useBolnaCredits();
+  const save = useSaveTenantKeys();
+
+  const [bolnaApiKey, setBolnaApiKey] = useState('');
+  const [bolnaAgentId, setBolnaAgentId] = useState('');
+  const [aisensyApiKey, setAisensyApiKey] = useState('');
+
+  // Prefill the agent id (not a secret) so it can be edited; keys stay blank.
+  useEffect(() => {
+    if (keys?.bolna_agent_id) setBolnaAgentId(keys.bolna_agent_id);
+  }, [keys?.bolna_agent_id]);
+
+  const dirty = bolnaApiKey.trim() || aisensyApiKey.trim() ||
+    (bolnaAgentId.trim() && bolnaAgentId.trim() !== (keys?.bolna_agent_id ?? ''));
+
+  async function onSave() {
+    // Send only fields the owner actually filled in: blank inputs leave the
+    // stored value untouched (they never wipe an existing key).
+    const payload: { bolnaApiKey?: string; bolnaAgentId?: string; aisensyApiKey?: string } = {};
+    if (bolnaApiKey.trim()) payload.bolnaApiKey = bolnaApiKey.trim();
+    if (aisensyApiKey.trim()) payload.aisensyApiKey = aisensyApiKey.trim();
+    if (bolnaAgentId.trim() && bolnaAgentId.trim() !== (keys?.bolna_agent_id ?? '')) {
+      payload.bolnaAgentId = bolnaAgentId.trim();
+    }
+    if (Object.keys(payload).length === 0) return;
+
+    try {
+      await save.mutateAsync(payload);
+      setBolnaApiKey('');
+      setAisensyApiKey('');
+      toast.success('Platforms connected', {
+        description: 'Your credits and usage now show live in the dashboard.',
+      });
+    } catch (e: any) {
+      toast.error('Could not save your keys', { description: e.message });
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="glass-card p-4 sm:p-6 space-y-2">
+        <h3 className="font-semibold text-[var(--dark-brown)]">Connect your platforms</h3>
+        <p className="text-sm text-[var(--walnut)]">
+          PraecisAI places calls through your own Bolna account and sends WhatsApp through your own
+          AiSensy account. Paste your keys below: as soon as you save, your live balance and usage
+          appear across the dashboard. You pay Bolna and AiSensy directly on their platforms.
+        </p>
+      </div>
+
+      {/* Bolna */}
+      <div className="glass-card p-4 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-[var(--dark-brown)] flex items-center gap-2">
+            <PhoneCall size={16} className="text-[var(--mahogany)]" /> Bolna · AI Calling
+          </p>
+          <StatusPill connected={!!keys?.bolna_connected} />
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
+            Bolna API Key
+          </label>
+          <input
+            className="input-dark"
+            type="password"
+            autoComplete="off"
+            value={bolnaApiKey}
+            onChange={(e) => setBolnaApiKey(e.target.value)}
+            placeholder={keys?.bolna_key_last4 ? `•••• •••• ${keys.bolna_key_last4} (leave blank to keep)` : 'Paste your Bolna API key'}
+          />
+          <p className="text-xs text-[var(--walnut)] mt-1.5">
+            Find it in the Bolna dashboard under Developers → API Keys. We verify it with Bolna before saving.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
+            Bolna Agent ID
+          </label>
+          <input
+            className="input-dark"
+            value={bolnaAgentId}
+            onChange={(e) => setBolnaAgentId(e.target.value)}
+            placeholder="Your recovery agent's ID"
+          />
+          <p className="text-xs text-[var(--walnut)] mt-1.5">
+            The AI agent that places the recovery calls.
+          </p>
+        </div>
+
+        <a
+          href="https://platform.bolna.ai"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--mahogany)]"
+        >
+          Open Bolna dashboard <ExternalLink size={12} />
+        </a>
+
+        {keys?.bolna_connected && credits && (
+          <div className="flex items-center gap-2 text-sm p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
+            <Coins size={15} className="text-[var(--mahogany)]" />
+            <span className="text-[var(--dark-brown)] font-medium">
+              Live balance: ${Math.abs(credits.balanceUsd).toFixed(2)}
+            </span>
+            {credits.estCallsLeft != null && (
+              <span className="text-xs text-[var(--walnut)]">≈{credits.estCallsLeft} calls left</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* AiSensy */}
+      <div className="glass-card p-4 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-[var(--dark-brown)] flex items-center gap-2">
+            <MessageCircle size={16} className="text-[var(--mahogany)]" /> AiSensy · WhatsApp
+          </p>
+          <StatusPill connected={!!keys?.aisensy_connected} />
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
+            AiSensy API Key
+          </label>
+          <input
+            className="input-dark"
+            type="password"
+            autoComplete="off"
+            value={aisensyApiKey}
+            onChange={(e) => setAisensyApiKey(e.target.value)}
+            placeholder={keys?.aisensy_key_last4 ? `•••• •••• ${keys.aisensy_key_last4} (leave blank to keep)` : 'Paste your AiSensy API key'}
+          />
+          <p className="text-xs text-[var(--walnut)] mt-1.5">
+            Find it in AiSensy under Manage → API Key. Statement PDFs are sent from your own WhatsApp number.
+          </p>
+        </div>
+
+        <a
+          href="https://www.app.aisensy.com"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--mahogany)]"
+        >
+          Open AiSensy dashboard <ExternalLink size={12} />
+        </a>
+      </div>
+
+      <button
+        onClick={onSave}
+        disabled={!dirty || save.isPending || isLoading}
+        className="px-5 py-2.5 rounded-lg text-sm font-semibold text-[var(--cream)] disabled:opacity-50 inline-flex items-center gap-2"
+        style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
+      >
+        {save.isPending ? <><Loader2 size={15} className="animate-spin" /> Connecting…</> : 'Save & connect'}
+      </button>
     </div>
   );
 }
@@ -390,7 +589,16 @@ function CreditStatus() {
       
       <div className="pt-4 border-t border-[rgba(221,184,146,0.35)] mt-6">
         <p className="text-xs text-[var(--walnut)]">
-          Top up integration coming soon. For now, please contact support to add credits to your account.
+          Balances come from your own Bolna account. Top up any time on{' '}
+          <a
+            href="https://platform.bolna.ai"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-[var(--mahogany)] underline underline-offset-2"
+          >
+            platform.bolna.ai
+          </a>
+          {' '}— it reflects here within a minute. Not connected yet? Add your keys in the Integrations tab.
         </p>
       </div>
     </div>

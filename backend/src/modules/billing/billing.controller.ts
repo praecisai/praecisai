@@ -49,6 +49,25 @@ class VerifySubscriptionDto {
 }
 
 /**
+ * Self-serve platform keys. All optional: an empty string clears a key, an
+ * omitted field leaves it untouched. Values are write-only (reads elsewhere
+ * only ever return last-4 previews).
+ */
+class SetKeysDto {
+  @IsOptional()
+  @IsString()
+  bolnaApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  bolnaAgentId?: string;
+
+  @IsOptional()
+  @IsString()
+  aisensyApiKey?: string;
+}
+
+/**
  * Client-facing billing endpoints (tenant-scoped via JwtAuthGuard).
  * No secret: Razorpay key secret, tenant API keys, encryption key: is ever
  * present in any response here.
@@ -110,6 +129,18 @@ export class BillingController {
   @Get('platforms')
   platforms(@BusinessId() businessId: string) {
     return this.billing.platforms(businessId);
+  }
+
+  /** Connection status + masked previews for the tenant's own keys. */
+  @Get('keys')
+  getKeys(@BusinessId() businessId: string) {
+    return this.billing.getTenantKeys(businessId);
+  }
+
+  /** Tenant saves their OWN Bolna/AiSensy keys; Bolna key is verified first. */
+  @Patch('keys')
+  setKeys(@BusinessId() businessId: string, @Body() dto: SetKeysDto) {
+    return this.billing.setTenantKeys(businessId, dto);
   }
 
   @Get('notifications')

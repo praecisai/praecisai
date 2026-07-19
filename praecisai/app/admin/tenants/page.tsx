@@ -72,8 +72,29 @@ export default function AdminTenantsPage() {
                   className="cursor-pointer hover:bg-[var(--sand)] transition-colors"
                 >
                   <td>
-                    <p className="text-sm font-medium text-[var(--dark-brown)]">{t.name}</p>
-                    <p className="text-[11px] text-[var(--walnut)]">{t.customers} customers</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-[var(--dark-brown)]">{t.name}</p>
+                      {t.is_new && (
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
+                          style={{ background: '#2E7D32', color: '#fff' }}
+                        >
+                          New
+                        </span>
+                      )}
+                      {t.paid_online && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                          style={{ background: '#7F553918', color: 'var(--mahogany)', border: '1px solid #7F553940' }}
+                          title={`Self-registered and paid online${t.paid_online_type ? ` (${t.paid_online_type.toLowerCase()})` : ''}`}
+                        >
+                          Self-serve
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--walnut)]">
+                      {t.owner_email ? `${t.owner_email} · ` : ''}{t.customers} customers
+                    </p>
                   </td>
                   <td>
                     <span

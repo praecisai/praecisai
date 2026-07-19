@@ -305,9 +305,16 @@ export default function BillingPage() {
                     {platforms?.bolna?.balance_usd != null ? `$${platforms.bolna.balance_usd.toFixed(2)}` : '-'}
                   </p>
                   <p className="text-[11px] text-[var(--walnut)] mt-0.5">
-                    {platforms?.bolna?.connected
-                      ? `Balance as of ${platforms?.bolna?.captured_at ? fmtDate(platforms.bolna.captured_at) : '-'}`
-                      : 'Account not connected yet: contact Praecis support'}
+                    {platforms?.bolna?.connected ? (
+                      `Balance as of ${platforms?.bolna?.captured_at ? fmtDate(platforms.bolna.captured_at) : '-'}`
+                    ) : (
+                      <>
+                        Not connected yet.{' '}
+                        <Link href="/dashboard/settings?tab=integrations" className="font-semibold text-[var(--mahogany)] underline underline-offset-2">
+                          Add your Bolna key
+                        </Link>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -332,7 +339,16 @@ export default function BillingPage() {
                 {platforms?.aisensy?.messages_this_month ?? '-'}
               </p>
               <p className="text-[11px] text-[var(--walnut)] mt-0.5">
-                messages sent this month · {platforms?.aisensy?.connected ? 'account connected' : 'account not connected yet'}
+                {platforms?.aisensy?.connected ? (
+                  'messages sent this month · account connected'
+                ) : (
+                  <>
+                    messages sent this month ·{' '}
+                    <Link href="/dashboard/settings?tab=integrations" className="font-semibold text-[var(--mahogany)] underline underline-offset-2">
+                      Add your AiSensy key
+                    </Link>
+                  </>
+                )}
               </p>
               <a
                 href={platforms?.aisensy?.dashboard_url ?? 'https://www.app.aisensy.com'}

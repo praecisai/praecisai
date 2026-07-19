@@ -10,6 +10,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RazorpayService } from './razorpay.service';
 import { BillingNotificationService, BOLNA_TOPUP_URL, AISENSY_DASHBOARD_URL } from './billing-notification.service';
 import { BillingInvoiceService } from './billing-invoice.service';
+import { TenantKeysService } from './tenant-keys.service';
+import { BolnaUsageService } from './bolna-usage.service';
 import {
   computeOnboardingQuote,
   computeTrialQuote,
@@ -33,6 +35,8 @@ export class BillingService {
     private razorpay: RazorpayService,
     private notifications: BillingNotificationService,
     private invoices: BillingInvoiceService,
+    private tenantKeys: TenantKeysService,
+    private bolnaUsage: BolnaUsageService,
   ) {}
 
   get anchorMode(): BillingAnchorMode {
@@ -636,6 +640,80 @@ export class BillingService {
         dashboard_url: AISENSY_DASHBOARD_URL,
       },
     };
+  }
+
+  // ─── Self-serve platform keys (tenant connects their OWN accounts) ─────────
+  // A paid tenant adds their own Bolna + AiSensy credentials from the dashboard
+  // (no Praecis staff needed). Keys are stored encrypted; the Bolna key is
+  // verified against Bolna before saving, and a balance snapshot is captured
+  // immediately so credits appear right away.
+
+  private get bolnaBaseUrl(): string {
+    return this.config.get<string>('BOLNA_API_BASE') || 'https://api.bolna.dev';
+  }
+
+  /** Connection status + masked previews for the tenant's own settings page. */
+  async getTenantKeys(businessId: string) {
+    const [previews, business] = await Promise.all([
+      this.tenantKeys.keyPreviews(businessId),
+      this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: { bolna_api_key: true, aisensy_api_key: true },
+      }),
+    ]);
+    return {
+      bolna_connected: !!business?.bolna_api_key,
+      aisensy_connected: !!business?.aisensy_api_key,
+      bolna_key_last4: previews.bolna_key_last4,
+      bolna_agent_id: previews.bolna_agent_id,
+      aisensy_key_last4: previews.aisensy_key_last4,
+    };
+  }
+
+  private async verifyBolnaKey(apiKey: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.bolnaBaseUrl}/me`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Store the tenant's own Bolna/AiSensy keys. The Bolna key (when provided
+   * and non-empty) is validated against Bolna first so a wrong key is rejected
+   * up front. On success we poll the balance once so the dashboard shows
+   * credits without waiting for the 30-minute background poll.
+   */
+  async setTenantKeys(
+    businessId: string,
+    dto: { bolnaApiKey?: string; bolnaAgentId?: string; aisensyApiKey?: string },
+  ) {
+    if (dto.bolnaApiKey) {
+      const ok = await this.verifyBolnaKey(dto.bolnaApiKey);
+      if (!ok) {
+        throw new BadRequestException(
+          'Bolna rejected that API key. Copy it again from platform.bolna.ai (Developers: API Keys) and retry.',
+        );
+      }
+    }
+
+    await this.tenantKeys.setKeys(businessId, {
+      bolnaApiKey: dto.bolnaApiKey,
+      bolnaAgentId: dto.bolnaAgentId,
+      aisensyApiKey: dto.aisensyApiKey,
+    });
+
+    // Best-effort immediate balance snapshot: never fail the save on a poll hiccup
+    try {
+      await this.bolnaUsage.pollTenant(businessId);
+    } catch (err: any) {
+      this.logger.warn(`Immediate Bolna poll after key save failed: ${err?.message}`);
+    }
+
+    return this.getTenantKeys(businessId);
   }
 
   // ─── Dev simulator (mock mode only) ────────────────────────────────────────
