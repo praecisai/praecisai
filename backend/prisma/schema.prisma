@@ -108,6 +108,7 @@ enum OnboardingStatus {
 enum BillingPaymentType {
   ONBOARDING
   SUBSCRIPTION
+  TRIAL
 }
 
 enum BillingPaymentStatus {
@@ -170,6 +171,9 @@ model Business {
   onboarding_status         OnboardingStatus @default(PENDING)
   // Admin checklist: manually toggled after a successful live test call
   test_call_passed          Boolean          @default(false)
+  // Paid 1-week trial (₹10,000 ex-GST): dashboard access until this instant,
+  // then the paywall returns. Null = never bought a trial.
+  trial_ends_at             DateTime?
 
   // Relations
   users                 User[]

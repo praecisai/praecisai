@@ -107,10 +107,14 @@ class EnvironmentVariables {
   @IsString()
   BILLING_ANCHOR_MODE?: string;
 
-  // Comma-separated Praecis staff emails allowed into /admin
+  // Credential login for the /admin panel (independent of Supabase auth)
   @IsOptional()
   @IsString()
-  ADMIN_EMAILS?: string;
+  ADMIN_USERNAME?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_PASSWORD?: string;
 
   // Optional email nudges (low balance / mandate failure) via Resend
   @IsOptional()

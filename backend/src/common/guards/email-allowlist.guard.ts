@@ -7,12 +7,14 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
- * Closed-testing gate: only emails present in the allowed_emails table may
- * trigger costly/outbound actions (Excel import, AI calls, WhatsApp sends).
- * Everyone else can still log in and browse their own (empty) dashboard.
+ * Entitlement gate on costly/outbound actions (Excel import, AI calls,
+ * WhatsApp sends). A request passes when ANY of these hold:
+ *  · the email is in allowed_emails (manually onboarded clients)
+ *  · the business has paid onboarding (PAID / ACTIVE)
+ *  · the business has an unexpired 1-week trial (trial_ends_at in future)
+ * A lapsed trial automatically fails here again: access closes by itself.
  *
- * Grant access by inserting a row in Supabase → Table Editor → allowed_emails.
- * Use AFTER JwtAuthGuard (needs request.user).
+ * Use AFTER JwtAuthGuard (needs request.user / request.businessId).
  */
 @Injectable()
 export class EmailAllowlistGuard implements CanActivate {
@@ -29,13 +31,25 @@ export class EmailAllowlistGuard implements CanActivate {
     const allowed = await this.prisma.allowedEmail.findUnique({
       where: { email },
     });
+    if (allowed) return true;
 
-    if (!allowed) {
-      throw new ForbiddenException(
-        'This feature is not enabled for your account yet. Please contact PraecisAI for access.',
-      );
+    // Paid or in-trial businesses are entitled without an allowlist row
+    if (request.businessId) {
+      const business = await this.prisma.business.findUnique({
+        where: { id: request.businessId },
+        select: { onboarding_status: true, trial_ends_at: true },
+      });
+      if (
+        business?.onboarding_status === 'PAID' ||
+        business?.onboarding_status === 'ACTIVE' ||
+        (business?.trial_ends_at && business.trial_ends_at > new Date())
+      ) {
+        return true;
+      }
     }
 
-    return true;
+    throw new ForbiddenException(
+      'This feature needs an active PraecisAI plan. Choose a plan from your dashboard to continue.',
+    );
   }
 }

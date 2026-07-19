@@ -13,9 +13,9 @@ code paths the real webhooks use.
 - `backend/.env` got new entries:
   - `BILLING_ENCRYPTION_KEY` : freshly generated. Do NOT change it once tenant
     keys are stored (stored keys become undecryptable; env fallback still works).
-  - `ADMIN_EMAILS=aeromenclothingllp@gmail.com` : add more Praecis staff
-    emails comma-separated. Only these emails can open `/admin`; everyone
-    else sees a plain 404.
+  - `ADMIN_USERNAME` / `ADMIN_PASSWORD` : credential login for /admin. The
+    panel is fully separate from the Google login: open /admin and sign in
+    with these. Wrong credentials lock the login for 15 min after 8 tries.
 
 ## 2. Where the Razorpay keys go (later, after KYC)
 
@@ -64,8 +64,14 @@ Start both apps as usual (`npm run start:dev` in `backend`, `npm run dev` in
    or from the browser console on the dashboard:
    the red banner appears on the dashboard and Billing, and bulk call
    dispatch is blocked with a clear reason until a (simulated) charge succeeds.
-4. **Admin panel** (`/admin`, only for ADMIN_EMAILS):
-   - Tenants: health table (Bolna balance · mandate · calls · onboarding).
+4. **Trial plan (paywall)**: a fresh login that is not allowlisted/paid lands
+   on the plans screen (Trial ₹10,000 · Onboarding ₹50,000 · ₹5,000/month).
+   "Start 1-week trial" → in mock mode "Simulate trial payment" activates 7
+   days of full access (trial invoice + banner with days left on the
+   dashboard and Billing). When the week ends, access closes automatically
+   and the plans screen returns with "trial already used".
+5. **Admin panel** (`/admin`, credential login viru-admin + password):
+   - Tenants: health table (Bolna balance · mandate · calls · onboarding · trial).
    - Tenant detail: settings, write-only keys (last-4 previews + Replace key),
      onboarding checklist with the manual "Test call passed" toggle,
      "Poll Bolna now", "Link signed-up users".

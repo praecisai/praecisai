@@ -121,6 +121,45 @@ export class RazorpayService {
     });
   }
 
+  /** One-time order (used for the 1-week trial). */
+  async createOrder(opts: {
+    amountPaise: number;
+    receipt: string;
+    notes: Record<string, string>;
+  }): Promise<{ id: string; status: string }> {
+    if (this.isMock) {
+      const id = `order_mock_${crypto.randomBytes(8).toString('hex')}`;
+      this.logger.log(`[MOCK] Created order ${id} for ${opts.amountPaise} paise`);
+      return { id, status: 'created' };
+    }
+    return this.request('POST', '/orders', {
+      amount: opts.amountPaise,
+      currency: 'INR',
+      receipt: opts.receipt,
+      notes: opts.notes,
+    });
+  }
+
+  /** Checkout-callback signature for ORDER payments: HMAC(order_id|payment_id). */
+  verifyOrderPaymentSignature(opts: {
+    orderId: string;
+    paymentId: string;
+    signature: string;
+  }): boolean {
+    if (this.isMock) return true;
+    const secret = this.keySecret;
+    if (!secret) return false;
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(`${opts.orderId}|${opts.paymentId}`)
+      .digest('hex');
+    try {
+      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(opts.signature));
+    } catch {
+      return false;
+    }
+  }
+
   async cancelSubscription(subscriptionId: string): Promise<void> {
     if (this.isMock) {
       this.logger.log(`[MOCK] Cancelled subscription ${subscriptionId}`);

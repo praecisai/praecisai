@@ -86,6 +86,11 @@ export default function AdminTenantsPage() {
                     >
                       {t.onboarding_status}
                     </span>
+                    {t.trial_active && (
+                      <p className="text-[10px] mt-1 font-semibold" style={{ color: '#B8860B' }}>
+                        TRIAL till {new Date(t.trial_ends_at).toLocaleDateString('en-IN')}
+                      </p>
+                    )}
                   </td>
                   <td>
                     <div className="flex items-center gap-1.5" title="Bolna · AiSensy">

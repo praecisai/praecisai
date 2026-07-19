@@ -2,7 +2,8 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { BillingController } from './billing.controller';
-import { AdminController } from './admin.controller';
+import { AdminController, AdminAuthController } from './admin.controller';
+import { AdminAuthService } from './admin-auth.service';
 import { RazorpayWebhookController } from './razorpay-webhook.controller';
 import { BillingService } from './billing.service';
 import { AdminService } from './admin.service';
@@ -23,11 +24,12 @@ const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
     TenantKeysModule,
     BullModule.registerQueue({ name: 'bolna-usage' }),
   ],
-  controllers: [BillingController, AdminController, RazorpayWebhookController],
+  controllers: [BillingController, AdminAuthController, AdminController, RazorpayWebhookController],
   providers: [
     BillingService,
     AdminService,
     AdminGuard,
+    AdminAuthService,
     RazorpayService,
     BillingNotificationService,
     BillingInvoiceService,

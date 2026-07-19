@@ -1,5 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import api from '../client';
+
+// ─── Admin credential client ─────────────────────────────────────────────────
+// The /admin panel authenticates with its own username/password token
+// (POST /admin/login), fully independent of the Supabase user session.
+
+const ADMIN_TOKEN_KEY = 'praecis_admin_token';
+
+export function getAdminToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  else window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+const adminApi = axios.create({
+  baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001'}/api/v1`,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+adminApi.interceptors.request.use((config) => {
+  const token = getAdminToken();
+  if (token) config.headers['Authorization'] = `Bearer ${token}`;
+  return config;
+});
+
+adminApi.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const message =
+      err.response?.data?.error ?? err.response?.data?.message ?? err.message ?? 'An error occurred';
+    const e = new Error(message) as Error & { status?: number };
+    e.status = err.response?.status;
+    return Promise.reject(e);
+  },
+);
 
 // ─── Client billing ───────────────────────────────────────────────────────────
 
@@ -107,13 +147,61 @@ export function useSimulateMandateFailure() {
   });
 }
 
+// ─── Paywall access + trial ───────────────────────────────────────────────────
+
+/** Entitlement probe: allowlisted, paid, or in an active 1-week trial. */
+export function useBillingAccess() {
+  return useQuery({
+    queryKey: ['billing', 'access'],
+    queryFn: async () => {
+      const res = await api.get('/billing/access');
+      return res.data.data;
+    },
+    staleTime: 30_000,
+    refetchInterval: 5 * 60_000, // catches trial expiry while the tab is open
+  });
+}
+
+export function useCreateTrialCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/billing/checkout/trial');
+      return res.data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useSimulateTrialPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post('/billing/dev/simulate-trial-paid'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
 // ─── Admin ────────────────────────────────────────────────────────────────────
+
+export function useAdminLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (creds: { username: string; password: string }) => {
+      const res = await adminApi.post('/admin/login', creds);
+      return res.data.data as { token: string; expires_at: string };
+    },
+    onSuccess: (data) => {
+      setAdminToken(data.token);
+      qc.invalidateQueries({ queryKey: ['admin'] });
+    },
+  });
+}
 
 export function useAdminMe() {
   return useQuery({
     queryKey: ['admin', 'me'],
     queryFn: async () => {
-      const res = await api.get('/admin/me');
+      const res = await adminApi.get('/admin/me');
       return res.data.data;
     },
     retry: false,
@@ -125,7 +213,7 @@ export function useAdminTenants() {
   return useQuery({
     queryKey: ['admin', 'tenants'],
     queryFn: async () => {
-      const res = await api.get('/admin/tenants');
+      const res = await adminApi.get('/admin/tenants');
       return res.data.data;
     },
   });
@@ -135,7 +223,7 @@ export function useAdminTenant(id: string) {
   return useQuery({
     queryKey: ['admin', 'tenants', id],
     queryFn: async () => {
-      const res = await api.get(`/admin/tenants/${id}`);
+      const res = await adminApi.get(`/admin/tenants/${id}`);
       return res.data.data;
     },
     enabled: !!id,
@@ -146,7 +234,7 @@ export function useAdminCreateTenant() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
-      const res = await api.post('/admin/tenants', data);
+      const res = await adminApi.post('/admin/tenants', data);
       return res.data.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
@@ -156,7 +244,7 @@ export function useAdminCreateTenant() {
 export function useAdminUpdateTenant(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => api.patch(`/admin/tenants/${id}`, data),
+    mutationFn: (data: any) => adminApi.patch(`/admin/tenants/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
   });
 }
@@ -164,7 +252,7 @@ export function useAdminUpdateTenant(id: string) {
 export function useAdminToggleTestCall(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (passed: boolean) => api.patch(`/admin/tenants/${id}/test-call`, { passed }),
+    mutationFn: (passed: boolean) => adminApi.patch(`/admin/tenants/${id}/test-call`, { passed }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
   });
 }
@@ -172,7 +260,7 @@ export function useAdminToggleTestCall(id: string) {
 export function useAdminLinkUsers(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post(`/admin/tenants/${id}/link-users`),
+    mutationFn: () => adminApi.post(`/admin/tenants/${id}/link-users`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
   });
 }
@@ -180,7 +268,7 @@ export function useAdminLinkUsers(id: string) {
 export function useAdminPollBolna(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post(`/admin/tenants/${id}/poll-bolna`),
+    mutationFn: () => adminApi.post(`/admin/tenants/${id}/poll-bolna`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
   });
 }
@@ -189,7 +277,7 @@ export function useAdminNotifications(tenantId?: string) {
   return useQuery({
     queryKey: ['admin', 'notifications', tenantId ?? 'all'],
     queryFn: async () => {
-      const res = await api.get('/admin/notifications', {
+      const res = await adminApi.get('/admin/notifications', {
         params: tenantId ? { tenantId } : {},
       });
       return res.data.data;
@@ -200,7 +288,7 @@ export function useAdminNotifications(tenantId?: string) {
 export function useAdminMarkNotificationRead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.patch(`/admin/notifications/${id}/read`),
+    mutationFn: (id: string) => adminApi.patch(`/admin/notifications/${id}/read`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'notifications'] }),
   });
 }
@@ -209,7 +297,7 @@ export function useAdminCoupons() {
   return useQuery({
     queryKey: ['admin', 'coupons'],
     queryFn: async () => {
-      const res = await api.get('/admin/coupons');
+      const res = await adminApi.get('/admin/coupons');
       return res.data.data;
     },
   });
@@ -219,7 +307,7 @@ export function useAdminCreateCoupon() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { code: string; percent: number; maxUses?: number; expiresAt?: string }) =>
-      api.post('/admin/coupons', data),
+      adminApi.post('/admin/coupons', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'coupons'] }),
   });
 }
@@ -228,7 +316,7 @@ export function useAdminSetCouponActive() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
-      api.patch(`/admin/coupons/${id}/active`, { active }),
+      adminApi.patch(`/admin/coupons/${id}/active`, { active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'coupons'] }),
   });
 }
@@ -237,7 +325,7 @@ export function useAdminBilling() {
   return useQuery({
     queryKey: ['admin', 'billing'],
     queryFn: async () => {
-      const res = await api.get('/admin/billing');
+      const res = await adminApi.get('/admin/billing');
       return res.data.data;
     },
   });
@@ -246,7 +334,7 @@ export function useAdminBilling() {
 export function useAdminInvoicePdf() {
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.get(`/admin/billing/invoices/${id}/pdf`);
+      const res = await adminApi.get(`/admin/billing/invoices/${id}/pdf`);
       return res.data.data as { url: string };
     },
   });

@@ -12,12 +12,14 @@ import { BillingNotificationService, BOLNA_TOPUP_URL, AISENSY_DASHBOARD_URL } fr
 import { BillingInvoiceService } from './billing-invoice.service';
 import {
   computeOnboardingQuote,
+  computeTrialQuote,
   firstDebitDate,
   BillingAnchorMode,
   isAllowedCouponPercent,
   SUBSCRIPTION_MONTHLY_PAISE,
   monthlySubscriptionGstPaise,
   SUBSCRIPTION_PLAN_PAISE_INCL_GST,
+  TRIAL_DAYS,
 } from './billing-math.util';
 import { Coupon, BillingPayment, OnboardingStatus } from '@prisma/client';
 
@@ -133,6 +135,123 @@ export class BillingService {
       first_debit_date: startAt,
       quote,
       coupon: { code: coupon.code, percent: coupon.percent },
+    };
+  }
+
+  // ─── Trial checkout (₹10,000 ex-GST · 7 days of full access) ───────────────
+
+  async createTrialCheckout(businessId: string) {
+    const business = await this.prisma.business.findUnique({ where: { id: businessId } });
+    if (!business) throw new NotFoundException('Business not found');
+    if (
+      business.onboarding_status === OnboardingStatus.PAID ||
+      business.onboarding_status === OnboardingStatus.ACTIVE
+    ) {
+      throw new BadRequestException('You are already a paid customer: no trial needed');
+    }
+    if (business.trial_ends_at && business.trial_ends_at > new Date()) {
+      throw new BadRequestException('Your trial is already active');
+    }
+
+    const quote = computeTrialQuote();
+    const order = await this.razorpay.createOrder({
+      amountPaise: quote.totalAmount,
+      receipt: `trial_${businessId.slice(0, 8)}_${Date.now()}`,
+      notes: { praecis_business_id: businessId, praecis_type: 'trial' },
+    });
+
+    const payment = await this.prisma.billingPayment.create({
+      data: {
+        business_id: businessId,
+        type: 'TRIAL',
+        razorpay_order_id: order.id,
+        base_amount: quote.baseAmount,
+        gst_amount: quote.gstAmount,
+        total_amount: quote.totalAmount,
+        status: 'CREATED',
+      },
+    });
+
+    return {
+      mock: this.razorpay.isMock,
+      razorpay_key_id: this.razorpay.keyId ?? null,
+      order_id: order.id,
+      payment_record_id: payment.id,
+      amount_paise: quote.totalAmount,
+      quote,
+    };
+  }
+
+  /** payment.captured for a trial order. Idempotent. */
+  async handleTrialCaptured(opts: { razorpayOrderId: string; razorpayPaymentId: string }) {
+    const payment = await this.prisma.billingPayment.findFirst({
+      where: { razorpay_order_id: opts.razorpayOrderId, type: 'TRIAL', status: 'CREATED' },
+      orderBy: { created_at: 'desc' },
+    });
+    if (!payment) {
+      const already = await this.prisma.billingPayment.findFirst({
+        where: { razorpay_payment_id: opts.razorpayPaymentId },
+      });
+      return already ?? null;
+    }
+
+    const paid = await this.prisma.billingPayment.update({
+      where: { id: payment.id },
+      data: { status: 'PAID', paid_at: new Date(), razorpay_payment_id: opts.razorpayPaymentId },
+    });
+
+    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    await this.prisma.business.update({
+      where: { id: payment.business_id },
+      data: { trial_ends_at: trialEndsAt },
+    });
+
+    await this.invoices.createForPayment(paid);
+    this.logger.log(
+      `Trial activated for business ${payment.business_id} until ${trialEndsAt.toISOString()}`,
+    );
+    return paid;
+  }
+
+  // ─── Entitlement: who gets past the paywall ────────────────────────────────
+  // A logged-in user reaches the dashboard when ANY of these hold:
+  //  · their email is in allowed_emails (manually onboarded clients like Aeromen)
+  //  · their business has paid onboarding (PAID / ACTIVE)
+  //  · their business has an unexpired 1-week trial
+  async access(businessId: string, userEmail?: string | null) {
+    const [business, allowed] = await Promise.all([
+      this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: { onboarding_status: true, trial_ends_at: true },
+      }),
+      userEmail
+        ? this.prisma.allowedEmail.findUnique({ where: { email: userEmail.toLowerCase() } })
+        : Promise.resolve(null),
+    ]);
+
+    const now = new Date();
+    const trialActive = !!business?.trial_ends_at && business.trial_ends_at > now;
+    const paid =
+      business?.onboarding_status === OnboardingStatus.PAID ||
+      business?.onboarding_status === OnboardingStatus.ACTIVE;
+
+    let reason: 'ALLOWLISTED' | 'PAID' | 'TRIAL' | null = null;
+    if (allowed) reason = 'ALLOWLISTED';
+    else if (paid) reason = 'PAID';
+    else if (trialActive) reason = 'TRIAL';
+
+    const trialExpired = !!business?.trial_ends_at && business.trial_ends_at <= now;
+
+    return {
+      entitled: reason !== null,
+      reason,
+      onboarding_status: business?.onboarding_status ?? 'PENDING',
+      trial_ends_at: business?.trial_ends_at ?? null,
+      trial_active: trialActive,
+      trial_expired: trialExpired,
+      trial_days_left: trialActive
+        ? Math.max(1, Math.ceil((business!.trial_ends_at!.getTime() - now.getTime()) / 86400000))
+        : 0,
     };
   }
 
@@ -504,6 +623,22 @@ export class BillingService {
       razorpaySubscriptionId: sub.razorpay_subscription_id,
       razorpayPaymentId: `pay_mock_${Date.now()}`,
       chargeAt: new Date(),
+    });
+  }
+
+  /** Simulates the payment.captured webhook for a pending trial order. */
+  async simulateTrialPaid(businessId: string) {
+    this.assertMock();
+    const payment = await this.prisma.billingPayment.findFirst({
+      where: { business_id: businessId, type: 'TRIAL', status: 'CREATED' },
+      orderBy: { created_at: 'desc' },
+    });
+    if (!payment?.razorpay_order_id) {
+      throw new BadRequestException('No pending trial checkout to simulate: create one first');
+    }
+    return this.handleTrialCaptured({
+      razorpayOrderId: payment.razorpay_order_id,
+      razorpayPaymentId: `pay_mock_${Date.now()}`,
     });
   }
 

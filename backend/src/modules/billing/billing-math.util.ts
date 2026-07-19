@@ -18,6 +18,27 @@ export const SUBSCRIPTION_PLAN_PAISE_INCL_GST = Math.round(
   SUBSCRIPTION_MONTHLY_PAISE * (1 + GST_RATE),
 ); // ₹5,900 per month charged by the Razorpay plan
 
+// 1-week paid trial: full platform access for 7 days, no coupon, no mandate
+export const TRIAL_PAISE = 10000 * 100; // ₹10,000 ex-GST
+export const TRIAL_DAYS = 7;
+
+export interface TrialQuote {
+  baseAmount: number; // ₹10,000 in paise, ex-GST
+  gstAmount: number;
+  totalAmount: number;
+  days: number;
+}
+
+export function computeTrialQuote(): TrialQuote {
+  const gstAmount = Math.round(TRIAL_PAISE * GST_RATE);
+  return {
+    baseAmount: TRIAL_PAISE,
+    gstAmount,
+    totalAmount: TRIAL_PAISE + gstAmount,
+    days: TRIAL_DAYS,
+  };
+}
+
 export const ALLOWED_COUPON_PERCENTS = [5, 10, 15, 20] as const;
 export type CouponPercent = (typeof ALLOWED_COUPON_PERCENTS)[number];
 

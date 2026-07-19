@@ -165,7 +165,11 @@ export default function BillingPage() {
                       <tr key={inv.id}>
                         <td className="text-sm font-medium text-[var(--dark-brown)]">{inv.invoice_number}</td>
                         <td className="text-xs text-[var(--walnut)]">
-                          {inv.payment?.type === 'ONBOARDING' ? 'Onboarding' : 'Subscription'}
+                          {inv.payment?.type === 'ONBOARDING'
+                            ? 'Onboarding'
+                            : inv.payment?.type === 'TRIAL'
+                              ? 'Trial (1 week)'
+                              : 'Subscription'}
                         </td>
                         <td className="text-xs text-[var(--walnut)]">{fmtDate(inv.created_at)}</td>
                         <td className="text-right text-sm font-semibold text-[var(--dark-brown)]">{formatPaise(inv.total)}</td>

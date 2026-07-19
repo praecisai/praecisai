@@ -102,12 +102,19 @@ export class BillingInvoiceService {
                 ]
               : []),
           ]
-        : [
-            {
-              description: 'PraecisAI monthly subscription',
-              amount: payment.subscription_component || payment.base_amount,
-            },
-          ];
+        : payment.type === 'TRIAL'
+          ? [
+              {
+                description: 'PraecisAI 1-week trial: full platform access for 7 days',
+                amount: payment.base_amount,
+              },
+            ]
+          : [
+              {
+                description: 'PraecisAI monthly subscription',
+                amount: payment.subscription_component || payment.base_amount,
+              },
+            ];
 
     const taxableValue = payment.total_amount - payment.gst_amount;
     const now = payment.paid_at ?? new Date();

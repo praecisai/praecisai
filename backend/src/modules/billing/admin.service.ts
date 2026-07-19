@@ -55,6 +55,7 @@ export class AdminService {
         low_balance_threshold_usd: true,
         bolna_api_key: true,
         aisensy_api_key: true,
+        trial_ends_at: true,
         created_at: true,
         billing_subscriptions: {
           select: { status: true, next_debit_date: true, mandate_type: true },
@@ -90,6 +91,8 @@ export class AdminService {
         name: b.name,
         status: b.status,
         onboarding_status: b.onboarding_status,
+        trial_active: !!b.trial_ends_at && b.trial_ends_at > new Date(),
+        trial_ends_at: b.trial_ends_at,
         test_call_passed: b.test_call_passed,
         bolna_connected: !!b.bolna_api_key,
         aisensy_connected: !!b.aisensy_api_key,
