@@ -143,8 +143,8 @@ export function useValidateCoupon() {
 export function useCreateOnboardingCheckout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (code: string) => {
-      const res = await api.post('/billing/checkout/onboarding', { code });
+    mutationFn: async (code?: string) => {
+      const res = await api.post('/billing/checkout/onboarding', { code: code ?? '' });
       return res.data.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),

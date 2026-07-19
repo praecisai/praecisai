@@ -51,7 +51,7 @@ export default function OnboardingPaymentPage() {
 
   async function applyCoupon() {
     if (!code.trim()) {
-      toast.error('Enter a coupon code: a coupon is required at checkout');
+      toast.error('Enter a coupon code first');
       return;
     }
     try {
@@ -65,10 +65,10 @@ export default function OnboardingPaymentPage() {
   }
 
   async function payNow() {
-    if (!applied) return;
     setPhase('paying');
     try {
-      const data = await checkout.mutateAsync(applied.coupon.code);
+      // Pass coupon code if one was applied, otherwise empty string (backend handles full price)
+      const data = await checkout.mutateAsync(applied?.coupon.code ?? '');
 
       if (data.mock) {
         // No Razorpay keys configured yet: offer the local simulator instead
@@ -134,7 +134,8 @@ export default function OnboardingPaymentPage() {
   return (
     <>
       <TopHeader title="Onboarding Payment" subtitle="One-time setup fee · includes your first month" />
-      <div className="p-4 sm:p-6 max-w-3xl">
+      <div className="flex-1 flex items-start justify-center p-4 sm:p-8 pt-8">
+      <div className="w-full max-w-lg">
         {alreadyPaid ? (
           <div className="glass-card p-6 text-center">
             <CheckCircle2 size={40} className="mx-auto mb-3" style={{ color: '#2E7D32' }} />
@@ -175,7 +176,7 @@ export default function OnboardingPaymentPage() {
                   <span className="text-[var(--walnut)]">Onboarding fee (includes first month)</span>
                   <span className="font-medium text-[var(--dark-brown)]">₹50,000.00</span>
                 </div>
-                {quote && (
+                {quote ? (
                   <>
                     <div className="flex justify-between" style={{ color: '#2E7D32' }}>
                       <span>Coupon {applied.coupon.code} ({applied.coupon.percent}% off)</span>
@@ -203,11 +204,24 @@ export default function OnboardingPaymentPage() {
                       <span>{formatPaise(quote.totalAmount)}</span>
                     </div>
                   </>
-                )}
-                {!quote && (
-                  <p className="text-xs text-[var(--walnut)] pt-1">
-                    Apply your coupon to see the discounted total: GST 18% is added on the discounted amount.
-                  </p>
+                ) : (
+                  // No coupon applied — show full price
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--walnut)]">GST @ 18%</span>
+                      <span className="font-medium text-[var(--dark-brown)]">₹9,000.00</span>
+                    </div>
+                    <div
+                      className="flex justify-between text-base font-bold pt-2.5 border-t"
+                      style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
+                    >
+                      <span>Total payable now</span>
+                      <span>₹59,000.00</span>
+                    </div>
+                    <p className="text-xs text-[var(--walnut)] pt-1">
+                      Have a discount coupon? Apply it below to reduce the amount.
+                    </p>
+                  </>
                 )}
               </div>
             </div>
@@ -262,14 +276,14 @@ export default function OnboardingPaymentPage() {
             ) : (
               <button
                 onClick={payNow}
-                disabled={!applied || phase === 'paying'}
+                disabled={phase === 'paying'}
                 className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
               >
                 {phase === 'paying' ? (
                   <><Loader2 size={16} className="animate-spin" /> Opening checkout…</>
                 ) : (
-                  <><ShieldCheck size={16} /> {quote ? `Pay ${formatPaise(quote.totalAmount)} securely` : 'Apply a coupon to continue'}</>
+                  <><ShieldCheck size={16} /> {quote ? `Pay ${formatPaise(quote.totalAmount)} securely` : 'Pay ₹59,000.00 securely'}</>
                 )}
               </button>
             )}
@@ -279,6 +293,7 @@ export default function OnboardingPaymentPage() {
             </p>
           </div>
         )}
+      </div>
       </div>
     </>
   );

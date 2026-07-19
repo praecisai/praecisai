@@ -39,7 +39,7 @@ export function computeTrialQuote(): TrialQuote {
   };
 }
 
-export const ALLOWED_COUPON_PERCENTS = [5, 10, 15, 20, 25, 30] as const;
+export const ALLOWED_COUPON_PERCENTS = [0, 5, 10, 15, 20, 25, 30] as const;
 export type CouponPercent = (typeof ALLOWED_COUPON_PERCENTS)[number];
 
 export interface OnboardingQuote {

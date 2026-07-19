@@ -48,21 +48,63 @@ export class JwtAuthGuard implements CanActivate {
     // Tenant resolution — the single source of truth for request.businessId.
     // (Must happen here: Nest middleware runs BEFORE guards, so a middleware
     // can never see the user this guard authenticates.)
-    const dbUser = await this.prisma.user.findUnique({
+    let dbUser = await this.prisma.user.findUnique({
       where: { supabase_uid: supabaseUser.id },
     });
 
-    if (dbUser) {
-      if (dbUser.status !== 'ACTIVE') {
-        throw new UnauthorizedException('User account is suspended or inactive');
-      }
-      request.businessId = dbUser.business_id;
-      request.userRole = dbUser.role;
-      request.dbUser = dbUser;
+    // First authenticated request with no tenant yet → provision one now, so
+    // the client can pay immediately and their business shows up in /admin as
+    // a lead. Previously only /auth/me did this, which the locked paywall never
+    // calls — so brand-new (or post-tenant-delete) accounts got stuck on
+    // "No business linked" and could never reach checkout.
+    if (!dbUser) {
+      dbUser = await this.provisionTenant(supabaseUser);
     }
-    // No dbUser yet → first login; only /auth/me (which auto-onboards) works,
-    // because the BusinessId decorator rejects requests without a business.
+
+    if (dbUser.status !== 'ACTIVE') {
+      throw new UnauthorizedException('User account is suspended or inactive');
+    }
+    request.businessId = dbUser.business_id;
+    request.userRole = dbUser.role;
+    request.dbUser = dbUser;
 
     return true;
+  }
+
+  /**
+   * Idempotently create a Business + owner User for a freshly authenticated
+   * Supabase account. Safe against concurrent requests: a lost race hits the
+   * supabase_uid unique constraint (P2002), after which we just re-read the
+   * row the winner created.
+   */
+  private async provisionTenant(supabaseUser: any) {
+    const name =
+      supabaseUser.user_metadata?.full_name ||
+      supabaseUser.user_metadata?.name ||
+      supabaseUser.email?.split('@')[0] ||
+      'New';
+    const businessName = `${name}'s Business`;
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const business = await tx.business.create({ data: { name: businessName } });
+        return tx.user.create({
+          data: {
+            business_id: business.id,
+            supabase_uid: supabaseUser.id,
+            email: supabaseUser.email,
+            role: 'BUSINESS_OWNER',
+          },
+        });
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        const existing = await this.prisma.user.findUnique({
+          where: { supabase_uid: supabaseUser.id },
+        });
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 }

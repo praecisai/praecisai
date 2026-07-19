@@ -76,15 +76,23 @@ export class BillingService {
 
   // ─── Onboarding checkout ────────────────────────────────────────────────────
 
-  async createOnboardingCheckout(businessId: string, couponCode: string) {
+  async createOnboardingCheckout(businessId: string, couponCode?: string) {
     const business = await this.prisma.business.findUnique({ where: { id: businessId } });
     if (!business) throw new NotFoundException('Business not found');
     if (business.onboarding_status === OnboardingStatus.PAID || business.onboarding_status === OnboardingStatus.ACTIVE) {
       throw new BadRequestException('Onboarding payment has already been completed');
     }
 
-    const coupon = await this.validateCoupon(couponCode, businessId);
-    const quote = computeOnboardingQuote(coupon.percent);
+    // Coupon is optional: no code → full price (0% discount)
+    let coupon: Coupon | null = null;
+    let quote: ReturnType<typeof computeOnboardingQuote>;
+    if (couponCode?.trim()) {
+      coupon = await this.validateCoupon(couponCode.trim(), businessId);
+      quote = computeOnboardingQuote(coupon.percent);
+    } else {
+      quote = computeOnboardingQuote(0); // full price, no discount
+    }
+
     const startAt = firstDebitDate(new Date(), this.anchorMode);
 
     const planId = await this.razorpay.ensurePlanId();
@@ -96,7 +104,7 @@ export class BillingService {
       notes: {
         praecis_business_id: businessId,
         praecis_type: 'onboarding',
-        coupon: coupon.code,
+        coupon: coupon?.code ?? 'none',
       },
     });
 
@@ -129,7 +137,7 @@ export class BillingService {
         gst_amount: quote.gstAmount,
         total_amount: quote.totalAmount,
         status: 'CREATED',
-        coupon_id: coupon.id,
+        coupon_id: coupon?.id ?? null,
       },
     });
 
@@ -140,7 +148,7 @@ export class BillingService {
       payment_record_id: payment.id,
       first_debit_date: startAt,
       quote,
-      coupon: { code: coupon.code, percent: coupon.percent },
+      coupon: coupon ? { code: coupon.code, percent: coupon.percent } : null,
     };
   }
 

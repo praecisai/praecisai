@@ -13,6 +13,13 @@ class CouponDto {
   code: string;
 }
 
+/** Coupon is optional at onboarding checkout: omit or send empty for full price. */
+class OnboardingCheckoutDto {
+  @IsOptional()
+  @IsString()
+  code?: string;
+}
+
 class UsageQueryDto {
   @IsOptional()
   @IsString()
@@ -112,7 +119,7 @@ export class BillingController {
   }
 
   @Post('checkout/onboarding')
-  createOnboardingCheckout(@BusinessId() businessId: string, @Body() dto: CouponDto) {
+  createOnboardingCheckout(@BusinessId() businessId: string, @Body() dto: OnboardingCheckoutDto) {
     return this.billing.createOnboardingCheckout(businessId, dto.code);
   }
 

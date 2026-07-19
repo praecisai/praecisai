@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
@@ -55,11 +55,20 @@ export class AuthService {
     email: string;
     businessName: string;
   }) {
-    // Check if user already exists
+    // The JwtAuthGuard auto-provisions a tenant on first authenticated request,
+    // so by the time signup calls /auth/onboard a user usually already exists.
+    // Instead of conflicting, apply the business name the user actually typed
+    // to that auto-provisioned business (the guard only knows a derived name).
     const existing = await this.prisma.user.findUnique({
       where: { supabase_uid: dto.supabaseUid },
     });
-    if (existing) throw new ConflictException('User already onboarded');
+    if (existing) {
+      const business = await this.prisma.business.update({
+        where: { id: existing.business_id },
+        data: { name: dto.businessName },
+      });
+      return { user: existing, business };
+    }
 
     // Create business + owner in transaction
     return this.prisma.$transaction(async (tx) => {
