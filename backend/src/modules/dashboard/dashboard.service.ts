@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantKeysService } from '../billing/tenant-keys.service';
+import { OutstandingService } from '../outstanding/outstanding.service';
 
 @Injectable()
 export class DashboardService {
   constructor(
     private prisma: PrismaService,
     private tenantKeys: TenantKeysService,
+    private outstandingService: OutstandingService,
   ) {}
 
   async getStats(businessId: string) {
@@ -15,6 +17,7 @@ export class DashboardService {
       totalInvoices,
       outstandings,
       creditNotes,
+      perBillSegments,
     ] = await Promise.all([
       this.prisma.customer.count({ where: { business_id: businessId } }),
       this.prisma.invoice.count({ where: { business_id: businessId } }),
@@ -28,6 +31,8 @@ export class DashboardService {
         where: { business_id: businessId, due_amount: { lt: 0 } },
         _sum: { due_amount: true },
       }),
+      // Same per-bill ageing totals as the Outstandings header cards
+      this.outstandingService.getSegmentBreakdown(businessId),
     ]);
 
     // Total outstanding (active only)
@@ -61,9 +66,10 @@ export class DashboardService {
       };
     });
 
-    // Segment distribution
-    const segments = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'Escalation', 'Cleared', 'Credit Note'];
-    const segment_distribution = segments.map((seg) => {
+    // Segment distribution: day-range segments come from per-bill ageing
+    // (each bill bucketed by its own age, matching Tally's ageing report);
+    // Cleared / Credit Note remain per-customer statuses.
+    const statusSegments = ['Cleared', 'Credit Note'].map((seg) => {
       const rows = outstandings.filter((o) => o.segment === seg);
       return {
         segment: seg,
@@ -71,6 +77,7 @@ export class DashboardService {
         amount: rows.reduce((s, r) => s + r.total_due, 0),
       };
     });
+    const segment_distribution = [...perBillSegments, ...statusSegments];
 
     return {
       total_outstanding: netOutstanding,

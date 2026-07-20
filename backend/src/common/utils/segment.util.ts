@@ -102,6 +102,18 @@ export function getSegment(
   // Fully cleared
   if (dueAmount === 0) return 'Cleared';
 
+  return getSegmentForDays(daysOverdue, rules);
+}
+
+/**
+ * Resolve the day-range segment alone, ignoring the amount's sign.
+ * Used for ageing totals where credit notes are netted inside the bucket
+ * their own age falls in (matching Tally's outstanding ageing report).
+ */
+export function getSegmentForDays(
+  daysOverdue: number,
+  rules: SegmentRule[] = DEFAULT_SEGMENT_RULES,
+): string {
   // Sort rules by min_days ascending for proper evaluation
   const sortedRules = [...rules].sort((a, b) => a.min_days - b.min_days);
 

@@ -2,7 +2,7 @@ import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { IsOptional } from 'class-validator';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { getSegment, getAgingBucket, parseSegmentRules } from '../../common/utils/segment.util';
+import { getSegment, getSegmentForDays, getAgingBucket, parseSegmentRules } from '../../common/utils/segment.util';
 import { PdcService } from '../pdc/pdc.service';
 
 export class OutstandingFiltersDto {
@@ -250,29 +250,53 @@ export class OutstandingService {
   }
 
   /**
-   * Per-segment totals for the Outstandings header cards: segments are the
-   * only grouping concept the product exposes (their day ranges are the
-   * business's own segment_rules).
+   * Per-segment totals for the Outstandings header cards, computed the way
+   * Tally's ageing report does: each BILL falls into the day-range bucket of
+   * its own age, so one party's due can be spread across several segments,
+   * and credit notes (negative dues) are netted inside their own age bucket.
+   * The customer's stored `segment` (calling scripts, table badges, filters)
+   * still comes from their oldest unpaid bill; these cards are ageing totals.
+   * `count` = parties with at least one unpaid bill in the range, so a party
+   * can appear under more than one card.
    */
   async getSegmentBreakdown(businessId: string) {
-    const business = await this.prisma.business.findUnique({
-      where: { id: businessId },
-      select: { segment_rules: true },
-    });
-    const order = parseSegmentRules(business?.segment_rules).map((r) => r.segment);
+    const [business, invoices, customSchedules] = await Promise.all([
+      this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: { segment_rules: true },
+      }),
+      this.prisma.invoice.findMany({
+        where: { business_id: businessId, due_amount: { not: 0 } },
+        select: { customer_id: true, due_amount: true, days_overdue: true },
+      }),
+      this.prisma.customer.findMany({
+        where: { business_id: businessId, custom_schedule: { not: Prisma.AnyNull } },
+        select: { id: true, custom_schedule: true },
+      }),
+    ]);
 
-    const grouped = await this.prisma.outstanding.groupBy({
-      by: ['segment'],
-      where: { business_id: businessId, status: 'ACTIVE' },
-      _count: { _all: true },
-      _sum: { total_due: true },
-    });
+    const businessRules = parseSegmentRules(business?.segment_rules);
+    const rulesByCustomer = new Map(
+      customSchedules.map((c) => [c.id, parseSegmentRules(c.custom_schedule)]),
+    );
 
-    const bySegment = new Map(grouped.map((g) => [g.segment, g]));
-    return order.map((segment) => ({
-      segment,
-      count: bySegment.get(segment)?._count._all ?? 0,
-      amount: bySegment.get(segment)?._sum.total_due ?? 0,
+    const totals = new Map<string, { amount: number; customers: Set<string> }>();
+    for (const inv of invoices) {
+      const rules = rulesByCustomer.get(inv.customer_id) ?? businessRules;
+      const segment = getSegmentForDays(inv.days_overdue, rules);
+      let entry = totals.get(segment);
+      if (!entry) {
+        entry = { amount: 0, customers: new Set() };
+        totals.set(segment, entry);
+      }
+      entry.amount += inv.due_amount;
+      if (inv.due_amount > 0) entry.customers.add(inv.customer_id);
+    }
+
+    return businessRules.map((r) => ({
+      segment: r.segment,
+      count: totals.get(r.segment)?.customers.size ?? 0,
+      amount: totals.get(r.segment)?.amount ?? 0,
     }));
   }
 
