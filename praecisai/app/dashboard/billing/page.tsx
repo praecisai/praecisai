@@ -308,12 +308,7 @@ export default function BillingPage() {
                     {platforms?.bolna?.connected ? (
                       `Balance as of ${platforms?.bolna?.captured_at ? fmtDate(platforms.bolna.captured_at) : '-'}`
                     ) : (
-                      <>
-                        Not connected yet.{' '}
-                        <Link href="/dashboard/settings?tab=integrations" className="font-semibold text-[var(--mahogany)] underline underline-offset-2">
-                          Add your Bolna key
-                        </Link>
-                      </>
+                      'Not connected yet · contact the PraecisAI team to link your account'
                     )}
                   </p>
                 </div>
@@ -342,12 +337,7 @@ export default function BillingPage() {
                 {platforms?.aisensy?.connected ? (
                   'messages sent this month · account connected'
                 ) : (
-                  <>
-                    messages sent this month ·{' '}
-                    <Link href="/dashboard/settings?tab=integrations" className="font-semibold text-[var(--mahogany)] underline underline-offset-2">
-                      Add your AiSensy key
-                    </Link>
-                  </>
+                  'messages sent this month · contact the PraecisAI team to link your account'
                 )}
               </p>
               <a

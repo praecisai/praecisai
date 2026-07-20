@@ -21,6 +21,10 @@ const SEGMENT_COLORS: Record<string, { accent: string; tint: string }> = {
 const INK = '#1F2937';
 const MUTED = '#6B7280';
 
+// Praecis AI brand colours (from the logo): navy wordmark + blue "AI"
+const BRAND_NAVY = '#0F1D35';
+const BRAND_BLUE = '#3B63F3';
+
 const HEADER_H = 22;
 const MIN_ROW_H = 22;
 
@@ -60,6 +64,38 @@ export class RecoveryReportPdfService {
     return { doc, done };
   }
 
+  /** The logo's four-pointed sparkle star: concave sides via quadratic curves. */
+  private drawSparkle(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
+    const k = r * 0.22; // waist: how far the concave sides bow toward the centre
+    doc
+      .save()
+      .moveTo(cx, cy - r)
+      .quadraticCurveTo(cx + k, cy - k, cx + r, cy)
+      .quadraticCurveTo(cx + k, cy + k, cx, cy + r)
+      .quadraticCurveTo(cx - k, cy + k, cx - r, cy)
+      .quadraticCurveTo(cx - k, cy - k, cx, cy - r)
+      .fill(color);
+    doc.restore();
+  }
+
+  /** "✦ Praecis AI" wordmark, top-right corner of the first page. */
+  private drawPraecisLogo(doc: PDFKit.PDFDocument) {
+    const fontSize = 10;
+    doc.font('Helvetica-Bold').fontSize(fontSize);
+    const praecisW = doc.widthOfString('Praecis');
+    const spaceW = doc.widthOfString(' ');
+    const aiW = doc.widthOfString('AI');
+    const starR = 5.5;
+    const gap = 4;
+    const right = doc.page.width - doc.page.margins.right;
+    const x = right - (starR * 2 + gap + praecisW + spaceW + aiW);
+    const yText = 32;
+    this.drawSparkle(doc, x + starR, yText + fontSize * 0.38, starR, BRAND_NAVY);
+    const xText = x + starR * 2 + gap;
+    doc.fillColor(BRAND_NAVY).text('Praecis', xText, yText, { lineBreak: false });
+    doc.fillColor(BRAND_BLUE).text('AI', xText + praecisW + spaceW, yText, { lineBreak: false });
+  }
+
   private drawTitle(doc: PDFKit.PDFDocument, businessName: string, title: string, accent: string): number {
     const left = doc.page.margins.left;
     const contentWidth = doc.page.width - left * 2;
@@ -75,6 +111,7 @@ export class RecoveryReportPdfService {
       .font('Helvetica-Bold')
       .fontSize(11)
       .text(title, left, y + 6, { width: contentWidth, align: 'center' });
+    this.drawPraecisLogo(doc);
     return y + 36;
   }
 
