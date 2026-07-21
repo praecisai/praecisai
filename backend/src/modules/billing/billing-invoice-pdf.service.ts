@@ -8,6 +8,10 @@ const TINT = '#EDE0D4'; // cream
 const INK = '#1C1008';
 const MUTED = '#B08968';
 
+// Praecis AI brand colours (from the logo): navy wordmark + blue "AI"
+const BRAND_NAVY = '#0F1D35';
+const BRAND_BLUE = '#3B63F3';
+
 export interface InvoiceLineItem {
   description: string;
   amount: number; // paise, ex-GST
@@ -34,6 +38,34 @@ export interface InvoicePdfInput {
  */
 @Injectable()
 export class BillingInvoicePdfService {
+  /** The logo's four-pointed sparkle star: concave sides via quadratic curves. */
+  private drawSparkle(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
+    const k = r * 0.22; // waist: how far the concave sides bow toward the centre
+    doc
+      .save()
+      .moveTo(cx, cy - r)
+      .quadraticCurveTo(cx + k, cy - k, cx + r, cy)
+      .quadraticCurveTo(cx + k, cy + k, cx, cy + r)
+      .quadraticCurveTo(cx - k, cy + k, cx - r, cy)
+      .quadraticCurveTo(cx - k, cy - k, cx, cy - r)
+      .fill(color);
+    doc.restore();
+  }
+
+  /** "✦ Praecis AI" wordmark, drawn with its top-left at (x, y). */
+  private drawLogo(doc: PDFKit.PDFDocument, x: number, y: number) {
+    const fontSize = 20;
+    const starR = 10;
+    const gap = 8;
+    doc.font('Helvetica-Bold').fontSize(fontSize);
+    const praecisW = doc.widthOfString('Praecis');
+    const spaceW = doc.widthOfString(' ');
+    this.drawSparkle(doc, x + starR, y + fontSize * 0.4, starR, BRAND_NAVY);
+    const xText = x + starR * 2 + gap;
+    doc.fillColor(BRAND_NAVY).text('Praecis', xText, y, { lineBreak: false });
+    doc.fillColor(BRAND_BLUE).text('AI', xText + praecisW + spaceW, y, { lineBreak: false });
+  }
+
   async generate(input: InvoicePdfInput): Promise<Buffer> {
     const doc = new PDFDocument({ size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
@@ -46,22 +78,31 @@ export class BillingInvoicePdfService {
     const left = doc.page.margins.left;
     const width = doc.page.width - left * 2;
 
-    // Header band
-    doc.rect(0, 0, doc.page.width, 90).fill(ACCENT);
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(22).text('PraecisAI', left, 26);
+    // Header: the Praecis AI logo (sparkle star + wordmark) on white, with the
+    // invoice meta on the right and a mahogany rule underneath.
+    this.drawLogo(doc, left, 34);
     doc
+      .fillColor(MUTED)
       .font('Helvetica')
-      .fontSize(9)
-      .text('AI Recovery Platform · praecisai.in', left, 54);
+      .fontSize(8.5)
+      .text('AI Recovery Platform · praecisai.in', left, 60);
     doc
+      .fillColor(ACCENT)
       .font('Helvetica-Bold')
-      .fontSize(14)
-      .text('TAX INVOICE', left, 34, { width, align: 'right' });
+      .fontSize(15)
+      .text('TAX INVOICE', left, 30, { width, align: 'right' });
     doc
+      .fillColor(INK)
       .font('Helvetica')
       .fontSize(9)
-      .text(`Invoice No: ${input.invoiceNumber}`, left, 54, { width, align: 'right' })
-      .text(`Date: ${formatDate(input.invoiceDate)}`, left, 66, { width, align: 'right' });
+      .text(`Invoice No: ${input.invoiceNumber}`, left, 52, { width, align: 'right' })
+      .text(`Date: ${formatDate(input.invoiceDate)}`, left, 64, { width, align: 'right' });
+    doc
+      .moveTo(left, 88)
+      .lineTo(left + width, 88)
+      .lineWidth(1.5)
+      .strokeColor(ACCENT)
+      .stroke();
 
     // Bill-to box
     let y = 116;
@@ -110,22 +151,27 @@ export class BillingInvoicePdfService {
       .strokeColor(MUTED)
       .stroke();
 
-    // Totals
+    // Totals. The value column must line up exactly under the line-item
+    // "AMOUNT (Rs.)" column: same right edge (left + width - 12) and width, so
+    // every figure on the invoice shares one right margin.
     y += 12;
-    const totalsX = left + width - 260;
+    const valueX = left + width - amountColW; // identical to the amount column
+    const valueColW = amountColW - 12; // right edge = left + width - 12
+    const totalsX = left + width - 280; // where the labels start
+    const labelW = valueX - totalsX; // labels end where the value column begins
     const totalsRow = (label: string, value: string, bold = false) => {
       doc
         .font(bold ? 'Helvetica-Bold' : 'Helvetica')
         .fontSize(bold ? 11 : 10)
         .fillColor(bold ? ACCENT : INK);
-      doc.text(label, totalsX, y, { width: 150 });
-      doc.text(value, totalsX + 130, y, { width: 130, align: 'right' });
+      doc.text(label, totalsX, y, { width: labelW });
+      doc.text(value, valueX, y, { width: valueColW, align: 'right' });
       y += bold ? 20 : 16;
     };
     totalsRow('Taxable Value (Rs.)', paiseToRupeeString(input.taxableValue));
     totalsRow('GST @ 18% (Rs.)', paiseToRupeeString(input.gst));
     doc
-      .roundedRect(totalsX - 10, y - 4, 280, 26, 4)
+      .roundedRect(totalsX - 10, y - 4, valueX + valueColW - totalsX + 10, 26, 4)
       .fill(TINT);
     totalsRow('TOTAL (Rs.)', paiseToRupeeString(input.total), true);
 

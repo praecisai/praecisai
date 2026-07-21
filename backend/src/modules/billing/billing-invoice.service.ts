@@ -8,6 +8,14 @@ import { financialYearCode } from './billing-math.util';
 
 const BUCKET = 'billing-invoices';
 
+// Bump whenever the invoice PDF LAYOUT changes. The version is baked into the
+// storage key, so a bumped version makes every cached PDF look "missing": the
+// next download re-renders it in the new format and purges the old object.
+// v1 = original mahogany layout · v2 = Praecis AI logo header · v3 = totals
+// rewrite (alignment still off) · v4 = totals value column aligned to the
+// line-item AMOUNT column.
+const PDF_TEMPLATE_VERSION = 4;
+
 /**
  * GST invoices for Praecis fees. Numbers are sequential inside each Indian
  * financial year: PRAE/25-26/0001. PDFs live in the private
@@ -48,6 +56,59 @@ export class BillingInvoiceService {
       }
     }
     this.bucketEnsured = true;
+  }
+
+  /** Version-stamped storage key: a template bump changes it, orphaning the old file. */
+  private pdfKey(businessId: string, invoiceNumber: string): string {
+    return `${businessId}/${invoiceNumber.replace(/\//g, '-')}.v${PDF_TEMPLATE_VERSION}.pdf`;
+  }
+
+  /**
+   * Render the invoice PDF from its stored fields, upload it at the current
+   * version's key, purge any previous (stale-format) object, and point the row
+   * at the fresh key. Returns the new key. Shared by create + download paths.
+   */
+  private async renderAndStore(invoice: {
+    id: string;
+    business_id: string;
+    invoice_number: string;
+    line_items: unknown;
+    taxable_value: number;
+    gst: number;
+    total: number;
+    created_at: Date;
+    pdf_url: string | null;
+  }): Promise<string> {
+    const business = await this.prisma.business.findUnique({
+      where: { id: invoice.business_id },
+      select: { name: true, gstin: true, billing_email: true },
+    });
+    const buffer = await this.pdf.generate({
+      invoiceNumber: invoice.invoice_number,
+      invoiceDate: invoice.created_at,
+      billTo: {
+        name: business?.name ?? 'Client',
+        gstin: business?.gstin,
+        email: business?.billing_email,
+      },
+      lineItems: (invoice.line_items as unknown as InvoiceLineItem[]) ?? [],
+      taxableValue: invoice.taxable_value,
+      gst: invoice.gst,
+      total: invoice.total,
+    });
+    await this.ensureBucket();
+    const key = this.pdfKey(invoice.business_id, invoice.invoice_number);
+    const { error } = await this.supabase.storage
+      .from(BUCKET)
+      .upload(key, buffer, { contentType: 'application/pdf', upsert: true });
+    if (error) throw new Error(error.message);
+
+    // Purge the previous object so the old-format PDF cannot be served again
+    if (invoice.pdf_url && invoice.pdf_url !== key) {
+      await this.supabase.storage.from(BUCKET).remove([invoice.pdf_url]).catch(() => undefined);
+    }
+    await this.prisma.billingInvoice.update({ where: { id: invoice.id }, data: { pdf_url: key } });
+    return key;
   }
 
   /**
@@ -147,24 +208,16 @@ export class BillingInvoiceService {
 
     // Render + upload the PDF (failure leaves the row; PDF can be re-rendered)
     try {
-      const buffer = await this.pdf.generate({
-        invoiceNumber: invoice.invoice_number,
-        invoiceDate: now,
-        billTo: { name: business.name, gstin: business.gstin, email: business.billing_email },
-        lineItems,
-        taxableValue,
+      await this.renderAndStore({
+        id: invoice.id,
+        business_id: payment.business_id,
+        invoice_number: invoice.invoice_number,
+        line_items: lineItems,
+        taxable_value: taxableValue,
         gst: payment.gst_amount,
         total: payment.total_amount,
-      });
-      await this.ensureBucket();
-      const key = `${payment.business_id}/${invoice.invoice_number.replace(/\//g, '-')}.pdf`;
-      const { error } = await this.supabase.storage
-        .from(BUCKET)
-        .upload(key, buffer, { contentType: 'application/pdf', upsert: true });
-      if (error) throw new Error(error.message);
-      await this.prisma.billingInvoice.update({
-        where: { id: invoice.id },
-        data: { pdf_url: key },
+        created_at: now,
+        pdf_url: null,
       });
     } catch (err: any) {
       this.logger.error(`Invoice PDF upload failed for ${invoice.invoice_number}: ${err?.message}`);
@@ -197,36 +250,19 @@ export class BillingInvoiceService {
       where: { id: invoiceId, ...(businessId ? { business_id: businessId } : {}) },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
-    if (!invoice.pdf_url) {
-      // PDF was never uploaded (e.g. storage hiccup): re-render for the SAME
-      // invoice row so the number never changes
-      const business = await this.prisma.business.findUnique({
-        where: { id: invoice.business_id },
-        select: { name: true, gstin: true, billing_email: true },
-      });
-      const buffer = await this.pdf.generate({
-        invoiceNumber: invoice.invoice_number,
-        invoiceDate: invoice.created_at,
-        billTo: {
-          name: business?.name ?? 'Client',
-          gstin: business?.gstin,
-          email: business?.billing_email,
-        },
-        lineItems: (invoice.line_items as unknown as InvoiceLineItem[]) ?? [],
-        taxableValue: invoice.taxable_value,
-        gst: invoice.gst,
-        total: invoice.total,
-      });
-      await this.ensureBucket();
-      const key = `${invoice.business_id}/${invoice.invoice_number.replace(/\//g, '-')}.pdf`;
-      const { error } = await this.supabase.storage
-        .from(BUCKET)
-        .upload(key, buffer, { contentType: 'application/pdf', upsert: true });
-      if (error) throw new NotFoundException('Invoice PDF not available yet');
-      await this.prisma.billingInvoice.update({ where: { id: invoice.id }, data: { pdf_url: key } });
+
+    // Serve the cache only when it is the CURRENT template version. A stale
+    // (old-format) or missing PDF is re-rendered for the SAME invoice row —
+    // the number never changes — and the old object is purged.
+    const currentKey = this.pdfKey(invoice.business_id, invoice.invoice_number);
+    if (invoice.pdf_url === currentKey) return this.sign(currentKey);
+
+    try {
+      const key = await this.renderAndStore(invoice);
       return this.sign(key);
+    } catch {
+      throw new NotFoundException('Invoice PDF not available yet');
     }
-    return this.sign(invoice.pdf_url);
   }
 
   private async sign(key: string): Promise<string> {
