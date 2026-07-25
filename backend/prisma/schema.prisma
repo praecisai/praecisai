@@ -370,6 +370,9 @@ model CallLog {
   disposition              CallDisposition?
   call_sentiment           CallSentiment?
   promise_date             DateTime?
+  // Human-readable basis for promise_date ("month end", "in 7 days") so the
+  // dashboard shows WHY a date was set, not just the resolved date.
+  promise_basis            String?
   key_objection            String?
   language_used            CallLanguage?
   is_sensitive             Boolean          @default(false)

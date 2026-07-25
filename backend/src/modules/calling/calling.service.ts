@@ -13,6 +13,7 @@ import {
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
+import { computePromiseDate, promiseBasisLabel, PromiseIntent } from '../../common/utils/promise-date.util';
 import { BillingGateService } from '../billing/billing-gate.service';
 import {
   amountToSpoken,
@@ -59,6 +60,28 @@ export class CallingService {
         if (!at || isNaN(at.getTime())) return { kind: 'later' };
         return { kind: 'specific', at, hasTime: !!cb.has_time };
       }
+      default:
+        return { kind: 'none' };
+    }
+  }
+
+  // Map the LLM extraction's promise block to the promise-date util's intent.
+  // Payment INTENT only — the actual date math happens in computePromiseDate.
+  private mapPromiseIntent(p: any): PromiseIntent {
+    if (!p || !p.kind || p.kind === 'none') return { kind: 'none' };
+    switch (p.kind) {
+      case 'specific': {
+        const at = p.datetime ? new Date(p.datetime) : null;
+        return at && !isNaN(at.getTime()) ? { kind: 'specific', at } : { kind: 'none' };
+      }
+      case 'tomorrow':
+        return { kind: 'tomorrow' };
+      case 'relative_days':
+        return { kind: 'relativeDays', days: Number(p.days) || 1 };
+      case 'end_of_week':
+        return { kind: 'endOfWeek' };
+      case 'end_of_month':
+        return { kind: 'endOfMonth' };
       default:
         return { kind: 'none' };
     }
@@ -551,7 +574,10 @@ export class CallingService {
       ?? extractions?.promised_date?.promised_date?.objective
       ?? extractions?.promised_date?.subjective
       ?? extractions?.promised_date;
-    const promisedDate = this.parseDate(promisedDateRaw);
+    // Bolna's own date extraction is only a FALLBACK now: it miscomputes
+    // relative phrases ("end of the month" came back as the call date). Our
+    // own today-aware computation below takes precedence.
+    const bolnaPromisedDate = this.parseDate(promisedDateRaw);
 
     const rawAmount = extractions?.promised_amount?.promised_amount?.objective
       ?? extractions?.promised_amount?.promised_amount?.subjective
@@ -571,6 +597,15 @@ export class CallingService {
     if (!extraction) {
       this.logger.warn(`Extraction returned null for call ${callId}: storing Bolna data only`);
     }
+
+    // Prefer our today-aware promise date (computed from the LLM's intent, not
+    // its date arithmetic); fall back to Bolna's raw extraction only if the
+    // customer made no payment commitment we could parse.
+    const promiseIntent = this.mapPromiseIntent(extraction?.promise);
+    const computedPromise = computePromiseDate(promiseIntent);
+    const promisedDate = computedPromise ?? bolnaPromisedDate;
+    // Only label when OUR computation set the date; a Bolna fallback has no known basis.
+    const promiseBasis = computedPromise ? promiseBasisLabel(promiseIntent) : null;
 
     const isSensitive = extraction?.is_sensitive ?? false;
     const sensitiveCooldownUntil = isSensitive
@@ -618,6 +653,7 @@ export class CallingService {
           sensitive_cooldown_until: sensitiveCooldownUntil,
         }),
         promise_date: promisedDate,
+        promise_basis: promiseBasis,
         call_sentiment: callSentiment,
       },
     });

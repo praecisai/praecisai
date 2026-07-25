@@ -18,6 +18,14 @@ export interface CallExtractionResult {
     datetime: string | null;
     has_time: boolean;
   } | null;
+  // Payment-promise INTENT only — never an actual calendar date. The date math
+  // (end of month, +N days) is done deterministically in code with today's IST
+  // date, because LLMs miscompute relative dates. Distinct from `callback`.
+  promise: {
+    kind: 'none' | 'specific' | 'tomorrow' | 'relative_days' | 'end_of_week' | 'end_of_month';
+    days: number | null;
+    datetime: string | null;
+  } | null;
 }
 
 const SYSTEM_PROMPT = `You are a call analysis engine for an Indian debt recovery AI system.
@@ -41,6 +49,11 @@ const USER_PROMPT = `Extract the following from the call transcript:
     "days": <integer or null>,
     "datetime": "<ISO 8601 date or date-time, or null>",
     "has_time": <true if the customer stated a clock time, else false>
+  },
+  "promise": {
+    "kind": "<none | specific | tomorrow | relative_days | end_of_week | end_of_month>",
+    "days": <integer or null>,
+    "datetime": "<ISO 8601 date, or null>"
   }
 }
 
@@ -52,6 +65,15 @@ Callback guide: set ONLY when the customer asks to be called back later or says 
 - "specific": a concrete date and/or clock time was given → set datetime (ISO); has_time = true only if a clock time was stated
 - "none": customer did NOT ask to be called back
 IMPORTANT: if the customer gave a payment DATE (a promise to pay), that is NOT a callback → kind = "none".
+
+Promise guide: set ONLY when the customer commits to PAYING by some date/timeframe (a promise to pay). Return INTENT, never compute the date yourself:
+- "specific": a concrete calendar date was given ("15 tarikh", "20th", "3 August", "next Monday") → set datetime as an ISO date (use the year/month from today's date above if not stated)
+- "tomorrow": "kal de dunga", "kal payment kar dunga": pay tomorrow
+- "relative_days": "ek hafte mein" / "next week" / "hafte bhar mein" → days = 7; "do din mein" → days = 2; "das din mein" → days = 10; "X din mein" → days = N
+- "end_of_week": "is hafte ke end tak", "weekend tak", "by the end of this week"
+- "end_of_month": "mahine ke end tak", "end of the month", "month end tak", "isi month mein"
+- "none": no payment timeframe was committed (only a callback, a refusal, or nothing)
+This is SEPARATE from callback: "call me next week" = callback; "I'll PAY next week" = promise relative_days 7. A turn can have a promise with callback "none".
 
 Disposition guide:
 - INTERESTED: willing to pay
@@ -98,14 +120,18 @@ export class CallExtractionService {
       return null;
     }
 
+    // Ground relative dates ("end of the month", "next week") to a real
+    // calendar via today's IST date. The model returns intent; code does the math.
+    const todayIso = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+
     try {
       const response = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         max_tokens: 600,
         temperature: 0,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: USER_PROMPT + trimmed },
+          { role: 'user', content: `Today's date is ${todayIso} (IST).\n\n` + USER_PROMPT + trimmed },
         ],
       });
 

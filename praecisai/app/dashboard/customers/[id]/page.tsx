@@ -218,6 +218,11 @@ export default function CustomerDetailPage() {
                       {log.promise_date && (
                         <span className="text-xs font-medium text-[var(--recovery-green)]">
                           🤝 Promised: {formatDate(log.promise_date)}
+                          {log.promise_basis && (
+                            <span className="ml-1 font-normal" style={{ color: 'var(--walnut)' }}>
+                              · {log.promise_basis}
+                            </span>
+                          )}
                         </span>
                       )}
                       {log.recording_url && (

@@ -101,6 +101,7 @@ export class CustomerService {
             disposition: true,
             call_summary: true,
             promise_date: true,
+            promise_basis: true,
             duration_seconds: true,
             created_at: true,
             business_id: true,
