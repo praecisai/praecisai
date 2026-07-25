@@ -12,6 +12,7 @@ export interface TenantFormValues {
   lowBalanceThresholdUsd?: number;
   billingEmail?: string;
   gstin?: string;
+  city?: string;
 }
 
 interface KeyPreviews {
@@ -108,6 +109,7 @@ export function TenantForm({
   const [threshold, setThreshold] = useState(String(initial?.lowBalanceThresholdUsd ?? 5));
   const [billingEmail, setBillingEmail] = useState(initial?.billingEmail ?? '');
   const [gstin, setGstin] = useState(initial?.gstin ?? '');
+  const [city, setCity] = useState(initial?.city ?? '');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -123,14 +125,26 @@ export function TenantForm({
       lowBalanceThresholdUsd: Number(threshold) || 5,
       billingEmail: billingEmail.trim(),
       gstin: gstin.trim(),
+      city: city.trim(),
     });
   }
 
   return (
     <form onSubmit={submit} className="space-y-4 max-w-2xl">
-      <Field label="Business name">
-        <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} style={inputStyle} />
-      </Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Business name">
+          <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} style={inputStyle} />
+        </Field>
+        <Field label="City" hint="Spoken by the AI when a customer asks where you're calling from">
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="e.g. Mumbai"
+          />
+        </Field>
+      </div>
 
       <Field label="Allowed emails" hint="Comma-separated. These emails can log in and use calling / WhatsApp / import.">
         <textarea

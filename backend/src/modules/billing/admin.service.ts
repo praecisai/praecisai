@@ -15,6 +15,7 @@ export interface UpsertTenantDto {
   billingEmail?: string;
   gstin?: string;
   handoffNumber?: string;
+  city?: string;
 }
 
 const TENANT_NOTE_PREFIX = 'tenant:';
@@ -156,6 +157,7 @@ export class AdminService {
         billing_email: true,
         gstin: true,
         handoff_number: true,
+        city: true,
         bolna_api_key: true,
         bolna_agent_id: true,
         aisensy_api_key: true,
@@ -221,6 +223,7 @@ export class AdminService {
         billing_email: dto.billingEmail?.trim() || null,
         gstin: dto.gstin?.trim() || null,
         handoff_number: dto.handoffNumber?.trim() || null,
+        city: dto.city?.trim() || null,
         ...(dto.lowBalanceThresholdUsd !== undefined
           ? { low_balance_threshold_usd: dto.lowBalanceThresholdUsd }
           : {}),
@@ -256,6 +259,7 @@ export class AdminService {
         ...(dto.handoffNumber !== undefined
           ? { handoff_number: dto.handoffNumber?.trim() || null }
           : {}),
+        ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
         ...(dto.lowBalanceThresholdUsd !== undefined
           ? { low_balance_threshold_usd: dto.lowBalanceThresholdUsd }
           : {}),

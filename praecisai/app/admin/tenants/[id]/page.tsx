@@ -126,6 +126,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               lowBalanceThresholdUsd: tenant.low_balance_threshold_usd,
               billingEmail: tenant.billing_email ?? '',
               gstin: tenant.gstin ?? '',
+              city: tenant.city ?? '',
             }}
             previews={tenant.keys}
             saving={update.isPending}

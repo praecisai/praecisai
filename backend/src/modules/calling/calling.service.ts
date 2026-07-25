@@ -76,7 +76,7 @@ export class CallingService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true, handoff_number: true, vip_rule: true, call_language: true } },
+        business: { select: { name: true, segment_rules: true, handoff_number: true, vip_rule: true, call_language: true, city: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -215,7 +215,9 @@ export class CallingService {
     // Hindi is what the call opens in, so names/city are transliterated to
     // Devanagari for the Indic TTS. The Roman proper-case versions ride along
     // for the moment the agent switches to English.
-    const cityRaw = process.env.CALL_BUSINESS_CITY || 'Mumbai';
+    // Per-business city (admin-set) drives what Meena says for "aap kahaan se
+    // bol rahe ho?"; env + Mumbai are only the legacy fallback.
+    const cityRaw = customer.business.city || process.env.CALL_BUSINESS_CITY || 'Mumbai';
     const [customerNameSpoken, businessCitySpoken] = await Promise.all([
       transliterateNameToDevanagari(customer.customer_name),
       transliterateCityToDevanagari(cityRaw),

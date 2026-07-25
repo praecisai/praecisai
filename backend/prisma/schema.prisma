@@ -153,6 +153,10 @@ model Business {
   // primary language: it selects whether spoken variables are built in Hindi or
   // English. Default HINDI keeps existing tenants unchanged.
   call_language  BusinessCallLanguage @default(HINDI)
+  // City the business operates from. Spoken by the AI when a customer asks
+  // "aap kahaan se bol rahe ho?" ({business_city}). Null = fall back to the
+  // CALL_BUSINESS_CITY env default, then "Mumbai".
+  city           String?
   // VIP-only override: { min_days, max_days, segment }. VIP customers whose
   // days overdue fall in this range are contacted (manually: VIPs are never
   // auto-contacted) with the chosen segment's script/template instead of the
