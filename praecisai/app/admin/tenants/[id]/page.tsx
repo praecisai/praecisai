@@ -140,27 +140,30 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2">Onboarding checklist</h2>
             <ChecklistItem done={checklist.bolna_connected} label="Bolna connected" />
             <ChecklistItem done={checklist.aisensy_connected} label="AiSensy connected" />
-            <ChecklistItem
-              done={checklist.onboarding_paid || checklist.trial_paid || checklist.trial_active}
-              label={paymentLabel(checklist)}
-              action={
-                checklist.plan_paid === 'TRIAL' ? (
-                  <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: '#B8860B18', color: '#B8860B', border: '1px solid #B8860B40' }}
-                  >
-                    Trial
-                  </span>
-                ) : checklist.plan_paid === 'ONBOARDING' ? (
-                  <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: '#2E7D3218', color: '#2E7D32', border: '1px solid #2E7D3240' }}
-                  >
-                    Full plan
-                  </span>
-                ) : null
-              }
-            />
+            {/* Internal/demo tenants never pay: hide the payment row entirely */}
+            {!tenant.is_internal && (
+              <ChecklistItem
+                done={checklist.onboarding_paid || checklist.trial_paid || checklist.trial_active}
+                label={paymentLabel(checklist)}
+                action={
+                  checklist.plan_paid === 'TRIAL' ? (
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: '#B8860B18', color: '#B8860B', border: '1px solid #B8860B40' }}
+                    >
+                      Trial
+                    </span>
+                  ) : checklist.plan_paid === 'ONBOARDING' ? (
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: '#2E7D3218', color: '#2E7D32', border: '1px solid #2E7D3240' }}
+                    >
+                      Full plan
+                    </span>
+                  ) : null
+                }
+              />
+            )}
             <ChecklistItem
               done={checklist.test_call_passed}
               label="Test call passed"
@@ -201,21 +204,30 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             )}
           </div>
 
-          {/* Subscription */}
-          <div className="glass-card p-5">
-            <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2">Subscription</h2>
-            {tenant.billing_subscriptions?.length ? (
-              tenant.billing_subscriptions.map((s: any) => (
-                <div key={s.id} className="text-xs text-[var(--walnut)] space-y-1">
-                  <p>Status: <span className="font-semibold text-[var(--dark-brown)]">{s.status}</span></p>
-                  <p>Next debit: {s.next_debit_date ? new Date(s.next_debit_date).toLocaleDateString('en-IN') : '-'}</p>
-                  <p>Mandate: {s.mandate_type ?? '-'}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-[var(--walnut)]">No subscription yet</p>
-            )}
-          </div>
+          {/* Subscription: hidden for internal/demo tenants (they never pay) */}
+          {tenant.is_internal ? (
+            <div className="glass-card p-5">
+              <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-1">Account type</h2>
+              <p className="text-xs text-[var(--walnut)]">
+                Internal / demo account: billing and subscription do not apply.
+              </p>
+            </div>
+          ) : (
+            <div className="glass-card p-5">
+              <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2">Subscription</h2>
+              {tenant.billing_subscriptions?.length ? (
+                tenant.billing_subscriptions.map((s: any) => (
+                  <div key={s.id} className="text-xs text-[var(--walnut)] space-y-1">
+                    <p>Status: <span className="font-semibold text-[var(--dark-brown)]">{s.status}</span></p>
+                    <p>Next debit: {s.next_debit_date ? new Date(s.next_debit_date).toLocaleDateString('en-IN') : '-'}</p>
+                    <p>Mandate: {s.mandate_type ?? '-'}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-[var(--walnut)]">No subscription yet</p>
+              )}
+            </div>
+          )}
 
           {/* Danger zone */}
           <div className="glass-card p-5" style={{ border: '1px solid #C6282840' }}>

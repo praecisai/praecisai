@@ -43,6 +43,12 @@ export class UpdateBusinessDto {
   // Validated structurally in the service.
   @IsOptional()
   vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
+
+  // Language the AI recovery agent speaks on calls. Must match the tenant's
+  // Bolna agent primary language.
+  @IsOptional()
+  @IsEnum(['HINDI', 'ENGLISH'])
+  call_language?: string;
 }
 
 // Segments the AI can actually speak: the VIP override must map to one of these

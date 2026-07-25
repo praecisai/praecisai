@@ -52,7 +52,7 @@ const FEATURES = [
  */
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { data: access, isLoading } = useBillingAccess();
+  const { data: access, isLoading, isError, refetch } = useBillingAccess();
 
   if (isLoading) {
     return (
@@ -62,6 +62,32 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
       >
         <Loader2 size={22} className="animate-spin text-[var(--walnut)]" />
       </div>
+    );
+  }
+
+  // The entitlement check FAILED (server unreachable/error). That is not the
+  // same as "not entitled" — showing the plans screen here wrongly tells a
+  // paid or allowlisted user to pay again. Show a retry instead.
+  if (isError) {
+    return (
+      <BareChrome>
+        <div className="p-8 max-w-md mx-auto text-center">
+          <h1 className="font-display text-xl font-bold text-[var(--dark-brown)] mb-2">
+            Cannot reach the server
+          </h1>
+          <p className="text-sm text-[var(--walnut)] mb-5">
+            Your plan could not be verified because the PraecisAI API is not responding.
+            This is a connection problem, not a billing problem.
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-4 py-2.5 rounded-lg text-sm font-bold"
+            style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
+          >
+            Try again
+          </button>
+        </div>
+      </BareChrome>
     );
   }
 

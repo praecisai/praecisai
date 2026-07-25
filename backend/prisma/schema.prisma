@@ -149,6 +149,10 @@ model Business {
   // Number the AI transfers a call to when the customer asks for a human/senior.
   // Null = fall back to the platform default (BOLNA_HANDOFF_NUMBER env var).
   handoff_number String?
+  // Language the AI recovery agent speaks. Must match the tenant's Bolna agent
+  // primary language: it selects whether spoken variables are built in Hindi or
+  // English. Default HINDI keeps existing tenants unchanged.
+  call_language  BusinessCallLanguage @default(HINDI)
   // VIP-only override: { min_days, max_days, segment }. VIP customers whose
   // days overdue fall in this range are contacted (manually: VIPs are never
   // auto-contacted) with the chosen segment's script/template instead of the
@@ -519,6 +523,14 @@ enum CallSentiment {
   NEGATIVE
   HOSTILE
   UNKNOWN
+}
+
+// Per-business language the AI recovery agent speaks a call in. HINDI is the
+// default (Hinglish canvas); ENGLISH makes the backend build every spoken
+// variable in Indian English for businesses whose Bolna agent runs in English.
+enum BusinessCallLanguage {
+  HINDI
+  ENGLISH
 }
 
 enum CallLanguage {

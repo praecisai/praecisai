@@ -45,9 +45,36 @@ export class CallingController {
     }
 
     try {
+      // Defensive routing: if Bolna's transfer_call tool has a BLANK pre-call
+      // webhook URL it falls back to this agent-level URL, so the handoff
+      // briefing payload arrives here instead of /transfer-context. Detect it
+      // (our pre-call params set event="transfer_initiated") and forward, so a
+      // mis-configured URL can never silently swallow the WhatsApp handoff.
+      if (
+        payload?.event === 'transfer_initiated' ||
+        payload?.call_transfer_number ||
+        (payload?.transfer_to && !payload?.status)
+      ) {
+        await this.callingService.handleTransferContext(payload);
+        return;
+      }
       await this.callingService.handleWebhook(payload);
     } catch (error) {
       console.error('Error handling Bolna webhook:', error);
+    }
+  }
+
+  // Bolna transfer_call PRE-CALL webhook: point the tool's "Pre-call webhook
+  // URL" here so the human agent gets a WhatsApp briefing (party, segment, due,
+  // last promise, reason) the moment a call is handed off. Ack instantly: this
+  // fires inline with the transfer, so it must not block the bridge.
+  @Post('transfer-context')
+  async handleTransferContext(@Body() payload: any, @Res() res: Response) {
+    res.status(200).json({ received: true });
+    try {
+      await this.callingService.handleTransferContext(payload);
+    } catch (error) {
+      console.error('Error handling transfer-context webhook:', error);
     }
   }
 }

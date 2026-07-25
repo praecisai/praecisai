@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
 
+// The language a business's AI recovery agent speaks. Mirrors the Prisma
+// BusinessCallLanguage enum; kept as a local union so this util has no Prisma
+// import. Every spoken variable is built in this language.
+export type CallLang = 'HINDI' | 'ENGLISH';
+
 // ─── Shared call-script helpers for PRODUCTION customer calls ─────────────────
 // Copied from the proven demo flow (demo.service.ts) so the demo stays frozen
 // while real-customer calling evolves independently. Any tuning learned in
@@ -44,6 +49,53 @@ export function amountToHindi(amount: number): string {
   if (amount < 1100000) return 'लगभग दस लाख रुपये';
   const lakhs = Math.round(amount / 100000);
   return `लगभग ${lakhs} लाख रुपये`;
+}
+
+// ─── English number words (0-99) — for spoken Indian-English amounts/counts ───
+const ENGLISH_ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+  'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
+  'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const ENGLISH_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy',
+  'eighty', 'ninety'];
+
+export function englishNumberWords(num: number): string {
+  const n = Math.round(num);
+  if (n < 0) return '';
+  if (n < 20) return ENGLISH_ONES[n];
+  if (n < 100) {
+    const t = Math.floor(n / 10);
+    const o = n % 10;
+    return o === 0 ? ENGLISH_TENS[t] : `${ENGLISH_TENS[t]} ${ENGLISH_ONES[o]}`;
+  }
+  const hundreds = Math.floor(n / 100);
+  const rem = n % 100;
+  const head = `${ENGLISH_ONES[hundreds]} hundred`;
+  return rem === 0 ? head : `${head} ${englishNumberWords(rem)}`;
+}
+
+// Spoken Indian-English amount, rounded the same way as amountToHindi: under a
+// lakh rounds up to the nearest 5,000; at/above a lakh rounds to the nearest
+// half-lakh ("two and a half lakh"). The exact figure lives in the DB/UI.
+export function amountToEnglish(amount: number): string {
+  if (amount <= 0) return 'some amount';
+
+  if (amount < 100000) {
+    const roundedThousands = Math.min(100, Math.ceil(amount / 5000) * 5);
+    if (roundedThousands === 100) return 'approximately one lakh rupees';
+    return `approximately ${englishNumberWords(roundedThousands)} thousand rupees`;
+  }
+
+  const halfLakhs = Math.round(amount / 50000) / 2; // nearest 0.5 lakh
+  const whole = Math.floor(halfLakhs);
+  const hasHalf = halfLakhs - whole === 0.5;
+  const wholeWord = englishNumberWords(whole || 1);
+  if (hasHalf) return `approximately ${wholeWord} and a half lakh rupees`;
+  return `approximately ${wholeWord} lakh rupees`;
+}
+
+// Language-appropriate spoken amount for the {due_amount_hindi} call variable.
+export function amountToSpoken(amount: number, language: CallLang): string {
+  return language === 'ENGLISH' ? amountToEnglish(amount) : amountToHindi(amount);
 }
 
 // ─── Hindi cardinal number words (1-99) — for speaking counts like "days overdue" ──
@@ -264,10 +316,146 @@ ${REFUSAL_GUARD}
 Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
 };
 
-// Resolves {business_name} here rather than leaving it for Bolna's template pass.
-export function buildSegmentInstructions(segment: string, businessName: string): string {
-  const template = SEGMENT_INSTRUCTIONS[segment] ?? SEGMENT_INSTRUCTIONS['Soft Reminder'];
+// ─── English segment scripts — mirror the Hindi ones, Indian English ─────────
+const REFUSAL_GUARD_EN = `FIRST, before closing, check this: if the customer REFUSES to pay ("I won't pay", "I can't pay now", "not possible right now", "no money"), OR gives a date MORE than two months away ("after three months", "next year") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "Is there some particular difficulty, or shall I connect you with our seniors?" Never begin this line with an acknowledgement — no "sure", no "I understand", no "alright". The first word is "Is". You may ask this line a MAXIMUM of THREE times in the whole call — if the customer refuses again after the third attempt, close warmly with "No problem sir, we understand. Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "I completely understand sir, there is no pressure at all." then say "Thank you so much." and stop; wants seniors → "Of course, I will connect you right away." and connect; a sooner date (within two months) → "Alright sir. Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
+
+const SEGMENT_INSTRUCTIONS_EN: Record<string, string> = {
+  'Soft Reminder': `
+SEGMENT: Soft Reminder
+
+ONLY DO THESE TWO THINGS — NOTHING ELSE:
+1. Tell the customer that {due_amount_hindi} is pending.
+2. Ask "Could you please tell me by when it can be cleared?"
+
+THAT IS ALL. No pressure. No probing. No firmness.
+
+If customer gives ANY answer (date, week, month, anything) — say EXACTLY "Alright sir. Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer — say EXACTLY "No problem sir, we understand. Thank you so much." then say NOTHING more.
+NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
+
+  'Follow-up': `
+SEGMENT: Follow-up
+
+TONE: friendly, gentle reminder — you had contact before, this is just a soft follow-up. Never firm, never pressuring.
+
+DO THESE THINGS:
+1. Tell the customer {due_amount_hindi} is pending.
+2. Ask warmly for a rough/expected date. Approximate is completely fine.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+"This is just a small follow-up call, even an approximate date is fine."
+"Could you please tell me, by when will the payment be done, approximately?"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD_EN}
+Otherwise, if customer gives ANY normal timeframe within two months (a week, tomorrow, two-three days, this month) — say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
+If customer gives a truly vague answer ("soon", "let's see") — ask once more gently for a rough date.
+If still no date — say EXACTLY: "No problem sir, we understand. Thank you so much." Then say NOTHING more.`,
+
+  'Strong Follow-up': `
+SEGMENT: Strong Follow-up
+
+TONE: firm but respectful — the accounts team is asking you for an update. Always a request, never a demand or threat.
+
+MANDATORY ORDER — deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. The accounts team is asking you for an update on this payment.
+3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+"I had a small request, our accounts team is asking me for an update on this payment."
+"If possible, please tell me, by when will the payment be done, approximately?"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD_EN}
+Otherwise, if customer gives ANY normal timeframe within two months — capture it, then say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
+
+  'Escalation': `
+SEGMENT: Escalation
+
+Highest recovery stage. TONE: warm, humble, genuinely requesting — internal follow-up is really happening, but NO threat, NO legal mention, NO rudeness. Always remain humble.
+
+MANDATORY ORDER — deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. The accounts team and the senior team are asking about this account; you must give them an update.
+3. ASK the payment date — this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the thanks, and the senior team's follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+"I have a small request, our accounts team is asking me for an update."
+"The senior team also needs the information."
+"If possible, please tell me, by when will the payment be cleared, approximately?"
+The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD_EN}
+Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+};
+
+// Resolves {business_name} here rather than leaving it for Bolna's template
+// pass. `language` selects the Hindi (Hinglish) or English script set.
+export function buildSegmentInstructions(
+  segment: string,
+  businessName: string,
+  language: CallLang = 'HINDI',
+): string {
+  const set = language === 'ENGLISH' ? SEGMENT_INSTRUCTIONS_EN : SEGMENT_INSTRUCTIONS;
+  const template = set[segment] ?? set['Soft Reminder'];
   return template.replace(/\{business_name\}/g, businessName);
+}
+
+// ─── Language-aware spoken notes (multi-invoice, partial payment, overdue) ────
+// Kept here so both languages of each phrase live side by side.
+
+export function buildDaysMention(maxDays: number, language: CallLang): string {
+  if (maxDays <= 0) return '';
+  if (language === 'ENGLISH') {
+    if (maxDays >= 30) {
+      const months = Math.round(maxDays / 30);
+      return `This payment has been pending for about ${englishNumberWords(months)} month${months === 1 ? '' : 's'}.`;
+    }
+    const approxDays = Math.max(5, Math.round(maxDays / 5) * 5);
+    return `This payment has been pending for about ${englishNumberWords(approxDays)} days.`;
+  }
+  if (maxDays >= 30) {
+    const months = Math.round(maxDays / 30);
+    return `यह payment लगभग ${numberToHindiWords(months)} महीने से pending है।`;
+  }
+  const approxDays = Math.max(5, Math.round(maxDays / 5) * 5);
+  return `यह payment लगभग ${numberToHindiWords(approxDays)} दिन से pending है।`;
+}
+
+export function buildMultiInvoiceNote(
+  invoiceCount: number,
+  totalDue: number,
+  maxDays: number,
+  language: CallLang,
+): string {
+  if (invoiceCount <= 1) return '';
+  const amt = amountToSpoken(totalDue, language);
+  if (language === 'ENGLISH') {
+    return `IMPORTANT: Multiple bills are pending for this party. Total due across all invoices is ${amt}. The oldest bill has been pending for about ${maxDays} days. In conversation, mention the TOTAL amount (${amt}) and say "You have several bills pending." Do NOT mention any specific bill number.`;
+  }
+  return `IMPORTANT: Multiple bills pending for this party: Total due across all invoices is ${amt}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amt}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`;
+}
+
+export function buildPartialPaymentNote(
+  previousPaid: number,
+  totalDue: number,
+  totalBilled: number,
+  language: CallLang,
+): string {
+  if (previousPaid <= 0) return '';
+  const paid = amountToSpoken(previousPaid, language);
+  const billed = amountToSpoken(totalBilled, language);
+  const due = amountToSpoken(totalDue, language);
+  if (language === 'ENGLISH') {
+    return `Partial payment context: Customer had already paid ${paid} earlier against this account (original was ${billed}). Acknowledge this warmly first: "You had paid ${paid} earlier, thank you so much." Then say: "Still ${due} is pending." Do NOT mention bill number.`;
+  }
+  return `Partial payment context: Customer had already paid ${paid} earlier against this account (original was ${billed}). Acknowledge this warmly first: "आपने पहले ${paid} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${due} pending है।" Do NOT mention bill number.`;
 }
 
 // IST greeting based on time of call — server runs UTC, IST = UTC+5:30
@@ -286,17 +474,40 @@ export function buildCallHistorySummary(
 ): string {
   if (segment === 'Soft Reminder' || history.length === 0) return '';
 
+  // Readable spoken-friendly date ("19 July 2026"), never "19/7/2026": bare
+  // slashed dates get read out as digits and clash with the date-pronunciation
+  // rules in the agent canvas.
+  const readableDate = (d: Date) => {
+    const ist = new Date(d.getTime() + 330 * 60000);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+      'August', 'September', 'October', 'November', 'December'];
+    return `${ist.getUTCDate()} ${months[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
+  };
+
   const lines = history.map((h, i) => {
     const num = i + 1;
     const disp = h.disposition ? `(${h.disposition})` : '';
-    const summary = h.call_summary ?? 'Call hua tha, detailed summary unavailable';
+    const summary = h.call_summary ?? 'Previous call happened, detailed summary unavailable';
     const ptp = h.promise_date
-      ? ` Payment date promised: ${h.promise_date.toLocaleDateString('en-IN')}.`
+      ? ` Last time the customer promised to pay by ${readableDate(h.promise_date)}.`
       : '';
     return `Attempt ${num} ${disp}: ${summary}${ptp}`;
   });
 
-  return `Previous contact history (mention briefly and naturally in conversation): ${lines.join(' | ')}`;
+  return `Previous contact history (reference it briefly and naturally: remind them you spoke before and, if a date was promised, gently ask about that commitment): ${lines.join(' | ')}`;
+}
+
+// Normalize an Indian phone number to E.164 (+91XXXXXXXXXX) for Bolna's blind
+// transfer and AiSensy. A bare 10-digit number won't bridge; an already-prefixed
+// number is passed through. Empty stays empty (callers guard on that).
+export function toE164India(raw: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('+')) return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  return `+${digits}`;
 }
 
 // Strip legal suffixes for the spoken business name — "Aeromen Clothing LLP"

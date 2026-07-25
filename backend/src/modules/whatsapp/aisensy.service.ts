@@ -84,4 +84,46 @@ export class AisensyService {
       `AiSensy sent campaign=${campaignName} dest=${destination} party=${params.partyName}`,
     );
   }
+
+  /**
+   * Send a plain (media-less) AiSensy template message — used for internal
+   * notifications like the human-agent handoff briefing. The named campaign's
+   * template must exist and be approved in the AiSensy account, with as many
+   * body variables ({{1}}, {{2}}, …) as `templateParams` provides.
+   */
+  async sendText(params: {
+    campaignName: string;
+    destinationPhone: string;
+    userName: string;
+    templateParams: string[];
+    apiKeyOverride?: string;
+  }): Promise<void> {
+    const apiKey = params.apiKeyOverride || this.config.get<string>('AISENSY_API_KEY');
+    if (!apiKey) throw new BadRequestException('No AiSensy API key configured for this business');
+
+    const digits = params.destinationPhone.replace(/\D/g, '');
+    const destination = digits.length === 10 ? `91${digits}` : digits;
+
+    const res = await fetch(AISENSY_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey,
+        campaignName: params.campaignName,
+        destination,
+        userName: params.userName,
+        templateParams: params.templateParams,
+      }),
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      this.logger.error(
+        `AiSensy text send failed (${res.status}) campaign=${params.campaignName} dest=${destination}: ${text}`,
+      );
+      throw new BadRequestException(`WhatsApp send failed: ${text || res.statusText}`);
+    }
+
+    this.logger.log(`AiSensy text sent campaign=${params.campaignName} dest=${destination}`);
+  }
 }

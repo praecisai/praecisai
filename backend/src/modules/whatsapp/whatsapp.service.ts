@@ -179,6 +179,26 @@ export class WhatsappService {
     };
   }
 
+  /**
+   * Send the human-agent handoff briefing on WhatsApp when a call is being
+   * transferred to a person. Uses the tenant AiSensy key and the configurable
+   * handoff campaign template (AISENSY_CAMPAIGN_AGENT_HANDOFF, one {{1}} body
+   * variable). Best-effort: a missing template or key must never break the
+   * live transfer, so callers should catch/ignore failures.
+   */
+  async sendAgentHandoff(businessId: string, toPhone: string, briefing: string): Promise<void> {
+    const campaignName =
+      process.env.AISENSY_CAMPAIGN_AGENT_HANDOFF || 'agent_handoff_v1';
+    const tenantAisensyKey = await this.tenantKeys.getAisensyKey(businessId);
+    await this.aisensy.sendText({
+      campaignName,
+      destinationPhone: toPhone,
+      userName: 'Recovery Agent',
+      templateParams: [briefing],
+      apiKeyOverride: tenantAisensyKey ?? undefined,
+    });
+  }
+
   // ─── Bulk: statement PDFs to every eligible customer in a segment ──────────
   // Sends are queued, not sent inline: PDF + AiSensy takes seconds per customer,
   // so a big segment would hold the HTTP request open for many minutes. The

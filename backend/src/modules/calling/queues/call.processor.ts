@@ -46,6 +46,10 @@ export class CallProcessor extends WorkerHost {
           agent_id: agentId,
           recipient_phone_number: formattedPhone,
           user_data: {
+            // Echoed back in the transfer pre-call webhook (%(call_log_id)s) so
+            // the handoff briefing can reliably find this call. Harmless as a
+            // prompt variable — the agent canvas never references it.
+            call_log_id: callLogId || '',
             business_name: context.business_name,
             business_city: context.business_city || '',
             customer_name: context.customer_name,
@@ -61,6 +65,16 @@ export class CallProcessor extends WorkerHost {
             greeting_time: context.greeting_time || 'Namaskar',
             days_mention: context.days_mention || '',
             dispute_note: context.dispute_note || '',
+            // English companions: the canvas uses these the moment the
+            // customer switches to English, so amounts/scripts are never
+            // translated on the fly.
+            due_amount_english: context.due_amount_english || '',
+            segment_instructions_english: context.segment_instructions_english || '',
+            multi_invoice_note_english: context.multi_invoice_note_english || '',
+            partial_payment_note_english: context.partial_payment_note_english || '',
+            days_mention_english: context.days_mention_english || '',
+            customer_name_english: context.customer_name_english || '',
+            business_city_english: context.business_city_english || '',
           },
           metadata: callLogId ? { call_log_id: callLogId } : { demo_lead_id: demoLeadId },
         }),

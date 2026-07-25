@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isPlatformOwner } from '../constants/platform-owner';
 
 /**
  * Entitlement gate on costly/outbound actions (Excel import, AI calls,
@@ -27,6 +28,9 @@ export class EmailAllowlistGuard implements CanActivate {
     if (!email) {
       throw new ForbiddenException('This feature is not enabled for your account yet.');
     }
+
+    // Platform-owner accounts always pass, regardless of billing/allowlist state
+    if (isPlatformOwner(email)) return true;
 
     const allowed = await this.prisma.allowedEmail.findUnique({
       where: { email },

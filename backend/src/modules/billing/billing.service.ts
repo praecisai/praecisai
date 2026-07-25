@@ -24,6 +24,7 @@ import {
   TRIAL_DAYS,
 } from './billing-math.util';
 import { Coupon, BillingPayment, OnboardingStatus } from '@prisma/client';
+import { isPlatformOwner } from '../../common/constants/platform-owner';
 
 @Injectable()
 export class BillingService {
@@ -300,8 +301,11 @@ export class BillingService {
       business?.onboarding_status === OnboardingStatus.PAID ||
       business?.onboarding_status === OnboardingStatus.ACTIVE;
 
-    let reason: 'ALLOWLISTED' | 'PAID' | 'TRIAL' | null = null;
-    if (allowed) reason = 'ALLOWLISTED';
+    // Platform-owner logins are always entitled — no paywall, ever — so the
+    // team can use the live product once their business has API keys set.
+    let reason: 'ALLOWLISTED' | 'PAID' | 'TRIAL' | 'OWNER' | null = null;
+    if (isPlatformOwner(userEmail)) reason = 'OWNER';
+    else if (allowed) reason = 'ALLOWLISTED';
     else if (paid) reason = 'PAID';
     else if (trialActive) reason = 'TRIAL';
 

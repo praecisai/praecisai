@@ -367,6 +367,7 @@ export function useUpdateBusiness() {
       handoff_number?: string;
       segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
       vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
+      call_language?: 'HINDI' | 'ENGLISH';
     }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });

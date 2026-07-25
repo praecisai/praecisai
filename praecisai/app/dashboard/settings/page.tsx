@@ -72,7 +72,9 @@ export default function SettingsPage() {
   // The real plan lives in billing (trial/onboarding), not businesses.plan —
   // that column is a legacy enum stuck at FREE.
   const paid = access?.onboarding_status === 'PAID' || access?.onboarding_status === 'ACTIVE';
-  const planLabel = paid
+  const planLabel = access?.reason === 'OWNER'
+    ? 'Platform Owner'
+    : paid
     ? 'Full Plan · ₹5,000/month'
     : access?.trial_active
       ? `Trial · ${access.trial_days_left} day${access.trial_days_left === 1 ? '' : 's'} left`
@@ -104,7 +106,7 @@ export default function SettingsPage() {
     } else {
       setVipEnabled(false);
     }
-  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules, user?.business?.vip_rule]);
+  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules, user?.business?.vip_rule, user?.business?.call_language]);
 
   const boundsValid =
     bounds[0] >= 0 && bounds[1] > bounds[0] && bounds[2] > bounds[1] && bounds[3] > bounds[2];
@@ -115,7 +117,10 @@ export default function SettingsPage() {
   const saveBusiness = async () => {
     if (!handoffValid) return;
     try {
-      await updateBusiness.mutateAsync({ name: businessName.trim(), handoff_number: handoffNumber.trim() });
+      await updateBusiness.mutateAsync({
+        name: businessName.trim(),
+        handoff_number: handoffNumber.trim(),
+      });
       toast.success('Business settings saved', {
         description: handoffNumber.trim()
           ? `Senior transfers will go to ${handoffNumber.trim()}. On calls, Meena will say “${spokenName}”.`

@@ -15,14 +15,18 @@ import {
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import { BillingGateService } from '../billing/billing-gate.service';
 import {
-  amountToHindi,
-  numberToHindiWords,
+  amountToSpoken,
   buildSegmentInstructions,
   buildCallHistorySummary,
+  buildDaysMention,
+  buildMultiInvoiceNote,
+  buildPartialPaymentNote,
   getISTGreeting,
   transliterateNameToDevanagari,
   transliterateCityToDevanagari,
+  toProperCase,
   spokenBusinessName,
+  toE164India,
 } from '../../common/utils/call-script.util';
 
 @Injectable()
@@ -72,7 +76,7 @@ export class CallingService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true, handoff_number: true, vip_rule: true } },
+        business: { select: { name: true, segment_rules: true, handoff_number: true, vip_rule: true, call_language: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -142,18 +146,29 @@ export class CallingService {
       );
     }
 
-    const multiInvoiceNote =
-      customer.invoices.length > 1
-        ? `IMPORTANT: Multiple bills pending for this party: Total due across all invoices is ${amountToHindi(totalDue)}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amountToHindi(totalDue)}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`
-        : '';
+    // The agent ALWAYS starts in Hindi/Hinglish and mirrors whatever language
+    // the customer speaks (the canvas decides that live). So every spoken
+    // variable is sent TWICE: the Hindi one the Hinglish flow already used,
+    // plus an English companion the canvas uses the moment it switches to
+    // English — that beats making the model translate amounts on the fly.
+    const multiInvoiceNote = buildMultiInvoiceNote(
+      customer.invoices.length,
+      totalDue,
+      maxDays,
+      'HINDI',
+    );
+    const multiInvoiceNoteEn = buildMultiInvoiceNote(
+      customer.invoices.length,
+      totalDue,
+      maxDays,
+      'ENGLISH',
+    );
 
     // Partial payment: bill amount higher than remaining due means money came in
     const totalBilled = customer.invoices.reduce((s, i) => s + (i.amount || i.due_amount), 0);
     const previousPaid = Math.round(totalBilled - totalDue);
-    const partialPaymentNote =
-      previousPaid > 0
-        ? `Partial payment context: Customer had already paid ${amountToHindi(previousPaid)} earlier against this account (original was ${amountToHindi(totalBilled)}). Acknowledge this warmly first: "आपने पहले ${amountToHindi(previousPaid)} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${amountToHindi(totalDue)} pending है।" Do NOT mention bill number.`
-        : '';
+    const partialPaymentNote = buildPartialPaymentNote(previousPaid, totalDue, totalBilled, 'HINDI');
+    const partialPaymentNoteEn = buildPartialPaymentNote(previousPaid, totalDue, totalBilled, 'ENGLISH');
 
     // Call history from previous completed production calls
     const history =
@@ -191,21 +206,22 @@ export class CallingService {
     }
 
     const businessName = spokenBusinessName(customer.business.name);
-    const segmentInstructions = buildSegmentInstructions(segment, businessName);
+    const segmentInstructions = buildSegmentInstructions(segment, businessName, 'HINDI');
+    const segmentInstructionsEn = buildSegmentInstructions(segment, businessName, 'ENGLISH');
 
-    let daysMention = '';
-    if (maxDays >= 30) {
-      const months = Math.round(maxDays / 30);
-      daysMention = `यह payment लगभग ${numberToHindiWords(months)} महीने से pending है।`;
-    } else if (maxDays > 0) {
-      const approxDays = Math.max(5, Math.round(maxDays / 5) * 5);
-      daysMention = `यह payment लगभग ${numberToHindiWords(approxDays)} दिन से pending है।`;
-    }
+    const daysMention = buildDaysMention(maxDays, 'HINDI');
+    const daysMentionEn = buildDaysMention(maxDays, 'ENGLISH');
 
+    // Hindi is what the call opens in, so names/city are transliterated to
+    // Devanagari for the Indic TTS. The Roman proper-case versions ride along
+    // for the moment the agent switches to English.
+    const cityRaw = process.env.CALL_BUSINESS_CITY || 'Mumbai';
     const [customerNameSpoken, businessCitySpoken] = await Promise.all([
       transliterateNameToDevanagari(customer.customer_name),
-      transliterateCityToDevanagari(process.env.CALL_BUSINESS_CITY || 'Mumbai'),
+      transliterateCityToDevanagari(cityRaw),
     ]);
+    const customerNameEn = toProperCase(customer.customer_name);
+    const businessCityEn = toProperCase(cityRaw);
 
     const callLog = await this.prisma.callLog.create({
       data: {
@@ -225,18 +241,30 @@ export class CallingService {
         business_city: businessCitySpoken,
         customer_name: customerNameSpoken,
         due_amount: totalDue.toLocaleString('en-IN'),
-        due_amount_hindi: amountToHindi(totalDue),
+        due_amount_hindi: amountToSpoken(totalDue, 'HINDI'),
         days_overdue: maxDays.toString(),
         segment,
         segment_instructions: segmentInstructions,
         call_history_summary: histSummary,
         multi_invoice_note: multiInvoiceNote,
         partial_payment_note: partialPaymentNote,
-        // Per-business senior/human transfer number; platform env var is the fallback.
-        handoff_number: customer.business.handoff_number || process.env.BOLNA_HANDOFF_NUMBER || '',
+        // Per-business senior/human transfer number; platform env var is the
+        // fallback. Normalized to E.164 (+91…) so Bolna's blind transfer dials
+        // it — a bare 10-digit value here fails to bridge silently.
+        handoff_number: toE164India(
+          customer.business.handoff_number || process.env.BOLNA_HANDOFF_NUMBER || '',
+        ),
         greeting_time: getISTGreeting(),
         days_mention: daysMention,
         dispute_note: disputeNote,
+        // ── English companions: used only once the customer switches to English
+        due_amount_english: amountToSpoken(totalDue, 'ENGLISH'),
+        segment_instructions_english: segmentInstructionsEn,
+        multi_invoice_note_english: multiInvoiceNoteEn,
+        partial_payment_note_english: partialPaymentNoteEn,
+        days_mention_english: daysMentionEn,
+        customer_name_english: customerNameEn,
+        business_city_english: businessCityEn,
       },
     });
 
@@ -306,6 +334,101 @@ export class CallingService {
       skipped,
       message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}`,
     };
+  }
+
+  /**
+   * Bolna's pre-call transfer webhook: fired the moment Meena decides to hand a
+   * call to a human (Branch C), BEFORE the bridge. Bolna's transfer is a blind
+   * transfer with no agent-side whisper, so we brief the human out-of-band:
+   * look the call up, assemble the party context, and WhatsApp it to the
+   * handoff number so it lands as the transferred call rings through.
+   *
+   * Correlation, most reliable first: metadata.call_log_id (we set it on
+   * dispatch) → execution/call id echoed by Bolna. Everything is best-effort:
+   * a failed lookup or WhatsApp send must NEVER disturb the live transfer.
+   */
+  async handleTransferContext(payload: any) {
+    try {
+      // Log the raw payload once per transfer: Bolna's exact field names for a
+      // pre-call webhook aren't documented, so this confirms which identifier
+      // actually arrives and lets us tighten correlation if needed.
+      this.logger.log(`Transfer-context payload: ${JSON.stringify(payload)}`);
+
+      // call_log_id is our own id, passed as a call variable (%(call_log_id)s)
+      // and/or metadata — the reliable match. Fall back to any execution/call id.
+      const callLogId: string | undefined =
+        payload?.call_log_id || payload?.metadata?.call_log_id;
+      const execId: string | undefined =
+        payload?.execution_id || payload?.id || payload?.call_id || payload?.call_sid;
+
+      const call = callLogId
+        ? await this.prisma.callLog.findUnique({ where: { id: callLogId } })
+        : execId
+          ? await this.prisma.callLog.findFirst({ where: { retell_call_id: execId } })
+          : null;
+
+      if (!call) {
+        this.logger.warn(
+          `Transfer-context webhook could not match a call (call_log_id=${callLogId ?? 'none'} exec=${execId ?? 'none'})`,
+        );
+        return;
+      }
+
+      const [customer, business, outstanding, lastPromise] = await Promise.all([
+        this.prisma.customer.findUnique({
+          where: { id: call.customer_id },
+          select: { customer_name: true, city: true, phone: true, is_vip: true },
+        }),
+        this.prisma.business.findUnique({
+          where: { id: call.business_id },
+          select: { handoff_number: true },
+        }),
+        this.prisma.outstanding.findUnique({
+          where: { customer_id: call.customer_id },
+          select: { segment: true, total_due: true, aging_bucket: true },
+        }),
+        this.prisma.promiseToPay.findFirst({
+          where: { customer_id: call.customer_id },
+          orderBy: { created_at: 'desc' },
+          select: { promised_date: true },
+        }),
+      ]);
+
+      const handoffTo = business?.handoff_number || process.env.BOLNA_HANDOFF_NUMBER;
+      if (!handoffTo) {
+        this.logger.warn(`Transfer-context: no handoff number for business ${call.business_id}`);
+        return;
+      }
+
+      const due = outstanding?.total_due
+        ? `Rs.${outstanding.total_due.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+        : 'n/a';
+      const promise = lastPromise?.promised_date
+        ? lastPromise.promised_date.toLocaleDateString('en-IN')
+        : 'none on record';
+      const reason = payload?.reason ? String(payload.reason).trim() : 'customer requested a human';
+      const recap = payload?.summary ? String(payload.summary).trim() : '';
+
+      // One compact briefing (fills the handoff template's {{1}}). Kept short so
+      // the human can read it at a glance as the call comes through.
+      const briefing = [
+        `Incoming AI transfer${customer?.is_vip ? ' (VIP)' : ''}: ${customer?.customer_name ?? 'Unknown party'}${customer?.city ? `, ${customer.city}` : ''}.`,
+        `Segment: ${outstanding?.segment ?? 'n/a'}. Outstanding: ${due}.`,
+        `Last promised date: ${promise}.`,
+        `Reason: ${reason}.`,
+        recap ? `Recap: ${recap}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      await this.whatsappService.sendAgentHandoff(call.business_id, handoffTo, briefing);
+      this.logger.log(
+        `Transfer-context briefing sent to ${handoffTo} for ${customer?.customer_name ?? call.customer_id}`,
+      );
+    } catch (err: any) {
+      // Never let a briefing failure interfere with the transfer itself
+      this.logger.warn(`Transfer-context handling failed: ${err?.message || err}`);
+    }
   }
 
   async handleWebhook(payload: any) {

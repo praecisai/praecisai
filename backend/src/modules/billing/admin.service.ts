@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantKeysService } from './tenant-keys.service';
 import { isAllowedCouponPercent } from './billing-math.util';
+import { isPlatformOwner } from '../../common/constants/platform-owner';
 
 export interface UpsertTenantDto {
   name?: string;
@@ -184,8 +185,13 @@ export class AdminService {
     const { bolna_api_key, aisensy_api_key, bolna_agent_id, ...safe } = business;
     const trialActive = !!business.trial_ends_at && business.trial_ends_at > new Date();
 
+    // Internal/demo tenant: a platform-owner login is on it. Billing & payment
+    // never apply to these, so the admin UI hides those sections.
+    const isInternal = business.users.some((u) => isPlatformOwner(u.email));
+
     return {
       ...safe,
+      is_internal: isInternal,
       keys: previews,
       allowed_emails: allowedEmails,
       checklist: {
