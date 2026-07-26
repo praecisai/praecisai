@@ -164,8 +164,8 @@ export function formatHindiDate(d: Date): string {
 // ─── Name → Devanagari transliteration for natural TTS ───────────────────────
 // Sarvam Bulbul v2 is an Indic (Hindi) TTS. Roman-script names inside a Hindi
 // context get mangled. A small local map covers the most common surnames/company
-// words at zero cost; anything else uses a fast gpt-4o-mini transliteration,
-// falling back to proper-case Roman.
+// words at zero cost; anything else uses a gpt-4o transliteration (runs before
+// dial, so accuracy matters more than latency), falling back to proper-case Roman.
 let _openaiClient: OpenAI | null | undefined;
 function getOpenAI(): OpenAI | null {
   if (_openaiClient !== undefined) return _openaiClient;
@@ -217,7 +217,7 @@ export async function transliterateNameToDevanagari(name: string): Promise<strin
 
   try {
     const res = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       temperature: 0,
       max_tokens: 60,
       messages: [

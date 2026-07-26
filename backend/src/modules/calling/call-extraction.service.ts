@@ -126,7 +126,7 @@ export class CallExtractionService {
 
     try {
       const response = await this.client.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4.1',
         max_tokens: 600,
         temperature: 0,
         messages: [
