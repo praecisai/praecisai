@@ -42,7 +42,7 @@ const USER_PROMPT = `Extract the following from the call transcript:
   "language_used": "<HINDI | ENGLISH | MIXED | UNKNOWN>",
   "talk_ratio": <0-100 integer: % of call the agent spoke, or null>,
   "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy: including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam": else false>,
-  "whatsapp_requested": <true if the customer asked for the outstanding / statement / bill details to be sent on WhatsApp, and the agent agreed to send it: including phrasing such as "outstanding WhatsApp कर दो", "statement भेज दो", "mujhe bhej dijiye", "WhatsApp pe bhejo", "details भेज दीजिए", "bhej do main check karke bataata hu": else false>,
+  "whatsapp_requested": <true ONLY IF the CUSTOMER themselves explicitly and unambiguously asked to RECEIVE the outstanding / statement / bill on WhatsApp — a direct request like "WhatsApp par bhej do", "statement bhej dijiye", "mujhe WhatsApp kar do", "send it on WhatsApp", "details bhej dijiye main check kar lunga". Set FALSE in every other case: if only the agent (Meena) mentioned or offered WhatsApp, if WhatsApp came up vaguely / in passing / hypothetically, if the customer only said "okay" to an offer, or if you are not certain. When in ANY doubt, set FALSE — a false send is worse than a missed one. The customer's own clear request is required>,
   "callback": {
     "kind": "<none | later | tomorrow | relative_hours | relative_days | specific>",
     "hours": <integer or null>,
