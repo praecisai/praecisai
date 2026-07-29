@@ -47,7 +47,7 @@ const addOnCards = [
     title: 'AI Voice Calls',
     subtitle: 'Per call / minute',
     description:
-      'AI-powered Hindi voice calls that follow up on outstanding dues — human-sounding, fully automated, 24 × 7.',
+      'AI-powered Hindi voice calls that follow up on outstanding dues: human-sounding, fully automated, 24 × 7.',
     note: 'Pricing shared during onboarding',
   },
 ];
@@ -81,6 +81,12 @@ export default function PricingSection() {
           className="mx-auto mt-3 sm:mt-5 max-w-lg text-center font-body text-[13px] sm:text-[15px] leading-relaxed text-[var(--walnut)]"
         >
           One platform fee. Usage-based messaging and calling on top. No surprises.
+        </motion.p>
+        <motion.p
+          variants={itemVariants}
+          className="mx-auto mt-2.5 sm:mt-3.5 max-w-lg text-center font-body text-[12px] sm:text-[13px] font-medium text-[var(--mahogany)]"
+        >
+          Yes, we show our pricing. No sales calls required to find out what this costs.
         </motion.p>
 
         {/* ── Main pricing cards row ── */}
@@ -140,7 +146,7 @@ export default function PricingSection() {
                   onClick={scrollToDemo}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-5 py-3 sm:px-6 sm:py-4 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
                 >
-                  Try Demo
+                  See Live Demo
                   <IconArrowRight size={16} stroke={2} />
                 </button>
                 <p className="mt-2 sm:mt-3 text-center font-body text-[11px] sm:text-[12px] text-[var(--walnut)]">

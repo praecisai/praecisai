@@ -1,36 +1,51 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { IconUpload, IconRobot, IconChartBar, IconArrowRight } from '@tabler/icons-react';
+import {
+  IconDatabaseImport,
+  IconTarget,
+  IconRobot,
+  IconCalendarRepeat,
+  IconArrowRight,
+} from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce, scaleIn } from './motion';
 import AnimatedHeading from './AnimatedHeading';
 
 const steps = [
   {
     number: '01',
-    icon: IconUpload,
-    title: 'Upload your report',
+    icon: IconDatabaseImport,
+    title: 'Data comes in',
     description:
-      'Drag your daily Excel outstanding file. Any format works: Bill No., Party Name, Due Amount, Days Outstanding. We map it automatically.',
-    tags: ['.xlsx supported', 'CSV supported', 'Google Sheets coming'],
+      'Upload manually or connect your software. PraecisAI ingests customer details, outstanding amount, invoice and ledger history, and past communication.',
+    tags: ['Excel / CSV upload', 'Tally · Zoho · SAP', 'Auto column mapping'],
     iconBg: 'var(--sand)',
   },
   {
     number: '02',
-    icon: IconRobot,
-    title: 'AI takes over',
+    icon: IconTarget,
+    title: 'Auto-segmentation into 4 stages',
     description:
-      'PraecisAI segments every party by risk level: Soft Reminder, Follow-up, Strong Follow-up, or Escalation. Then sends WhatsApp messages, PDF statements, and Hindi voice calls automatically.',
-    tags: ['WhatsApp', 'Voice calls', 'PDF statements'],
+      'Every party is scored into Soft Reminder, Follow-up, Strong Follow-up, and Escalation. You decide the day-ranges for each stage, for example Soft Reminder 90 to 120 days, Follow-up 120 to 150, Strong Follow-up 150 to 200, Escalation 200+. Fully configurable to your business.',
+    tags: ['4 recovery stages', 'Your day-ranges', 'Fully configurable'],
     iconBg: 'var(--sand)',
   },
   {
     number: '03',
-    icon: IconChartBar,
-    title: 'Track every rupee',
+    icon: IconRobot,
+    title: 'AI calls and WhatsApp, automatically',
     description:
-      'See who paid, who promised, who ignored. Dashboard updates in real time. Weekly owner report lands in your WhatsApp every Monday morning.',
-    tags: ['Real-time dashboard', 'Promise tracker', 'Weekly reports'],
+      'PraecisAI calls every customer in your outstanding list, hundreds of parties in minutes, at whatever time slots you choose. WhatsApp reminders with a branded PDF go out on your cadence, and the tone changes by stage: a soft polite nudge in Soft Reminder, a direct firm message in Escalation.',
+    tags: ['Hindi + English calls', 'WhatsApp + PDF', 'Tone shifts by stage'],
+    iconBg: 'var(--sand)',
+  },
+  {
+    number: '04',
+    icon: IconCalendarRepeat,
+    title: 'Every promise is tracked and followed up',
+    description:
+      'When a customer promises payment in 7 days, PraecisAI logs it and calls back exactly when due, or after whatever grace period you set. Grace periods can even differ per stage: +10 days in Soft Reminder, +5 in Follow-up, +1 to 2 in Strong Follow-up, 0 in Escalation.',
+    tags: ['Promise-to-pay log', 'Auto call-back', 'Per-stage grace periods'],
     iconBg: 'var(--sand)',
   },
 ];
@@ -39,7 +54,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-y border-[rgba(221,184,146,0.35)] bg-[var(--surface-warm)] px-4 py-16 sm:px-8 sm:py-36 text-center"
+      className="bg-[var(--cream)] px-4 py-16 sm:px-8 sm:py-36 text-center"
     >
       <motion.div
         className="mx-auto w-full max-w-7xl"
@@ -56,20 +71,27 @@ export default function HowItWorks() {
           How it works
         </motion.p>
         <AnimatedHeading
-          text="From Excel upload to recovered cash in 3 steps"
+          text="From outstanding data to recovered cash"
           className="mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
           style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
         />
+        <motion.p
+          variants={itemVariants}
+          className="mx-auto mt-4 sm:mt-5 max-w-2xl text-center font-body text-[13px] sm:text-[15px] leading-relaxed text-[var(--walnut)]"
+        >
+          Four automated steps, every one of them configurable to how your business
+          actually chases payments.
+        </motion.p>
 
         {/* Step cards */}
-        <div className="relative mt-8 sm:mt-20 grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
+        <div className="relative mt-8 sm:mt-20 grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-4">
           {steps.map((step, index) => (
             <motion.div
               key={step.number}
               variants={scaleIn}
               transition={{ delay: index * 0.2 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
-              className={`spotlight-card relative rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-10 transition-shadow duration-200${
+              className={`spotlight-card relative flex flex-col rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-7 text-left transition-shadow duration-200${
                 index === steps.length - 1 && steps.length % 2 === 1
                   ? ' col-span-2 sm:col-span-1 mx-auto w-[calc(50%-6px)] sm:w-auto'
                   : ''
@@ -91,27 +113,28 @@ export default function HowItWorks() {
               )}
 
               {/* Step number + icon row */}
-              <div className="mb-4 sm:mb-7 flex items-center justify-between">
+              <div className="mb-4 sm:mb-6 flex items-center justify-between">
                 <span
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
                 >
                   {step.number}
                 </span>
                 <div
-                  className="flex h-12 w-12 items-center justify-center rounded-xl text-[var(--mahogany)]"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--mahogany)]"
                   style={{ backgroundColor: step.iconBg }}
                 >
-                  <step.icon size={24} stroke={1.75} />
+                  <step.icon size={22} stroke={1.75} />
                 </div>
               </div>
 
-              <h3 className="font-display text-[13px] sm:text-xl font-semibold text-[var(--dark-brown)]">
+              <h3 className="font-display text-[13px] sm:text-[17px] font-semibold leading-snug text-[var(--dark-brown)]">
                 {step.title}
               </h3>
-              <p className="mt-2 sm:mt-4 font-body text-[11px] sm:text-[14px] leading-[1.65] text-[var(--walnut)]">
+              <p className="mt-2 sm:mt-3 font-body text-[11px] sm:text-[13.5px] leading-[1.65] text-[var(--walnut)]">
                 {step.description}
               </p>
-              <div className="mt-7 flex flex-wrap gap-2">
+              <div className="flex-1" />
+              <div className="mt-6 flex flex-wrap gap-2">
                 {step.tags.map((tag, ti) => (
                   <motion.span
                     key={tag}

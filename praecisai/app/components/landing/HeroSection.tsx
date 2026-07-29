@@ -20,10 +20,10 @@ const line2Start = 'Start';
 const line2Highlight = 'recovering cash.';
 
 const trustItems = [
-  'No setup fees',
-  'Works with any Excel format',
-  'Hindi + English supported',
-  'WhatsApp + Voice + PDF',
+  'Bank-grade security',
+  'Data never leaves India',
+  'Live in 10 minutes',
+  'Made for Indian MSMEs',
 ];
 
 const activityFeed = [
@@ -223,10 +223,11 @@ export default function HeroSection() {
               {line1Words.join(' ')}
             </TextAnimate>
           </span>
+          {' '}
           {/* Line 2 — explicit delays so animation is clearly visible after line 1 */}
           <span className="block mt-1">
             <motion.span
-              className="inline-block mr-[0.3em]"
+              className="inline-block"
               initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
               whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               viewport={{ once: true }}
@@ -234,6 +235,8 @@ export default function HeroSection() {
             >
               {line2Start}
             </motion.span>
+            {/* Real space text node between the two animated words */}
+            {' '}
             <motion.span
               className="inline-block animate-gradient-text font-bold"
               initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
@@ -244,16 +247,27 @@ export default function HeroSection() {
               {line2Highlight}
             </motion.span>
           </span>
+          {' '}
+          {/* Keyword line — real, spaced text inside the H1 for search crawlers */}
+          <motion.span
+            className="mt-5 block font-body text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.16em] text-[var(--rust)] sm:text-[13px]"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.9, duration: 0.6, ease: [0.17, 0.67, 0.29, 1] }}
+          >
+            AI Calling Agent for Payment &amp; Credit Recovery
+          </motion.span>
         </h1>
 
         {/* Subheadline */}
         <motion.p
           variants={itemVariants}
-          className="mx-auto mt-6 sm:mt-9 max-w-[560px] text-center font-body text-[14px] sm:text-[17px] leading-[1.7] sm:leading-[1.75] text-[var(--walnut)]"
+          className="mx-auto mt-6 sm:mt-9 max-w-[600px] text-center font-body text-[14px] sm:text-[17px] leading-[1.7] sm:leading-[1.75] text-[var(--walnut)]"
         >
-          Upload your outstanding Excel once. PraecisAI makes AI Hindi voice calls,
-          sends WhatsApp reminders, and delivers branded PDFs — automatically — so
-          you stop chasing and start collecting.
+          Upload your outstanding Excel once, or connect your existing software.
+          PraecisAI calls and WhatsApps every customer automatically, remembers every
+          promise they make, and keeps following up until you&rsquo;re paid.
         </motion.p>
 
         {/* CTA Buttons */}
@@ -266,7 +280,7 @@ export default function HeroSection() {
               href="#demo"
               className="group inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
             >
-              Start recovering for free
+              See Live Demo
               <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           </motion.div>
@@ -297,11 +311,15 @@ export default function HeroSection() {
         </div>
 
         {/* ── Dashboard Mockup ── */}
-        <motion.div
+        <motion.figure
           variants={scaleIn}
           style={{ y: mockupY, scale: mockupScale }}
           className="mt-20 sm:mt-24"
         >
+          <figcaption className="sr-only">
+            PraecisAI dashboard showing outstanding payment ageing breakdown, recovery
+            rate, and a live feed of AI voice calls and WhatsApp payment reminders.
+          </figcaption>
           <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] shadow-[0_24px_80px_rgba(127,85,57,0.14)]">
 
             {/* Browser bar */}
@@ -424,7 +442,7 @@ export default function HeroSection() {
 
             </div>
           </div>
-        </motion.div>
+        </motion.figure>
       </motion.div>
     </section>
   );

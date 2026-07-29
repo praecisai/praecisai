@@ -3,14 +3,23 @@
 import { IconBrandWhatsapp, IconMail, IconMapPin } from '@tabler/icons-react';
 
 const productLinks = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Features',     href: '#features' },
-  { label: 'Reports',      href: '#reports' },
-  { label: 'Pricing',      href: '#pricing' },
+  { label: 'How it works', href: '/how-it-works' },
+  { label: 'Features',     href: '/features' },
+  { label: 'Pricing',      href: '/pricing' },
+  { label: 'FAQ',          href: '/faq' },
+  { label: 'Reports',      href: '/#reports' },
+];
+
+const industryLinks = [
+  { label: 'Textile & Garments',   href: '/industries/textile-garments' },
+  { label: 'Pharma Distribution',  href: '/industries/pharma-distribution' },
+  { label: 'Hardware & Building',  href: '/industries/hardware-building-materials' },
+  { label: 'All industries',       href: '/industries' },
 ];
 
 const companyLinks = [
-  { label: 'About',          href: '#founder' },
+  { label: 'About',          href: '/about' },
+  { label: 'Case studies',   href: '/case-studies' },
   { label: 'Contact',        href: 'mailto:hello@praecisai.in' },
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms',          href: '/terms' },
@@ -36,8 +45,8 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Link columns — 3-col on all screens */}
-        <div className="grid grid-cols-3 gap-4 sm:gap-10">
+        {/* Link columns */}
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-10">
 
           {/* Product */}
           <div>
@@ -46,6 +55,25 @@ export default function Footer() {
             </h4>
             <ul className="mt-4 space-y-3">
               {productLinks.map((link) => (
+                <li key={link.label}>
+                  <a
+                    href={link.href}
+                    className="font-body text-[12px] sm:text-[14px] text-[var(--walnut)] transition-colors hover:text-[#F5EBE0]"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Industries */}
+          <div>
+            <h4 className="font-display text-[11px] sm:text-[13px] font-semibold uppercase tracking-[0.08em] text-[#FDF8F3]">
+              Industries
+            </h4>
+            <ul className="mt-4 space-y-3">
+              {industryLinks.map((link) => (
                 <li key={link.label}>
                   <a
                     href={link.href}

@@ -20,7 +20,7 @@ export default function FounderSection() {
         {/* Photos column */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-row flex-wrap justify-center gap-6 sm:gap-10 lg:flex-col lg:items-start lg:gap-12"
+          className="flex flex-row flex-wrap justify-center gap-6 sm:gap-10 lg:flex-col lg:items-start"
         >
           {/* Ravi Prajapati */}
           <div className="flex flex-col items-center lg:items-start">
@@ -30,7 +30,7 @@ export default function FounderSection() {
                 <span className="font-display text-[32px] sm:text-[42px] font-bold text-[var(--mahogany)]">R</span>
               </div>
             </div>
-            <h3 className="mt-4 font-display text-[16px] sm:text-[20px] font-semibold text-[var(--dark-brown)]">Ravi Prajapati</h3>
+            <p className="mt-4 font-display text-[16px] sm:text-[20px] font-semibold text-[var(--dark-brown)]">Ravi Prajapati</p>
             <p className="mt-0.5 font-body text-[13px] text-[var(--walnut)]">Founder & CEO, PraecisAI</p>
             <a
               href="https://linkedin.com"
@@ -43,26 +43,6 @@ export default function FounderSection() {
             </a>
           </div>
 
-          {/* Viraj Walavalkar */}
-          <div className="flex flex-col items-center lg:items-start">
-            <div className="relative">
-              <div className="absolute -bottom-2 -right-2 h-full w-full rounded-2xl bg-[var(--caramel)] opacity-40" />
-              <div className="relative flex h-[120px] w-[120px] sm:h-[160px] sm:w-[160px] items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--sand)] to-[var(--caramel)]">
-                <span className="font-display text-[32px] sm:text-[42px] font-bold text-[var(--mahogany)]">V</span>
-              </div>
-            </div>
-            <h3 className="mt-4 font-display text-[16px] sm:text-[20px] font-semibold text-[var(--dark-brown)]">Viraj Walavalkar</h3>
-            <p className="mt-0.5 font-body text-[13px] text-[var(--walnut)]">CTO, PraecisAI</p>
-            <a
-              href="https://linkedin.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--mahogany)] hover:text-[var(--rust)] transition-colors"
-            >
-              <IconBrandLinkedin size={16} stroke={1.5} />
-              Connect
-            </a>
-          </div>
         </motion.div>
 
         {/* Story */}
@@ -77,8 +57,21 @@ export default function FounderSection() {
             We observed businesses losing significant capital not because their customers refused to pay, but simply because follow-ups were inconsistent. A manual call gets missed, an agent forgets, and basic text messages lack the professional authority required for escalation.
           </p>
           <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
-            PraecisAI was engineered to automate this entire cycle. By blending intelligent AI voice calls with branded statements and WhatsApp campaigns, we ensure you recover your outstanding accounts predictably—without adding headcount to your collections team.
+            PraecisAI was engineered to automate this entire cycle. By blending intelligent AI voice calls with branded statements and WhatsApp campaigns, we ensure you recover your outstanding accounts predictably, without adding headcount to your collections team.
           </p>
+
+          {/* Founder quote */}
+          <blockquote className="mt-6 border-l-2 border-[var(--mahogany)] pl-5">
+            <p className="font-body text-[14px] sm:text-[16px] italic leading-[1.8] text-[var(--dark-brown)]/85">
+              &ldquo;I run Element Clothing. Chasing outstanding payments from my own
+              customers, daily calls, endless reminders, promises that still slipped
+              through, was a problem I lived with for years. PraecisAI is what I built to
+              solve it for myself, and now for other business owners like me.&rdquo;
+            </p>
+            <footer className="mt-3 font-body text-[13px] font-semibold text-[var(--mahogany)]">
+              Ravi Prajapati, Founder &amp; CEO
+            </footer>
+          </blockquote>
           <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
             Designed specifically for distributors, manufacturers, and traders across India. We built a platform that rigorously protects your client relationships while ensuring your cash flow remains uninterrupted.
           </p>

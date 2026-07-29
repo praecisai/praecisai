@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service · PraecisAI',
+  title: 'Terms of Service',
   description: 'The terms that govern your use of the PraecisAI platform.',
+  alternates: { canonical: '/terms' },
 };
 
 export default function TermsOfServicePage() {

@@ -81,12 +81,13 @@ export function TextAnimate({
   return (
     <span ref={ref} className={cn('inline', className)} aria-label={children}>
       {units.map((unit, i) => {
-        // preserve whitespace visually
+        // Emit a real space character so the DOM text stays readable to
+        // crawlers and text extraction, instead of an empty spacer span.
         if (unit.trim() === '' && by === 'character') {
-          return <span key={i} style={{ display: 'inline-block', width: '0.3em' }} aria-hidden />;
+          return <span key={i}>{' '}</span>;
         }
         if (/^\s+$/.test(unit) && by === 'word') {
-          return <span key={i} style={{ display: 'inline-block', width: '0.28em' }} aria-hidden />;
+          return <span key={i}>{unit}</span>;
         }
         return (
           <motion.span

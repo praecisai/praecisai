@@ -18,30 +18,30 @@ import {
 // ── Feature grid layout ──────────────────────────────────────────────
 const features = [
   {
-    title: 'AI calls that collect — in natural Hindi',
+    title: 'AI calls that collect, in natural Hindi',
     description:
       'PraecisAI makes voice calls that sound human, negotiate in Hindi, handle objections, and log every promise automatically.',
     skeleton: <SkeletonOne />,
     className: 'col-span-1 lg:col-span-4 border-b lg:border-r border-[rgba(221,184,146,0.25)]',
   },
   {
-    title: 'WhatsApp · Voice · PDF — all channels, one upload',
+    title: 'WhatsApp · Voice · PDF: all channels, one upload',
     description:
       'Segment debtors by aging and hit every channel simultaneously. One Excel file is all it takes.',
     skeleton: <SkeletonTwo />,
     className: 'border-b col-span-1 lg:col-span-2 border-[rgba(221,184,146,0.25)]',
   },
   {
-    title: 'See PraecisAI recover dues — live demo',
+    title: 'See PraecisAI recover dues: live demo',
     description:
-      'Watch a real recovery call, WhatsApp flow, and PDF statement get sent — in under 90 seconds.',
+      'Watch a real recovery call, WhatsApp flow, and PDF statement get sent, in under 90 seconds.',
     skeleton: <SkeletonThree />,
     className: 'col-span-1 lg:col-span-3 lg:border-r border-[rgba(221,184,146,0.25)]',
   },
   {
     title: 'Built for every corner of India',
     description:
-      'From Mumbai to Chennai — built for every Indian MSME.',
+      'From Mumbai to Chennai, built for every Indian MSME.',
     skeleton: <SkeletonFour />,
     className: 'col-span-1 lg:col-span-3',
   },
@@ -57,11 +57,11 @@ export default function CapabilitiesSection() {
             Platform Capabilities
           </p>
           <h2 className="mx-auto max-w-4xl font-display text-[clamp(1.9rem,4vw,3.2rem)] font-bold leading-tight tracking-[-0.02em] text-[var(--dark-warm)]">
-            Everything your collections team needs — automated
+            One upload, every recovery channel working for you
           </h2>
           <p className="mx-auto mt-4 max-w-2xl font-body text-[16px] leading-relaxed text-[var(--walnut)]">
-            Upload once. PraecisAI handles every follow-up — AI calls, WhatsApp reminders,
-            branded PDFs and promise tracking — while your team focuses on closing.
+            Upload once. PraecisAI handles every follow-up: AI calls, WhatsApp reminders,
+            branded PDFs and promise tracking, while your team focuses on closing.
           </p>
         </div>
 
@@ -217,8 +217,8 @@ const BARS = [42, 58, 71, 65, 83, 91, 100];
 const MONTHS = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
 const FEED = [
   { icon: IconBrandWhatsapp, text: 'WhatsApp sent to 59 COLOURS', time: '2m ago', color: '#4A7C59' },
-  { icon: IconPhone,          text: 'AI call placed — AAKARSHAN', time: '8m ago', color: '#7F5539' },
-  { icon: IconCheck,          text: 'Promise ₹1.2L logged — Fri', time: '14m ago', color: '#4A7C59' },
+  { icon: IconPhone,          text: 'AI call placed · AAKARSHAN', time: '8m ago', color: '#7F5539' },
+  { icon: IconCheck,          text: 'Promise ₹1.2L logged · Fri', time: '14m ago', color: '#4A7C59' },
 ];
 
 function SkeletonThree() {

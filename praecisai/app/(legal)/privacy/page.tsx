@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · PraecisAI',
+  title: 'Privacy Policy',
   description:
     'How PraecisAI collects, uses, and protects your data, including data accessed through Google sign-in.',
+  alternates: { canonical: '/privacy' },
 };
 
 export default function PrivacyPolicyPage() {

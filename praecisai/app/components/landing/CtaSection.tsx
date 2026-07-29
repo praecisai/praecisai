@@ -50,7 +50,7 @@ export default function CtaSection() {
           className="font-display font-bold leading-[1.08] text-[#FDF8F3]"
           style={{ fontSize: 'clamp(2rem, 5vw, 3rem)' }}
         >
-          Stop chasing.
+          Stop chasing.{' '}
           <br />
           Start recovering.
         </motion.h2>
@@ -70,7 +70,7 @@ export default function CtaSection() {
             onClick={scrollToDemo}
             className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--rust)] px-7 py-4 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(156,102,68,0.35)] transition-all duration-200 hover:bg-[var(--mahogany)] hover:shadow-[0_6px_28px_rgba(127,85,57,0.4)] sm:w-auto"
           >
-            Try Demo
+            See Live Demo
             <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
           <a

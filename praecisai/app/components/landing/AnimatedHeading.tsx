@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { wordItem, viewportOnce } from './motion';
 
@@ -15,17 +16,20 @@ export default function AnimatedHeading({ text, className = '', style, as: Tag =
   return (
     <Tag className={className} style={style}>
       {words.map((word, i) => (
-        <motion.span
-          key={`${word}-${i}`}
-          className="inline-block mr-[0.25em]"
-          custom={i}
-          variants={wordItem}
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-        >
-          {word}
-        </motion.span>
+        <Fragment key={`${word}-${i}`}>
+          <motion.span
+            className="inline-block"
+            custom={i}
+            variants={wordItem}
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+          >
+            {word}
+          </motion.span>
+          {/* Real space text node: keeps the heading readable to crawlers */}
+          {i < words.length - 1 ? ' ' : null}
+        </Fragment>
       ))}
     </Tag>
   );

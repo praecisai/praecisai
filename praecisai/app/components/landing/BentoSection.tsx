@@ -334,7 +334,7 @@ export default function BentoSection() {
             </TextAnimate>
           </h2>
           <p className="mx-auto mt-4 max-w-xl font-body text-[16px] leading-relaxed text-[var(--walnut)]">
-            One platform. AI voice calls, WhatsApp automation, aging analytics, and promise tracking — all synced in real time.
+            One platform. AI voice calls, WhatsApp automation, aging analytics, and promise tracking, all synced in real time.
           </p>
         </motion.div>
 
@@ -354,7 +354,7 @@ export default function BentoSection() {
             </h3>
             <p className="mb-5 font-body text-sm leading-relaxed text-[var(--walnut)]">
               PraecisAI automatically segments your debtors, places natural Hindi voice calls,
-              sends WhatsApp reminders, and logs every promise — without any manual follow-up.
+              sends WhatsApp reminders, and logs every promise, without any manual follow-up.
             </p>
 
             {/* Feature checklist */}
