@@ -100,7 +100,7 @@ export default function CustomerDetailPage() {
               ))}
             </div>
           </div>
-          <div className="text-right">
+          <div className="w-full sm:w-auto sm:text-right flex-shrink-0">
             <p className="text-xs mb-1" style={{ color: 'var(--walnut)' }}>Total Outstanding</p>
             <p className={`text-xl sm:text-2xl font-bold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-600' : ''}`}
                style={(customer.outstanding?.total_due ?? 0) <= 0 ? { color: 'var(--recovery-green)' } : {}}>

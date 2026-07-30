@@ -64,28 +64,61 @@ export function TextAnimate({
   stagger,
 }: TextAnimateProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once, margin: '-60px' });
+  // Vertical inset only: a bare '-60px' also shrinks the detection box
+  // horizontally, so narrow text near a screen edge would never trigger.
+  const inView = useInView(ref, { once, margin: '-60px 0px' });
 
   const defaultStagger = by === 'character' ? 0.028 : 0.1;
   const gap = stagger ?? defaultStagger;
 
-  const units: string[] =
-    by === 'character'
-      ? children.split('')
-      : by === 'word'
-      ? children.split(/(\s+)/)
-      : [children];
-
   const variant = VARIANTS[animation];
+
+  const charSpan = (char: string, i: number) => (
+    <motion.span
+      key={`${char}-${i}`}
+      aria-hidden
+      className="inline-block"
+      custom={delay + i * gap}
+      variants={variant}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+    >
+      {char}
+    </motion.span>
+  );
+
+  // Per-character animation needs one inline-block per letter, but a line can
+  // break between any two inline-blocks — which splits words mid-word on narrow
+  // screens ("paymen / ts"). Keeping each word's letters in a nowrap wrapper
+  // preserves the letter-by-letter animation while restoring word-safe wrapping.
+  if (by === 'character') {
+    let charIndex = 0;
+    return (
+      <span ref={ref} className={cn('inline', className)} aria-label={children}>
+        {children.split(/(\s+)/).map((token, t) => {
+          if (token === '') return null;
+          if (/^\s+$/.test(token)) {
+            charIndex += token.length;
+            // A real space text node keeps the DOM readable to crawlers.
+            return <span key={`s-${t}`}>{' '}</span>;
+          }
+          const start = charIndex;
+          charIndex += token.length;
+          return (
+            <span key={`w-${t}`} className="inline-block whitespace-nowrap">
+              {token.split('').map((c, ci) => charSpan(c, start + ci))}
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+
+  const units: string[] = by === 'word' ? children.split(/(\s+)/) : [children];
 
   return (
     <span ref={ref} className={cn('inline', className)} aria-label={children}>
       {units.map((unit, i) => {
-        // Emit a real space character so the DOM text stays readable to
-        // crawlers and text extraction, instead of an empty spacer span.
-        if (unit.trim() === '' && by === 'character') {
-          return <span key={i}>{' '}</span>;
-        }
         if (/^\s+$/.test(unit) && by === 'word') {
           return <span key={i}>{unit}</span>;
         }

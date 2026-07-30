@@ -86,7 +86,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             Onboarding: {tenant.onboarding_status} · Created {new Date(tenant.created_at).toLocaleDateString('en-IN')}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() =>
               pollBolna.mutate(undefined, {

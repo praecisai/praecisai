@@ -47,14 +47,14 @@ export default function AdminBillingPage() {
             <div key={t.id} className="glass-card">
               <button
                 onClick={() => setOpen(expanded ? null : t.id)}
-                className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left"
+                className="w-full px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-left"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                  {expanded ? <ChevronDown size={16} className="flex-shrink-0" /> : <ChevronRight size={16} className="flex-shrink-0" />}
                   <span className="text-sm font-semibold text-[var(--dark-brown)] truncate">{t.name}</span>
-                  <span className="text-[11px] text-[var(--walnut)]">· {t.onboarding_status}</span>
+                  <span className="text-[11px] text-[var(--walnut)] whitespace-nowrap">· {t.onboarding_status}</span>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-3 flex-shrink-0 pl-6 sm:pl-0">
                   {t.subscription && (
                     <span
                       className="text-[11px] px-2 py-0.5 rounded-full font-medium"

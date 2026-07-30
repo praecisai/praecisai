@@ -108,8 +108,7 @@ export default function ReportsSection() {
         </motion.p>
         <motion.h2
           variants={itemVariants}
-          className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         >
           Reports built for every role in your business
         </motion.h2>
@@ -144,7 +143,8 @@ export default function ReportsSection() {
         </motion.div>
 
         {/* Report cards */}
-        <motion.div layout className="mt-8 sm:mt-12 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+        {/* 2-up from 360px; narrower than that the cards become cramped slivers */}
+        <motion.div layout className="mt-8 sm:mt-12 grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">
             {filteredReports.map((report) => (
               <motion.div
@@ -191,11 +191,11 @@ export default function ReportsSection() {
             </p>
 
             {/* Trust signals sit right at the decision point */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[var(--caramel)]/60 pt-4 sm:justify-start">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 sm:gap-x-5 sm:gap-y-2 border-t border-[var(--caramel)]/60 pt-4 sm:justify-start">
               {trustSignals.map((signal) => (
                 <span
                   key={signal.text}
-                  className="inline-flex items-center gap-1.5 font-body text-[12px] font-medium text-[var(--dark-brown)]/80"
+                  className="inline-flex items-center gap-1 sm:gap-1.5 font-body text-[11px] sm:text-[12px] font-medium text-[var(--dark-brown)]/80"
                 >
                   <signal.icon size={14} stroke={1.9} className="text-[var(--mahogany)]" />
                   {signal.text}

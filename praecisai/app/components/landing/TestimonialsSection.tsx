@@ -55,22 +55,22 @@ export default function TestimonialsSection() {
         </motion.p>
         <AnimatedHeading
           text="Trusted by collections teams across India"
-          className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
 
         {/* Testimonial grid */}
-        <div className="mt-8 sm:mt-16 grid grid-cols-2 gap-3 sm:gap-6">
+        {/* Quotes are long: one column on phones keeps them readable */}
+        <div className="mt-8 sm:mt-16 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
               variants={itemVariants}
               transition={{ delay: index * 0.1 }}
-              className="spotlight-card flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-8"
+              className="spotlight-card flex flex-col justify-between rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5 sm:p-8"
             >
               {/* Quote icon */}
               <div>
-                <div className="mb-5 flex items-center justify-between">
+                <div className="mb-3 sm:mb-5 flex items-center justify-between">
                   <div className="flex gap-0.5">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <IconStarFilled key={i} size={14} className="text-[var(--rust)]" />
@@ -82,7 +82,7 @@ export default function TestimonialsSection() {
                     stroke={1.5}
                   />
                 </div>
-                <p className="font-body text-[11px] sm:text-[15px] leading-[1.65] sm:leading-[1.75] text-[var(--dark-brown)]">
+                <p className="font-body text-[13px] sm:text-[15px] leading-[1.6] sm:leading-[1.75] text-[var(--dark-brown)]">
                   &ldquo;{testimonial.quote}&rdquo;
                 </p>
               </div>

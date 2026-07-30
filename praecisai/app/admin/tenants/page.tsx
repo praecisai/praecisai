@@ -33,14 +33,14 @@ export default function AdminTenantsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-lg font-bold text-[var(--dark-brown)]">Tenants</h1>
           <p className="text-xs text-[var(--walnut)]">All businesses on the platform with live health</p>
         </div>
         <Link
           href="/admin/tenants/new"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0 whitespace-nowrap"
           style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
         >
           <Plus size={15} /> New tenant

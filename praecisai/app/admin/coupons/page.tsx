@@ -118,7 +118,7 @@ export default function AdminCouponsPage() {
                     {c.used_count} <span className="text-[11px] text-[var(--walnut)]">/ Unlimited</span>
                   </td>
                   <td className="text-xs text-[var(--walnut)]">
-                    {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-IN') : '—'}
+                    {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-IN') : '-'}
                   </td>
                   <td>
                     <span

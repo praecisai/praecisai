@@ -86,8 +86,7 @@ export default function FeaturesSection() {
         </motion.p>
         <AnimatedHeading
           text="Everything your collections team needs"
-          className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
         <motion.p
           variants={itemVariants}
@@ -97,7 +96,9 @@ export default function FeaturesSection() {
         </motion.p>
 
         {/* Feature grid */}
-        <div className="mt-8 sm:mt-16 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+        {/* 2-up from 360px; below that the columns are only ~127px wide and the
+            cards turn into cramped slivers, so stack them */}
+        <div className="mt-8 sm:mt-16 grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}

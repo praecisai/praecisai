@@ -246,14 +246,14 @@ export default function PdcPage() {
             <h3 className="font-display text-[13px] font-semibold text-[var(--dark-brown)] mb-3">Recent Uploads</h3>
             <div className="space-y-2">
               {uploads.map((u: any) => (
-                <div key={u.id} className="flex items-center justify-between rounded-lg bg-[var(--sand)] px-3 py-2">
-                  <div>
-                    <p className="font-body text-[13px] font-medium text-[var(--dark-brown)]">{u.file_name}</p>
+                <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg bg-[var(--sand)] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-body text-[13px] font-medium text-[var(--dark-brown)] truncate">{u.file_name}</p>
                     <p className="font-body text-[11px] text-[var(--walnut)]">
                       {u.records_total} rows · {u.records_matched} matched · {u.records_cleared} cleared
                     </p>
                   </div>
-                  <p className="font-body text-[11px] text-[var(--walnut)]">
+                  <p className="font-body text-[11px] text-[var(--walnut)] flex-shrink-0 whitespace-nowrap">
                     {new Date(u.created_at).toLocaleDateString('en-IN')}
                   </p>
                 </div>

@@ -49,14 +49,14 @@ const features = [
 
 export default function CapabilitiesSection() {
   return (
-    <section className="bg-[var(--cream)] px-5 py-20 sm:px-8 sm:py-28" id="capabilities">
+    <section className="bg-[var(--cream)] px-5 py-12 sm:px-8 sm:py-28" id="capabilities">
       <div className="relative z-20 mx-auto max-w-7xl">
         {/* Header */}
         <div className="px-4 text-center">
           <p className="mb-3 font-body text-sm font-semibold uppercase tracking-[0.2em] text-[var(--rust)]">
             Platform Capabilities
           </p>
-          <h2 className="mx-auto max-w-4xl font-display text-[clamp(1.9rem,4vw,3.2rem)] font-bold leading-tight tracking-[-0.02em] text-[var(--dark-warm)]">
+          <h2 className="mx-auto max-w-4xl font-display text-[1.6rem] sm:text-[clamp(1.9rem,4vw,3.2rem)] font-bold leading-tight tracking-[-0.02em] text-[var(--dark-warm)]">
             One upload, every recovery channel working for you
           </h2>
           <p className="mx-auto mt-4 max-w-2xl font-body text-[16px] leading-relaxed text-[var(--walnut)]">

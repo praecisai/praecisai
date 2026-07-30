@@ -65,7 +65,7 @@ function FaqItem({ question, answer, id }: { question: string; answer: string; i
 
 export default function FaqSection() {
   return (
-    <section id="faq" className="bg-[var(--cream)] px-5 py-24 sm:px-8 sm:py-28 text-center">
+    <section id="faq" className="bg-[var(--cream)] px-5 py-14 sm:px-8 sm:py-28 text-center">
       {/* FAQPage structured data — enables expandable FAQ results in Google */}
       <script
         type="application/ld+json"
@@ -87,8 +87,7 @@ export default function FaqSection() {
         </motion.p>
         <AnimatedHeading
           text="AI payment recovery questions, answered"
-          className="text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
         <motion.p
           variants={itemVariants}

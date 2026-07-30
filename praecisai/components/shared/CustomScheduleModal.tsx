@@ -160,13 +160,15 @@ export function CustomScheduleModal({
 
         <div className="space-y-1.5">
           {SEGMENT_META.map(({ segment, color, desc }, i) => (
-            <div key={segment} className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium" style={{ color: 'var(--dark-brown)' }}>{segment}</p>
-                <p className="text-[11px]" style={{ color: 'var(--walnut)' }}>{desc}</p>
+            <div key={segment} className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--sand)' }}>
+              <div className="flex items-start gap-3 min-w-0 sm:flex-1">
+                <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: color }} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium" style={{ color: 'var(--dark-brown)' }}>{segment}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--walnut)' }}>{desc}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-sm flex-shrink-0 pl-2" style={{ color: 'var(--walnut)' }}>
+              <div className="flex items-center gap-2 text-sm flex-shrink-0 pl-5 sm:pl-2" style={{ color: 'var(--walnut)' }}>
                 {i < 4 ? (
                   <>
                     <span className="w-14 text-right whitespace-nowrap tabular-nums">{i === 0 ? 0 : bounds[i - 1] + 1} –</span>

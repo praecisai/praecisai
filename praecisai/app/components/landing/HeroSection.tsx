@@ -157,11 +157,12 @@ export default function HeroSection() {
     return () => timers.forEach(clearTimeout);
   }, []);
 
+  // sm:pt-[148px] clears the desktop floating navbar; the mobile bar is only
+  // 56px tall, so phones get pt-24 instead of 148px of dead space.
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-[var(--cream)] px-5 pb-32 sm:px-8 sm:pb-40 lg:pb-44"
-      style={{ paddingTop: '148px' }}
+      className="relative overflow-hidden bg-[var(--cream)] px-5 pt-24 pb-16 sm:px-8 sm:pt-[148px] sm:pb-40 lg:pb-44"
     >
       <Particles />
       {/* Light rays from top-center, follow cursor */}
@@ -198,7 +199,7 @@ export default function HeroSection() {
         viewport={viewportOnce}
       >
         {/* Badge */}
-        <motion.div variants={itemVariants} className="mb-10 flex justify-center">
+        <motion.div variants={itemVariants} className="mb-6 sm:mb-10 flex justify-center">
           <motion.div whileHover={{ scale: 1.04 }} className="pill-beam">
             <div className="relative z-10 inline-flex items-center gap-2.5 rounded-full border border-[rgba(221,184,146,0.28)] bg-[rgba(159,99,68,0.10)] px-4 py-2">
               <span className="relative flex h-2 w-2">
@@ -214,8 +215,7 @@ export default function HeroSection() {
 
         {/* Headline — line 1 char-by-char, line 2 whole-phrase for gradient to work */}
         <h1
-          className="mx-auto max-w-4xl text-center font-display font-bold leading-[1.1] tracking-[-0.03em] text-[var(--dark-warm)]"
-          style={{ fontSize: 'clamp(1.75rem, 6vw, 4.5rem)' }}
+          className="text-[1.6rem] sm:text-[clamp(1.75rem,6vw,4.5rem)] mx-auto max-w-4xl text-center font-display font-bold leading-[1.1] tracking-[-0.03em] text-[var(--dark-warm)]"
         >
           {/* Line 1 */}
           <span className="block">
@@ -273,36 +273,41 @@ export default function HeroSection() {
         {/* CTA Buttons */}
         <motion.div
           variants={itemVariants}
-          className="mt-8 sm:mt-12 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row"
+          className="mt-8 sm:mt-12 flex flex-row items-stretch justify-center gap-2.5 sm:gap-4"
         >
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          {/* flex-1 on phones so the two CTAs sit side by side instead of
+              stacking as two full-width slabs; sm+ reverts to intrinsic width */}
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 sm:flex-none">
             <Link
               href="#demo"
-              className="group inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[var(--mahogany)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
+              className="group inline-flex h-full w-full sm:w-auto items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-[var(--mahogany)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
             >
               See Live Demo
-              <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+              <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           </motion.div>
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 sm:flex-none">
             <a
               href="#how-it-works"
-              className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-7 py-3.5 font-display text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)]"
+              className="inline-flex h-full w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)]"
             >
-              See how it works
+              {/* Full label needs ~118px but only ~111px fits at 320px */}
+              <span className="whitespace-nowrap sm:hidden">How it works</span>
+              <span className="hidden sm:inline">See how it works</span>
             </a>
           </motion.div>
         </motion.div>
 
         {/* Trust row */}
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5">
+        {/* gap-x-7 left only room for one item per line on phones */}
+        <div className="mt-6 sm:mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-x-7 sm:gap-y-2.5">
           {trustItems.map((item, i) => (
             <motion.span
               key={item}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 + i * 0.1, duration: 0.4 }}
-              className="inline-flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--walnut)]"
+              className="inline-flex items-center gap-1.5 font-body text-[12px] sm:text-[13px] font-medium text-[var(--walnut)]"
             >
               <IconCheck size={13} className="text-[var(--mahogany)]" stroke={2.5} />
               {item}
@@ -337,10 +342,10 @@ export default function HeroSection() {
             </div>
 
             {/* Dashboard content */}
-            <div className="grid gap-6 p-6 lg:grid-cols-[1.5fr_1fr] lg:p-8">
+            <div className="grid gap-3.5 p-3.5 sm:gap-6 sm:p-6 lg:grid-cols-[1.5fr_1fr] lg:p-8">
 
               {/* Left column */}
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-3.5 sm:gap-5">
                 {/* Metric cards */}
                 <div className="grid grid-cols-2 gap-4">
                   {metrics.map((m) => (
@@ -351,7 +356,7 @@ export default function HeroSection() {
                       viewport={viewportOnce}
                       transition={{ duration: 0.5, delay: 0.2 }}
                       whileHover={{ y: -3, boxShadow: '0 8px 24px rgba(127,85,57,0.12)' }}
-                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 text-left transition-shadow duration-200"
+                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3 sm:p-4 text-left transition-shadow duration-200"
                     >
                       <p className={`font-display text-xl font-bold ${m.colorClass}`}>
                         <AnimatedCounter value={m.value} suffix={m.suffix} prefix={m.prefix} />
@@ -369,12 +374,12 @@ export default function HeroSection() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={viewportOnce}
                   transition={{ duration: 0.5, delay: 0.3 }}
-                  className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5"
+                  className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5"
                 >
-                  <p className="mb-4 font-display text-[13px] font-semibold text-[var(--mahogany)]">
+                  <p className="mb-2.5 sm:mb-4 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)]">
                     Aging breakdown
                   </p>
-                  <div className="space-y-3.5">
+                  <div className="space-y-2.5 sm:space-y-3.5">
                     {agingBars.map((bar) => (
                       <div key={bar.label}>
                         <div className="mb-1.5 flex justify-between font-body text-[11px] text-[var(--walnut)]">
@@ -403,12 +408,12 @@ export default function HeroSection() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={viewportOnce}
                 transition={{ duration: 0.5, delay: 0.4 }}
-                className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5"
+                className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5"
               >
-                <p className="mb-4 font-display text-[13px] font-semibold text-[var(--mahogany)]">
+                <p className="mb-2.5 sm:mb-4 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)]">
                   Live activity
                 </p>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {activityFeed.map((item, i) => (
                     <motion.div
                       key={item.text}
@@ -419,10 +424,10 @@ export default function HeroSection() {
                           : { opacity: 0, x: -16, scale: 0.95 }
                       }
                       transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                      className="flex items-start gap-3 rounded-lg bg-[var(--surface-warm)] px-3 py-2.5 shadow-[0_1px_4px_rgba(127,85,57,0.07)]"
+                      className="flex items-start gap-2.5 sm:gap-3 rounded-lg bg-[var(--surface-warm)] px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_1px_4px_rgba(127,85,57,0.07)]"
                     >
                       <div
-                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                        className="mt-0.5 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg"
                         style={{ background: `${item.color}18` }}
                       >
                         <item.icon size={15} style={{ color: item.color }} stroke={1.75} />

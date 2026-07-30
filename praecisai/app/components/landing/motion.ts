@@ -23,7 +23,12 @@ export const itemVariants = {
   },
 };
 
-export const viewportOnce = { once: true, margin: '-100px' as const };
+// Vertical inset only. A bare '-100px' also shrinks the detection area
+// horizontally by 100px per side, which on a 375px-wide phone leaves a band just
+// 175px wide — short words near the edge of a centred heading (e.g. the "AI" in
+// "AI payment recovery questions, answered") fall outside it, never trigger, and
+// with `once: true` stay invisible for good.
+export const viewportOnce = { once: true, margin: '-100px 0px' as const };
 
 export const wordItem = {
   hidden: { opacity: 0, y: 48, filter: 'blur(10px)' },

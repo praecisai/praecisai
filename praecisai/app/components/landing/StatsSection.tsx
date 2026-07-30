@@ -37,7 +37,7 @@ function AnimatedStat({
   label: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  const isInView = useInView(ref, { once: true, margin: '-60px 0px' });
   const [display, setDisplay] = useState('0');
 
   useEffect(() => {

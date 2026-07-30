@@ -72,8 +72,7 @@ export default function HowItWorks() {
         </motion.p>
         <AnimatedHeading
           text="From outstanding data to recovered cash"
-          className="mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
         <motion.p
           variants={itemVariants}
@@ -84,18 +83,16 @@ export default function HowItWorks() {
         </motion.p>
 
         {/* Step cards */}
-        <div className="relative mt-8 sm:mt-20 grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-4">
+        {/* One column on phones: these descriptions are long, and a 2-up grid
+            turned each card into a ~146px-wide, 500px-tall ribbon of text. */}
+        <div className="relative mt-8 sm:mt-20 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4">
           {steps.map((step, index) => (
             <motion.div
               key={step.number}
               variants={scaleIn}
               transition={{ delay: index * 0.2 }}
               whileHover={{ y: -6, boxShadow: '0 20px 56px rgba(127,85,57,0.15)', transition: { delay: 0, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] } }}
-              className={`spotlight-card relative flex flex-col rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-4 sm:p-7 text-left transition-shadow duration-200${
-                index === steps.length - 1 && steps.length % 2 === 1
-                  ? ' col-span-2 sm:col-span-1 mx-auto w-[calc(50%-6px)] sm:w-auto'
-                  : ''
-              }`}
+              className="spotlight-card relative flex flex-col rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5 sm:p-7 text-left transition-shadow duration-200"
             >
               {/* Arrow connector (desktop only) */}
               {index < steps.length - 1 && (
@@ -113,28 +110,28 @@ export default function HowItWorks() {
               )}
 
               {/* Step number + icon row */}
-              <div className="mb-4 sm:mb-6 flex items-center justify-between">
+              <div className="mb-3 sm:mb-6 flex items-center justify-between">
                 <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-sm font-bold text-[var(--cream)]"
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[var(--mahogany)] font-display text-[13px] sm:text-sm font-bold text-[var(--cream)]"
                 >
                   {step.number}
                 </span>
                 <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--mahogany)]"
+                  className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-[var(--mahogany)]"
                   style={{ backgroundColor: step.iconBg }}
                 >
-                  <step.icon size={22} stroke={1.75} />
+                  <step.icon className="h-[19px] w-[19px] sm:h-[22px] sm:w-[22px]" stroke={1.75} />
                 </div>
               </div>
 
-              <h3 className="font-display text-[13px] sm:text-[17px] font-semibold leading-snug text-[var(--dark-brown)]">
+              <h3 className="font-display text-[15px] sm:text-[17px] font-semibold leading-snug text-[var(--dark-brown)]">
                 {step.title}
               </h3>
-              <p className="mt-2 sm:mt-3 font-body text-[11px] sm:text-[13.5px] leading-[1.65] text-[var(--walnut)]">
+              <p className="mt-1.5 sm:mt-3 font-body text-[12.5px] sm:text-[13.5px] leading-[1.6] sm:leading-[1.65] text-[var(--walnut)]">
                 {step.description}
               </p>
               <div className="flex-1" />
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-4 sm:mt-6 flex flex-wrap gap-1.5 sm:gap-2">
                 {step.tags.map((tag, ti) => (
                   <motion.span
                     key={tag}
@@ -142,7 +139,7 @@ export default function HowItWorks() {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={viewportOnce}
                     transition={{ delay: 0.4 + index * 0.2 + ti * 0.08, duration: 0.3 }}
-                    className="rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-3 py-1 font-body text-[11px] font-medium text-[var(--walnut)]"
+                    className="rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-2.5 py-0.5 sm:px-3 sm:py-1 font-body text-[10.5px] sm:text-[11px] font-medium text-[var(--walnut)]"
                   >
                     {tag}
                   </motion.span>

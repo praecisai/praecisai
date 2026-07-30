@@ -270,13 +270,15 @@ export default function SettingsPage() {
               </p>
               <div className="space-y-3">
                 {SEGMENT_META.map(({ segment, color, desc }, i) => (
-                  <div key={segment} className="flex flex-wrap items-center gap-3 sm:gap-4 p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--dark-brown)]">{segment}</p>
-                      <p className="text-xs text-[var(--walnut)]">{desc}</p>
+                  <div key={segment} className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
+                    <div className="flex items-start gap-3 min-w-0 sm:flex-1">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: color }} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--dark-brown)]">{segment}</p>
+                        <p className="text-xs text-[var(--walnut)]">{desc}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-[var(--walnut)]">
+                    <div className="flex items-center gap-2 text-sm text-[var(--walnut)] pl-5 sm:pl-0 flex-shrink-0">
                       {i < 4 ? (
                         <>
                           <span>{i === 0 ? 0 : bounds[i - 1] + 1} –</span>

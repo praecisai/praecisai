@@ -315,7 +315,7 @@ export default function BentoSection() {
   const gridRef = useRef<HTMLDivElement>(null);
 
   return (
-    <section className="bento-magic-section bg-[var(--cream)] px-5 py-24 sm:px-8 sm:py-32" id="features-bento">
+    <section className="bento-magic-section bg-[var(--cream)] px-5 py-14 sm:px-8 sm:py-32" id="features-bento">
       <GlobalSpotlight gridRef={gridRef} />
       <div className="mx-auto max-w-7xl">
 
@@ -328,7 +328,7 @@ export default function BentoSection() {
           <p className="mb-3 font-body text-sm font-semibold uppercase tracking-[0.2em] text-[var(--rust)]">
             Platform Overview
           </p>
-          <h2 className="font-display text-[clamp(1.9rem,4vw,3rem)] font-bold leading-tight tracking-[-0.02em] text-[var(--dark-warm)]">
+          <h2 className="font-display text-[1.6rem] sm:text-[clamp(1.9rem,4vw,3rem)] font-bold leading-tight tracking-[-0.02em] text-[var(--dark-warm)]">
             <TextAnimate animation="blurInUp" by="character" once>
               Everything to recover faster
             </TextAnimate>

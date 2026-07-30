@@ -30,7 +30,9 @@ export function Select({
   searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = useState<
+    { top: number | null; bottom: number | null; left: number; width: number; maxHeight: number } | null
+  >(null);
   const [query, setQuery] = useState('');
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -41,9 +43,24 @@ export function Select({
     ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : options;
 
+  // Phones and short landscape viewports leave very little room below a
+  // trigger near the fold: flip the menu above when that side is roomier and
+  // cap its height so the options always stay reachable.
   const updatePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, left: r.left, width: r.width });
+    if (!r) return;
+    const gap = 6;
+    const margin = 8;
+    const below = window.innerHeight - r.bottom - gap - margin;
+    const above = r.top - gap - margin;
+    const flip = below < 180 && above > below;
+    setPos({
+      top: flip ? null : r.bottom + gap,
+      bottom: flip ? window.innerHeight - r.top + gap : null,
+      left: r.left,
+      width: r.width,
+      maxHeight: Math.max(140, flip ? above : below),
+    });
   };
 
   useEffect(() => {
@@ -108,7 +125,8 @@ export function Select({
           ref={menuRef}
           className="fixed z-[100] w-max rounded-xl border p-1.5"
           style={{
-            top: pos.top,
+            ...(pos.top !== null ? { top: pos.top } : {}),
+            ...(pos.bottom !== null ? { bottom: pos.bottom } : {}),
             left: pos.left,
             minWidth: pos.width,
             maxWidth: 'calc(100vw - 16px)',
@@ -146,10 +164,16 @@ export function Select({
           )}
           <ul
             role="listbox"
-            className={
-              // Short lists (e.g. segments) render in full: scrollbars only for long ones
-              options.length > 8 ? 'max-h-64 overflow-y-auto' : ''
-            }
+            className="overflow-y-auto"
+            style={{
+              // Short lists (e.g. segments) render in full: the cap is whichever
+              // is smaller of the usual 16rem limit for long lists and the space
+              // actually left on screen below (or above) the trigger.
+              maxHeight: Math.min(
+                options.length > 8 ? 256 : Infinity,
+                pos.maxHeight - (showSearch ? 46 : 0) - 12,
+              ),
+            }}
           >
             {visibleOptions.length === 0 && (
               <li className="px-3 py-2 text-xs" style={{ color: 'var(--walnut)' }}>No matches</li>

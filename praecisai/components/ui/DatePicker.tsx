@@ -33,7 +33,9 @@ export function DatePicker({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<
+    { top: number | null; bottom: number | null; left: number; maxHeight: number } | null
+  >(null);
   const selected = fromKey(value);
   const today = new Date();
   const [viewYear, setViewYear] = useState((selected ?? today).getFullYear());
@@ -41,9 +43,24 @@ export function DatePicker({
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // The calendar is ~320px tall: on a phone (or a short landscape viewport) a
+  // trigger low on the page leaves no room below, so open it on whichever side
+  // has more space and cap its height to that space so it stays on screen.
   const updatePos = () => {
     const r = btnRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, left: r.left });
+    if (!r) return;
+    const gap = 6;
+    const margin = 8;
+    const CALENDAR_H = 320;
+    const below = window.innerHeight - r.bottom - gap - margin;
+    const above = r.top - gap - margin;
+    const flip = below < CALENDAR_H && above > below;
+    setPos({
+      top: flip ? null : r.bottom + gap,
+      bottom: flip ? window.innerHeight - r.top + gap : null,
+      left: r.left,
+      maxHeight: Math.max(180, flip ? above : below),
+    });
   };
 
   useEffect(() => {
@@ -120,11 +137,13 @@ export function DatePicker({
       {open && pos && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[100] rounded-xl border p-3"
+          className="fixed z-[100] overflow-y-auto rounded-xl border p-3"
           style={{
-            top: pos.top,
+            ...(pos.top !== null ? { top: pos.top } : {}),
+            ...(pos.bottom !== null ? { bottom: pos.bottom } : {}),
             left: pos.left,
             width: 252,
+            maxHeight: pos.maxHeight,
             background: 'var(--surface-warm)',
             borderColor: 'var(--caramel)',
             boxShadow: '0 8px 24px rgba(127,85,57,0.18)',

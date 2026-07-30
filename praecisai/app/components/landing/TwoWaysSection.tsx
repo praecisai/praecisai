@@ -54,8 +54,7 @@ export default function TwoWaysSection() {
         </motion.p>
         <AnimatedHeading
           text="Two ways to feed PraecisAI your outstanding data"
-          className="mx-auto max-w-3xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] mx-auto max-w-3xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
         <motion.p
           variants={itemVariants}

@@ -37,7 +37,7 @@ export function ConfirmModal({
       onClick={onCancel}
     >
       <div
-        className="glass-card w-full max-w-sm p-6 flex flex-col gap-4"
+        className="glass-card w-full max-w-sm p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
         style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -49,14 +49,14 @@ export function ConfirmModal({
           >
             <Icon size={17} style={{ color: cfg.iconColor }} strokeWidth={1.75} />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="font-semibold text-sm" style={{ color: 'var(--dark-brown)' }}>{title}</p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--walnut)' }}>{message}</p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-1">
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
           <button
             onClick={onCancel}
             className="px-4 py-2 rounded-lg text-sm font-medium border transition-all hover:bg-[rgba(127,85,57,0.06)]"

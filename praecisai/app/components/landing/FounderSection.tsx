@@ -8,7 +8,7 @@ export default function FounderSection() {
   return (
     <section
       id="founder"
-      className="border-y border-[rgba(221,184,146,0.35)] bg-[var(--surface-warm)] px-5 py-24 sm:px-8 sm:py-28"
+      className="border-y border-[rgba(221,184,146,0.35)] bg-[var(--surface-warm)] px-5 py-14 sm:px-8 sm:py-28"
     >
       <motion.div
         className="mx-auto w-full max-w-6xl grid items-center gap-12 lg:grid-cols-[260px_1fr] lg:gap-20"

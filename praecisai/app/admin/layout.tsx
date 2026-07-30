@@ -149,32 +149,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen" style={{ background: 'var(--cream)' }}>
       <header
-        className="sticky top-0 z-20 border-b px-4 sm:px-6 py-3 flex items-center justify-between"
+        className="sticky top-0 z-20 border-b px-4 sm:px-6 py-3 flex items-center justify-between gap-3"
         style={{ background: 'var(--surface-warm)', borderColor: 'rgba(221,184,146,0.4)' }}
       >
-        <div className="flex items-center gap-3">
-          <ShieldCheck size={20} className="text-[var(--mahogany)]" />
-          <div>
-            <p className="font-display font-bold text-[var(--dark-brown)] leading-tight">PraecisAI Admin</p>
-            <p className="text-[11px] text-[var(--walnut)]">Internal operations panel</p>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <ShieldCheck size={20} className="text-[var(--mahogany)] flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="font-display font-bold text-[var(--dark-brown)] leading-tight truncate">PraecisAI Admin</p>
+            {/* Phones need the width for the actions on the right */}
+            <p className="hidden sm:block text-[11px] text-[var(--walnut)]">Internal operations panel</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-4 flex-shrink-0">
           <AnimatedThemeToggler />
           <Link
             href="/dashboard"
+            title="Dashboard"
             className="flex items-center gap-1.5 text-xs font-medium text-[var(--walnut)] hover:text-[var(--mahogany)]"
           >
-            <ArrowLeft size={13} /> Dashboard
+            <ArrowLeft size={13} className="flex-shrink-0" />
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
           <button
             onClick={() => {
               setAdminToken(null);
               setHasToken(false);
             }}
+            title="Sign out"
             className="flex items-center gap-1.5 text-xs font-medium text-[var(--walnut)] hover:text-[var(--mahogany)]"
           >
-            <LogOut size={13} /> Sign out
+            <LogOut size={13} className="flex-shrink-0" />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </header>

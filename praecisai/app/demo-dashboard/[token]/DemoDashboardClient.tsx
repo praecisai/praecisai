@@ -91,7 +91,7 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   if (error || !lead) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--cream)] px-4 text-center">
-        <div className="rounded-3xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-10 shadow-xl max-w-md">
+        <div className="w-full rounded-3xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-6 sm:p-10 shadow-xl max-w-md">
           <h2 className="font-display text-2xl font-semibold text-[var(--dark-brown)] mb-4">
             Link Expired
           </h2>

@@ -8,7 +8,7 @@ export default function AnalyticsPage() {
     <div>
       <TopHeader title="Analytics" subtitle="Performance insights and trends" />
       <div className="p-4 sm:p-6 space-y-5">
-        <div className="glass-card p-12 text-center">
+        <div className="glass-card p-6 sm:p-12 text-center">
           <BarChart2 size={48} className="text-blue-400/40 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Advanced Analytics</h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">

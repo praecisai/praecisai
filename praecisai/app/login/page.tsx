@@ -54,12 +54,13 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-5 py-10 relative"
+      className="min-h-screen flex flex-col sm:flex-row items-center justify-center px-5 py-8 sm:py-10 relative"
       style={{ background: 'var(--cream)' }}
     >
-      <Link 
-        href="/" 
-        className="absolute top-6 left-6 flex items-center gap-2 font-body text-sm font-medium text-[var(--walnut)] hover:text-[var(--mahogany)] transition-colors"
+      {/* Absolute from sm up; in-flow on phones so it can't sit on top of the logo */}
+      <Link
+        href="/"
+        className="self-start mb-6 sm:mb-0 sm:absolute sm:top-6 sm:left-6 flex items-center gap-2 font-body text-sm font-medium text-[var(--walnut)] hover:text-[var(--mahogany)] transition-colors"
       >
         <IconArrowLeft size={16} stroke={2} />
         Back to Home
@@ -74,7 +75,7 @@ export default function LoginPage() {
           <p className="font-body text-sm text-[var(--walnut)] mt-1.5">Sign in to your PraecisAI account</p>
         </div>
 
-        <div className="glass-card p-8">
+        <div className="glass-card p-6 sm:p-8">
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
               <div

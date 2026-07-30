@@ -53,8 +53,7 @@ export default function IndustriesStrip() {
         </motion.p>
         <AnimatedHeading
           text="Built for how your industry sells on credit"
-          className="mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
-          style={{ fontSize: 'clamp(1.75rem, 4vw, 2.625rem)' }}
+          className="text-[1.5rem] sm:text-[clamp(1.75rem,4vw,2.625rem)] mx-auto max-w-2xl text-center font-display font-semibold leading-[1.15] text-[var(--dark-brown)]"
         />
         <motion.p
           variants={itemVariants}

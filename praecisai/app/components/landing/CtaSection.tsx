@@ -16,7 +16,7 @@ function scrollToDemo(e: React.MouseEvent) {
 
 export default function CtaSection() {
   return (
-    <section className="relative overflow-hidden bg-[#0F0A06] px-5 py-28 sm:px-8 sm:py-32">
+    <section className="relative overflow-hidden bg-[#0F0A06] px-5 py-16 sm:px-8 sm:py-32">
       {/* Grain texture */}
       <div className="grain-overlay" aria-hidden />
 
@@ -47,8 +47,7 @@ export default function CtaSection() {
 
         <motion.h2
           variants={itemVariants}
-          className="font-display font-bold leading-[1.08] text-[#FDF8F3]"
-          style={{ fontSize: 'clamp(2rem, 5vw, 3rem)' }}
+          className="text-[1.7rem] sm:text-[clamp(2rem,5vw,3rem)] font-display font-bold leading-[1.08] text-[#FDF8F3]"
         >
           Stop chasing.{' '}
           <br />
@@ -64,23 +63,27 @@ export default function CtaSection() {
         {/* CTAs */}
         <motion.div
           variants={itemVariants}
-          className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          className="mt-8 sm:mt-10 flex flex-row items-stretch justify-center gap-2.5 sm:gap-4"
         >
+          {/* Side by side on phones rather than two full-width stacked slabs */}
           <button
             onClick={scrollToDemo}
-            className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--rust)] px-7 py-4 font-display text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(156,102,68,0.35)] transition-all duration-200 hover:bg-[var(--mahogany)] hover:shadow-[0_6px_28px_rgba(127,85,57,0.4)] sm:w-auto"
+            className="group inline-flex flex-1 sm:flex-none w-full items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-[var(--rust)] px-3 py-3 sm:px-7 sm:py-4 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(156,102,68,0.35)] transition-all duration-200 hover:bg-[var(--mahogany)] hover:shadow-[0_6px_28px_rgba(127,85,57,0.4)] sm:w-auto"
           >
             See Live Demo
-            <IconArrowRight size={16} stroke={2} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
           <a
             href="https://wa.me/917304862949"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(221,184,146,0.3)] px-7 py-4 font-display text-[15px] font-semibold text-[#FDF8F3] transition-all duration-200 hover:border-[var(--caramel)] hover:bg-[#FFFFFF]/5 sm:w-auto"
+            className="inline-flex flex-1 sm:flex-none w-full items-center justify-center gap-1 sm:gap-2 rounded-xl border border-[rgba(221,184,146,0.3)] px-2.5 py-3 sm:px-7 sm:py-4 font-display text-[13px] sm:text-[15px] font-semibold text-[#FDF8F3] transition-all duration-200 hover:border-[var(--caramel)] hover:bg-[#FFFFFF]/5 sm:w-auto"
           >
-            <IconBrandWhatsapp size={18} stroke={1.75} />
-            WhatsApp us instead
+            <IconBrandWhatsapp size={18} stroke={1.75} className="h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]" />
+            {/* "WhatsApp us instead" needs 142px of text at 13px but only ~122px
+                fits beside the icon on a phone, so it wraps to two lines */}
+            <span className="whitespace-nowrap sm:hidden">WhatsApp us</span>
+            <span className="hidden sm:inline">WhatsApp us instead</span>
           </a>
         </motion.div>
 
