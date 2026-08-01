@@ -43,7 +43,7 @@ export default function AdminCouponsPage() {
       <div>
         <h1 className="text-lg font-bold text-[var(--dark-brown)]">Coupons</h1>
         <p className="text-xs text-[var(--walnut)]">
-          Coupon codes give a percentage discount on the ₹50,000 onboarding fee (before GST). Coupons are optional at checkout.
+          Coupon codes give a percentage discount on the ₹50,000 onboarding fee. No GST is charged. Coupons are optional at checkout.
         </p>
       </div>
 

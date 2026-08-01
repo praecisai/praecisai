@@ -1,40 +1,41 @@
 /**
- * Pure billing math. All amounts are integer PAISE, ex-GST unless the name
- * says otherwise. Server-side only: client math is never trusted.
+ * Pure billing math. All amounts are integer PAISE.
+ * Server-side only: client math is never trusted.
  *
- * Pricing model:
- * - One-time onboarding: base ₹50,000 ex-GST which INCLUDES the first month's
- *   ₹5,000 subscription. A 5/10/15/20 percent coupon is compulsory and applies
- *   to the ₹50,000 total. After discount the ₹5,000 subscription component is
- *   fixed; the remainder is the setup component.
- * - Recurring: ₹5,000 ex-GST per month, debited on the 1st.
- * - GST 18% is added on top of the discounted ex-GST value.
+ * Pricing model (NO GST: the listed price is exactly what is charged):
+ * - One-time onboarding: base ₹50,000 which INCLUDES the first month's
+ *   ₹5,000 subscription. An OPTIONAL 5/10/15/20 percent coupon applies to the
+ *   ₹50,000 total (no coupon = full price). After discount the ₹5,000
+ *   subscription component is fixed; the remainder is the setup component.
+ * - Trial credit: a customer who already paid the ₹10,000 trial gets that
+ *   amount deducted AFTER the coupon discount, so they pay ₹40,000 at full
+ *   price (less any coupon).
+ * - Recurring: ₹5,000 per month, debited on the 1st.
  */
 
-export const ONBOARDING_BASE_PAISE = 50000 * 100; // ₹50,000 ex-GST
-export const SUBSCRIPTION_MONTHLY_PAISE = 5000 * 100; // ₹5,000 ex-GST
-export const GST_RATE = 0.18;
-export const SUBSCRIPTION_PLAN_PAISE_INCL_GST = Math.round(
-  SUBSCRIPTION_MONTHLY_PAISE * (1 + GST_RATE),
-); // ₹5,900 per month charged by the Razorpay plan
+export const ONBOARDING_BASE_PAISE = 50000 * 100; // ₹50,000
+export const SUBSCRIPTION_MONTHLY_PAISE = 5000 * 100; // ₹5,000
+// Kept for the Razorpay plan amount: no GST is added, so this is the plain
+// monthly price. (Name retained to avoid churn in the Razorpay plan wiring.)
+export const SUBSCRIPTION_PLAN_PAISE_INCL_GST = SUBSCRIPTION_MONTHLY_PAISE;
 
-// Paid trial: full platform access for 10 days, no coupon, no mandate
-export const TRIAL_PAISE = 10000 * 100; // ₹10,000 ex-GST
+// Paid trial: full platform access for 10 days, no coupon, no mandate.
+// Non-refundable; adjusted against onboarding if the customer continues.
+export const TRIAL_PAISE = 10000 * 100; // ₹10,000
 export const TRIAL_DAYS = 10;
 
 export interface TrialQuote {
-  baseAmount: number; // ₹10,000 in paise, ex-GST
-  gstAmount: number;
+  baseAmount: number; // ₹10,000 in paise
+  gstAmount: number; // always 0: kept so existing records/DTOs stay valid
   totalAmount: number;
   days: number;
 }
 
 export function computeTrialQuote(): TrialQuote {
-  const gstAmount = Math.round(TRIAL_PAISE * GST_RATE);
   return {
     baseAmount: TRIAL_PAISE,
-    gstAmount,
-    totalAmount: TRIAL_PAISE + gstAmount,
+    gstAmount: 0,
+    totalAmount: TRIAL_PAISE,
     days: TRIAL_DAYS,
   };
 }
@@ -43,20 +44,22 @@ export const ALLOWED_COUPON_PERCENTS = [0, 5, 10, 15, 20, 25, 30] as const;
 export type CouponPercent = (typeof ALLOWED_COUPON_PERCENTS)[number];
 
 export interface OnboardingQuote {
-  /** ₹50,000 in paise, ex-GST */
+  /** ₹50,000 in paise */
   baseAmount: number;
   couponPercent: number;
   /** discount on the base, paise */
   discountAmount: number;
-  /** base - discount, ex-GST paise */
+  /** ₹10,000 already paid for the trial, deducted after the discount (0 if no trial) */
+  trialCreditAmount: number;
+  /** base - discount - trialCredit, paise */
   payableExGst: number;
-  /** always ₹5,000 (first month), paise ex-GST */
+  /** always ₹5,000 (first month), paise */
   subscriptionComponent: number;
-  /** payableExGst - subscriptionComponent, paise ex-GST */
+  /** payableExGst - subscriptionComponent, paise */
   setupComponent: number;
-  /** 18% of payableExGst, paise */
+  /** always 0: no GST is charged (field kept so stored records stay valid) */
   gstAmount: number;
-  /** payableExGst + gstAmount, paise: what the customer pays now */
+  /** what the customer pays now, paise */
   totalAmount: number;
 }
 
@@ -64,7 +67,15 @@ export function isAllowedCouponPercent(p: number): p is CouponPercent {
   return (ALLOWED_COUPON_PERCENTS as readonly number[]).includes(p);
 }
 
-export function computeOnboardingQuote(couponPercent: number): OnboardingQuote {
+/**
+ * @param couponPercent optional discount on the ₹50,000 base (0 = full price)
+ * @param trialAlreadyPaid true when the tenant already paid the ₹10,000 trial:
+ *        that amount is credited AFTER the discount
+ */
+export function computeOnboardingQuote(
+  couponPercent: number,
+  trialAlreadyPaid = false,
+): OnboardingQuote {
   if (!isAllowedCouponPercent(couponPercent)) {
     throw new Error(
       `Invalid coupon percent: ${couponPercent}. Allowed: ${ALLOWED_COUPON_PERCENTS.join(', ')}`,
@@ -72,26 +83,31 @@ export function computeOnboardingQuote(couponPercent: number): OnboardingQuote {
   }
   const baseAmount = ONBOARDING_BASE_PAISE;
   const discountAmount = Math.round((baseAmount * couponPercent) / 100);
-  const payableExGst = baseAmount - discountAmount;
+  const afterDiscount = baseAmount - discountAmount;
+  // Never credit more than what is payable, and never go below the first
+  // month's subscription: the ₹5,000 component always has to be collected.
+  const trialCreditAmount = trialAlreadyPaid
+    ? Math.min(TRIAL_PAISE, Math.max(0, afterDiscount - SUBSCRIPTION_MONTHLY_PAISE))
+    : 0;
+  const payableExGst = afterDiscount - trialCreditAmount;
   const subscriptionComponent = SUBSCRIPTION_MONTHLY_PAISE;
   const setupComponent = payableExGst - subscriptionComponent;
-  const gstAmount = Math.round(payableExGst * GST_RATE);
-  const totalAmount = payableExGst + gstAmount;
   return {
     baseAmount,
     couponPercent,
     discountAmount,
+    trialCreditAmount,
     payableExGst,
     subscriptionComponent,
     setupComponent,
-    gstAmount,
-    totalAmount,
+    gstAmount: 0,
+    totalAmount: payableExGst,
   };
 }
 
-/** GST on the monthly subscription, paise. */
+/** GST on the monthly subscription: always 0, no GST is charged. */
 export function monthlySubscriptionGstPaise(): number {
-  return Math.round(SUBSCRIPTION_MONTHLY_PAISE * GST_RATE);
+  return 0;
 }
 
 export type BillingAnchorMode = 'IMMEDIATE_NEXT_FIRST' | 'FIRST_AFTER_FULL_MONTH';

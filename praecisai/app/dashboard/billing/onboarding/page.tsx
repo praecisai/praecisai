@@ -10,6 +10,7 @@ import {
   useSimulateOnboardingPaid,
   useVerifyOnboardingCheckout,
   useBillingSummary,
+  useOnboardingQuote,
   formatPaise,
 } from '../../../../lib/api/hooks';
 import { TicketPercent, ShieldCheck, CheckCircle2, XCircle, FlaskConical, Loader2 } from 'lucide-react';
@@ -48,6 +49,10 @@ export default function OnboardingPaymentPage() {
 
   const alreadyPaid = summary && ['PAID', 'ACTIVE'].includes(summary.onboarding_status);
   const quote = applied?.quote;
+  // Server quote without a coupon (already includes any ₹10,000 trial credit).
+  // A coupon quote replaces it once applied.
+  const { data: plainQuote } = useOnboardingQuote();
+  const shownQuote = quote ?? plainQuote;
 
   async function applyCoupon() {
     if (!code.trim()) {
@@ -84,7 +89,7 @@ export default function OnboardingPaymentPage() {
         key: data.razorpay_key_id,
         subscription_id: data.subscription_id,
         name: 'PraecisAI',
-        description: 'Onboarding (setup + first month) incl. GST',
+        description: 'Onboarding (setup + first month)',
         theme: { color: '#7F5539' },
         handler: (response: any) => {
           // Verify the signature server-side and activate immediately: works
@@ -153,7 +158,7 @@ export default function OnboardingPaymentPage() {
             <CheckCircle2 size={48} className="mx-auto mb-4" style={{ color: '#2E7D32' }} />
             <h2 className="text-xl font-bold text-[var(--dark-brown)]">Payment successful</h2>
             <p className="text-sm text-[var(--walnut)] mt-2">
-              Your account is being activated. Your monthly auto-debit of ₹5,900 (incl. GST) starts on the next 1st.
+              Your account is being activated. Your monthly auto-debit of ₹5,000 starts on the next 1st.
             </p>
           </div>
         ) : (
@@ -168,61 +173,51 @@ export default function OnboardingPaymentPage() {
               </div>
             )}
 
-            {/* Price card */}
+            {/* Price card. Every figure comes from the server quote: it
+                already accounts for the ₹10,000 trial credit when the tenant
+                paid for a trial. No GST is charged. */}
             <div className="glass-card p-5">
               <h2 className="font-semibold text-[var(--dark-brown)] mb-4">One-time onboarding</h2>
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-[var(--walnut)]">Onboarding fee (includes first month)</span>
-                  <span className="font-medium text-[var(--dark-brown)]">₹50,000.00</span>
+                  <span className="font-medium text-[var(--dark-brown)]">{formatPaise(shownQuote?.baseAmount ?? 5000000)}</span>
                 </div>
-                {quote ? (
-                  <>
-                    <div className="flex justify-between" style={{ color: '#2E7D32' }}>
-                      <span>Coupon {applied.coupon.code} ({applied.coupon.percent}% off)</span>
-                      <span className="font-medium">- {formatPaise(quote.discountAmount)}</span>
-                    </div>
-                    <div className="border-t pt-2.5 space-y-1.5" style={{ borderColor: 'var(--caramel)' }}>
-                      <div className="flex justify-between text-xs text-[var(--walnut)]">
-                        <span>· Setup component</span>
-                        <span>{formatPaise(quote.setupComponent)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-[var(--walnut)]">
-                        <span>· First month subscription</span>
-                        <span>{formatPaise(quote.subscriptionComponent)}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[var(--walnut)]">GST @ 18%</span>
-                      <span className="font-medium text-[var(--dark-brown)]">{formatPaise(quote.gstAmount)}</span>
-                    </div>
-                    <div
-                      className="flex justify-between text-base font-bold pt-2.5 border-t"
-                      style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
-                    >
-                      <span>Total payable now</span>
-                      <span>{formatPaise(quote.totalAmount)}</span>
-                    </div>
-                  </>
-                ) : (
-                  // No coupon applied — show full price
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-[var(--walnut)]">GST @ 18%</span>
-                      <span className="font-medium text-[var(--dark-brown)]">₹9,000.00</span>
-                    </div>
-                    <div
-                      className="flex justify-between text-base font-bold pt-2.5 border-t"
-                      style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
-                    >
-                      <span>Total payable now</span>
-                      <span>₹59,000.00</span>
-                    </div>
-                    <p className="text-xs text-[var(--walnut)] pt-1">
-                      Have a discount coupon? Apply it below to reduce the amount.
-                    </p>
-                  </>
+                {quote && (
+                  <div className="flex justify-between" style={{ color: '#2E7D32' }}>
+                    <span>Coupon {applied.coupon.code} ({applied.coupon.percent}% off)</span>
+                    <span className="font-medium">- {formatPaise(quote.discountAmount)}</span>
+                  </div>
                 )}
+                {(shownQuote?.trialCreditAmount ?? 0) > 0 && (
+                  <div className="flex justify-between" style={{ color: '#2E7D32' }}>
+                    <span>Trial already paid, adjusted</span>
+                    <span className="font-medium">- {formatPaise(shownQuote.trialCreditAmount)}</span>
+                  </div>
+                )}
+                {shownQuote && (
+                  <div className="border-t pt-2.5 space-y-1.5" style={{ borderColor: 'var(--caramel)' }}>
+                    <div className="flex justify-between text-xs text-[var(--walnut)]">
+                      <span>· Setup component</span>
+                      <span>{formatPaise(shownQuote.setupComponent)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-[var(--walnut)]">
+                      <span>· First month subscription</span>
+                      <span>{formatPaise(shownQuote.subscriptionComponent)}</span>
+                    </div>
+                  </div>
+                )}
+                <div
+                  className="flex justify-between text-base font-bold pt-2.5 border-t"
+                  style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
+                >
+                  <span>Total payable now</span>
+                  <span>{formatPaise(shownQuote?.totalAmount ?? 5000000)}</span>
+                </div>
+                <p className="text-xs text-[var(--walnut)] pt-1">
+                  No GST is added: this is the final amount.
+                  {!quote && ' Have a discount coupon? Apply it below to reduce it further.'}
+                </p>
               </div>
             </div>
 
@@ -230,7 +225,7 @@ export default function OnboardingPaymentPage() {
             <div className="glass-card p-5">
               <p className="text-sm font-semibold text-[var(--dark-brown)] mb-2 flex items-center gap-2">
                 <TicketPercent size={16} className="text-[var(--mahogany)]" />
-                Discount coupon <span className="text-xs font-normal text-[var(--walnut)]">(required)</span>
+                Discount coupon <span className="text-xs font-normal text-[var(--walnut)]">(optional)</span>
               </p>
               <div className="flex gap-2">
                 <input
@@ -252,6 +247,9 @@ export default function OnboardingPaymentPage() {
                   {validate.isPending ? 'Checking…' : 'Apply'}
                 </button>
               </div>
+              <p className="text-[11px] text-[var(--walnut)] mt-2">
+                Don&apos;t have a coupon? Skip this and pay the full amount directly.
+              </p>
             </div>
 
             {/* Pay */}
@@ -283,13 +281,13 @@ export default function OnboardingPaymentPage() {
                 {phase === 'paying' ? (
                   <><Loader2 size={16} className="animate-spin" /> Opening checkout…</>
                 ) : (
-                  <><ShieldCheck size={16} /> {quote ? `Pay ${formatPaise(quote.totalAmount)} securely` : 'Pay ₹59,000.00 securely'}</>
+                  <><ShieldCheck size={16} /> Pay {formatPaise(shownQuote?.totalAmount ?? 5000000)} securely</>
                 )}
               </button>
             )}
 
             <p className="text-[11px] text-[var(--walnut)] text-center">
-              Paying also sets up your ₹5,900/month auto-debit mandate (UPI Autopay or card), charged on the 1st of every month starting next month.
+              Paying also sets up your ₹5,000/month auto-debit mandate (UPI Autopay or card), charged on the 1st of every month starting next month.
             </p>
           </div>
         )}

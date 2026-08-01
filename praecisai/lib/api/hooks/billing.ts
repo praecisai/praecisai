@@ -140,6 +140,17 @@ export function useValidateCoupon() {
   });
 }
 
+/** Full-price onboarding quote: already reflects any ₹10,000 trial credit. */
+export function useOnboardingQuote() {
+  return useQuery({
+    queryKey: ['billing', 'onboarding-quote'],
+    queryFn: async () => {
+      const res = await api.get('/billing/onboarding/quote');
+      return res.data.data;
+    },
+  });
+}
+
 export function useCreateOnboardingCheckout() {
   const qc = useQueryClient();
   return useMutation({

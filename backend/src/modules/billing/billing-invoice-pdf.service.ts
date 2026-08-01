@@ -14,7 +14,7 @@ const BRAND_BLUE = '#3B63F3';
 
 export interface InvoiceLineItem {
   description: string;
-  amount: number; // paise, ex-GST
+  amount: number; // paise
 }
 
 export interface InvoicePdfInput {
@@ -32,9 +32,10 @@ export interface InvoicePdfInput {
 }
 
 /**
- * GST tax invoice PDF for Praecis fees (onboarding + monthly subscription).
- * Same pdfkit approach as the statement/report PDFs. Uses "Rs." because
- * pdfkit's built-in Helvetica has no rupee glyph.
+ * Invoice PDF for Praecis fees (onboarding + monthly subscription). No GST is
+ * charged: the listed price is the whole amount. Same pdfkit approach as the
+ * statement/report PDFs. Uses "Rs." because pdfkit's built-in Helvetica has no
+ * rupee glyph.
  */
 @Injectable()
 export class BillingInvoicePdfService {
@@ -90,7 +91,7 @@ export class BillingInvoicePdfService {
       .fillColor(ACCENT)
       .font('Helvetica-Bold')
       .fontSize(15)
-      .text('TAX INVOICE', left, 30, { width, align: 'right' });
+      .text('INVOICE', left, 30, { width, align: 'right' });
     doc
       .fillColor(INK)
       .font('Helvetica')
@@ -168,8 +169,11 @@ export class BillingInvoicePdfService {
       doc.text(value, valueX, y, { width: valueColW, align: 'right' });
       y += bold ? 20 : 16;
     };
-    totalsRow('Taxable Value (Rs.)', paiseToRupeeString(input.taxableValue));
-    totalsRow('GST @ 18% (Rs.)', paiseToRupeeString(input.gst));
+    // No GST is charged: the listed price is the whole invoice. The subtotal
+    // row is only shown when it differs from the total (legacy invoices that
+    // were raised while GST applied still render correctly).
+    totalsRow('Subtotal (Rs.)', paiseToRupeeString(input.taxableValue));
+    if (input.gst > 0) totalsRow('GST @ 18% (Rs.)', paiseToRupeeString(input.gst));
     doc
       .roundedRect(totalsX - 10, y - 4, valueX + valueColW - totalsX + 10, 26, 4)
       .fill(TINT);

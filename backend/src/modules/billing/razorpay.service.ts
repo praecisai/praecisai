@@ -73,15 +73,19 @@ export class RazorpayService {
   }
 
   /**
-   * The ₹5,900/month plan (₹5,000 + 18% GST). Uses RAZORPAY_PLAN_ID when set;
-   * otherwise creates the plan once and caches the id for this process.
+   * The ₹5,000/month plan (no GST). Uses RAZORPAY_PLAN_ID when set; otherwise
+   * creates the plan once and caches the id for this process.
+   *
+   * IMPORTANT: a Razorpay plan's amount is fixed at creation and cannot be
+   * edited. RAZORPAY_PLAN_ID must therefore point at a ₹5,000 plan: an older
+   * ₹5,900 (GST-inclusive) plan id would keep debiting ₹5,900 forever.
    */
   async ensurePlanId(): Promise<string> {
     const fromEnv = this.config.get<string>('RAZORPAY_PLAN_ID');
     if (fromEnv) return fromEnv;
     if (this.cachedPlanId) return this.cachedPlanId;
     if (this.isMock) {
-      this.cachedPlanId = 'plan_mock_praecis_5900';
+      this.cachedPlanId = 'plan_mock_praecis_5000';
       return this.cachedPlanId;
     }
     const plan = await this.request<{ id: string }>('POST', '/plans', {
@@ -91,7 +95,7 @@ export class RazorpayService {
         name: 'PraecisAI Monthly Subscription',
         amount: SUBSCRIPTION_PLAN_PAISE_INCL_GST,
         currency: 'INR',
-        description: 'Rs.5,000 per month + 18% GST',
+        description: 'Rs.5,000 per month',
       },
     });
     this.cachedPlanId = plan.id;

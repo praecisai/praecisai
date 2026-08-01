@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { gsap } from 'gsap';
+import type { gsap as GsapNamespace } from 'gsap';
 import {
   IconBrandWhatsapp,
   IconPhone,
@@ -101,6 +101,29 @@ const TIMELINE = [
 const GLOW_COLOR = '156, 102, 68'; // PraecisAI rust/walnut
 const SPOTLIGHT_RADIUS = 300;
 
+// GSAP (~85 KB) powers hover-only decoration: tilt, magnetism, particles and
+// the cursor spotlight. None of it applies to touch screens, so the library is
+// fetched lazily and ONLY on devices with a real pointer. `gsapRef` stays null
+// until then and every animation call is guarded on it.
+let gsapRef: typeof GsapNamespace | null = null;
+let gsapPromise: Promise<typeof GsapNamespace> | null = null;
+
+/** True for mouse/trackpad devices that can actually hover. */
+function hasFinePointer(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
+function loadGsap(): Promise<typeof GsapNamespace> | null {
+  if (!hasFinePointer()) return null;
+  if (!gsapPromise) {
+    gsapPromise = import('gsap').then((m) => {
+      gsapRef = m.gsap;
+      return m.gsap;
+    });
+  }
+  return gsapPromise;
+}
+
 // Particle card — adds stars, tilt, magnetism, ripple
 function ParticleCard({
   children, className, style, particleCount = 12,
@@ -114,7 +137,7 @@ function ParticleCard({
   const particles  = useRef<HTMLDivElement[]>([]);
   const tids       = useRef<ReturnType<typeof setTimeout>[]>([]);
   const isHovered  = useRef(false);
-  const magRef     = useRef<gsap.core.Tween | null>(null);
+  const magRef     = useRef<ReturnType<typeof GsapNamespace.to> | null>(null);
   const memoized   = useRef<HTMLDivElement[]>([]);
   const initialized = useRef(false);
 
@@ -133,7 +156,12 @@ function ParticleCard({
   const clearParticles = useCallback(() => {
     tids.current.forEach(clearTimeout); tids.current = [];
     magRef.current?.kill();
-    particles.current.forEach(p => gsap.to(p, { scale:0, opacity:0, duration:0.3, ease:'back.in(1.7)', onComplete: () => p.parentNode?.removeChild(p) }));
+    const g = gsapRef;
+    particles.current.forEach(p =>
+      g
+        ? g.to(p, { scale:0, opacity:0, duration:0.3, ease:'back.in(1.7)', onComplete: () => p.parentNode?.removeChild(p) })
+        : p.parentNode?.removeChild(p),
+    );
     particles.current = [];
   }, []);
 
@@ -142,13 +170,14 @@ function ParticleCard({
     if (!initialized.current) initParticles();
     memoized.current.forEach((p, i) => {
       const tid = setTimeout(() => {
-        if (!isHovered.current || !cardRef.current) return;
+        const g = gsapRef;
+        if (!g || !isHovered.current || !cardRef.current) return;
         const clone = p.cloneNode(true) as HTMLDivElement;
         cardRef.current.appendChild(clone);
         particles.current.push(clone);
-        gsap.fromTo(clone, { scale:0, opacity:0 }, { scale:1, opacity:1, duration:0.3, ease:'back.out(1.7)' });
-        gsap.to(clone, { x:(Math.random()-.5)*100, y:(Math.random()-.5)*100, rotation:Math.random()*360, duration:2+Math.random()*2, ease:'none', repeat:-1, yoyo:true });
-        gsap.to(clone, { opacity:0.3, duration:1.5, ease:'power2.inOut', repeat:-1, yoyo:true });
+        g.fromTo(clone, { scale:0, opacity:0 }, { scale:1, opacity:1, duration:0.3, ease:'back.out(1.7)' });
+        g.to(clone, { x:(Math.random()-.5)*100, y:(Math.random()-.5)*100, rotation:Math.random()*360, duration:2+Math.random()*2, ease:'none', repeat:-1, yoyo:true });
+        g.to(clone, { opacity:0.3, duration:1.5, ease:'power2.inOut', repeat:-1, yoyo:true });
       }, i * 100);
       tids.current.push(tid);
     });
@@ -160,35 +189,43 @@ function ParticleCard({
 
     const onEnter = () => {
       isHovered.current = true;
-      animateParticles();
-      if (enableTilt) gsap.to(el, { rotateX:5, rotateY:5, duration:0.3, ease:'power2.out', transformPerspective:1000 });
+      // First hover pulls GSAP in; the effects start once it resolves
+      loadGsap()?.then(() => {
+        if (!isHovered.current) return;
+        animateParticles();
+        if (enableTilt) gsapRef?.to(el, { rotateX:5, rotateY:5, duration:0.3, ease:'power2.out', transformPerspective:1000 });
+      });
     };
 
     const onLeave = () => {
       isHovered.current = false;
       clearParticles();
-      if (enableTilt) gsap.to(el, { rotateX:0, rotateY:0, duration:0.3, ease:'power2.out' });
-      if (enableMagnetism) gsap.to(el, { x:0, y:0, duration:0.3, ease:'power2.out' });
+      const g = gsapRef;
+      if (!g) return;
+      if (enableTilt) g.to(el, { rotateX:0, rotateY:0, duration:0.3, ease:'power2.out' });
+      if (enableMagnetism) g.to(el, { x:0, y:0, duration:0.3, ease:'power2.out' });
     };
 
     const onMove = (e: MouseEvent) => {
-      if (!enableTilt && !enableMagnetism) return;
+      const g = gsapRef;
+      if (!g || (!enableTilt && !enableMagnetism)) return;
       const r = el.getBoundingClientRect();
       const x = e.clientX - r.left, y = e.clientY - r.top;
       const cx = r.width/2, cy = r.height/2;
-      if (enableTilt) gsap.to(el, { rotateX:((y-cy)/cy)*-10, rotateY:((x-cx)/cx)*10, duration:0.1, ease:'power2.out', transformPerspective:1000 });
-      if (enableMagnetism) { magRef.current = gsap.to(el, { x:(x-cx)*0.05, y:(y-cy)*0.05, duration:0.3, ease:'power2.out' }); }
+      if (enableTilt) g.to(el, { rotateX:((y-cy)/cy)*-10, rotateY:((x-cx)/cx)*10, duration:0.1, ease:'power2.out', transformPerspective:1000 });
+      if (enableMagnetism) { magRef.current = g.to(el, { x:(x-cx)*0.05, y:(y-cy)*0.05, duration:0.3, ease:'power2.out' }); }
     };
 
     const onClick = (e: MouseEvent) => {
-      if (!clickEffect) return;
+      const g = gsapRef;
+      if (!g || !clickEffect) return;
       const r = el.getBoundingClientRect();
       const x = e.clientX - r.left, y = e.clientY - r.top;
       const d = Math.max(Math.hypot(x,y), Math.hypot(x-r.width,y), Math.hypot(x,y-r.height), Math.hypot(x-r.width,y-r.height));
       const rip = document.createElement('div');
       rip.style.cssText = `position:absolute;border-radius:50%;pointer-events:none;z-index:1000;width:${d*2}px;height:${d*2}px;left:${x-d}px;top:${y-d}px;background:radial-gradient(circle,rgba(${glowColor},0.4) 0%,rgba(${glowColor},0.2) 30%,transparent 70%);`;
       el.appendChild(rip);
-      gsap.fromTo(rip, { scale:0, opacity:1 }, { scale:1, opacity:0, duration:0.8, ease:'power2.out', onComplete:() => rip.remove() });
+      g.fromTo(rip, { scale:0, opacity:1 }, { scale:1, opacity:0, duration:0.8, ease:'power2.out', onComplete:() => rip.remove() });
     };
 
     el.addEventListener('mouseenter', onEnter);
@@ -217,7 +254,9 @@ function GlobalSpotlight({ gridRef }: { gridRef: React.RefObject<HTMLDivElement 
   const spotRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!gridRef.current) return;
+    // Cursor-only decoration: never built on touch devices
+    if (!gridRef.current || !hasFinePointer()) return;
+    loadGsap();
 
     const spot = document.createElement('div');
     spot.className = 'global-spotlight';
@@ -228,7 +267,8 @@ function GlobalSpotlight({ gridRef }: { gridRef: React.RefObject<HTMLDivElement 
     const { proximity: PROX, fadeDistance: FADE } = { proximity: SPOTLIGHT_RADIUS * 0.5, fadeDistance: SPOTLIGHT_RADIUS * 0.75 };
 
     const onMove = (e: MouseEvent) => {
-      if (!gridRef.current || !spotRef.current) return;
+      const g = gsapRef;
+      if (!g || !gridRef.current || !spotRef.current) return;
 
       const section = gridRef.current.closest('.bento-magic-section');
       const rect = section?.getBoundingClientRect();
@@ -236,7 +276,7 @@ function GlobalSpotlight({ gridRef }: { gridRef: React.RefObject<HTMLDivElement 
       const cards = gridRef.current.querySelectorAll<HTMLElement>('.magic-bento-card');
 
       if (!inside) {
-        gsap.to(spot, { opacity:0, duration:0.3 });
+        g.to(spot, { opacity:0, duration:0.3 });
         cards.forEach(c => { c.style.setProperty('--glow-intensity','0'); });
         return;
       }
@@ -255,14 +295,14 @@ function GlobalSpotlight({ gridRef }: { gridRef: React.RefObject<HTMLDivElement 
         card.style.setProperty('--glow-radius', `${SPOTLIGHT_RADIUS}px`);
       });
 
-      gsap.to(spot, { left:e.clientX, top:e.clientY, duration:0.1 });
+      g.to(spot, { left:e.clientX, top:e.clientY, duration:0.1 });
       const tOp = minDist <= PROX ? 0.7 : minDist <= FADE ? ((FADE-minDist)/(FADE-PROX))*0.7 : 0;
-      gsap.to(spot, { opacity:tOp, duration: tOp > 0 ? 0.2 : 0.5 });
+      g.to(spot, { opacity:tOp, duration: tOp > 0 ? 0.2 : 0.5 });
     };
 
     const onLeave = () => {
       gridRef.current?.querySelectorAll<HTMLElement>('.magic-bento-card').forEach(c => c.style.setProperty('--glow-intensity','0'));
-      if (spotRef.current) gsap.to(spotRef.current, { opacity:0, duration:0.3 });
+      if (spotRef.current) gsapRef?.to(spotRef.current, { opacity:0, duration:0.3 });
     };
 
     document.addEventListener('mousemove', onMove);

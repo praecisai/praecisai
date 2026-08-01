@@ -11,9 +11,33 @@ import {
   IconArrowRight,
   IconLock,
 } from '@tabler/icons-react';
+import dynamic from 'next/dynamic';
 import { itemVariants, sectionVariants, viewportOnce, wordItem, scaleIn } from './motion';
 import { TextAnimate } from '@/registry/magicui/text-animate';
-import LightRays from './LightRays';
+
+// The rays are a WebGL canvas (ogl). Purely decorative, so it is loaded only
+// in the browser and only where it is affordable: keeping `ogl` and the GL
+// context off the critical path is the single biggest mobile win here.
+const LightRays = dynamic(() => import('./LightRays'), { ssr: false });
+
+/**
+ * Rays are enabled only on pointer-capable screens wide enough for them, and
+ * never when the visitor asked for reduced motion. Phones (where the render
+ * loop costs the most and the effect is barely visible) skip it entirely.
+ */
+function useDecorativeRays() {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(
+      '(min-width: 768px) and (prefers-reduced-motion: no-preference)',
+    );
+    const apply = () => setEnabled(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return enabled;
+}
 
 const line1Words = ['Stop', 'chasing', 'payments.'];
 const line2Start = 'Start';
@@ -140,6 +164,7 @@ function Particles() {
 
 export default function HeroSection() {
   const sectionRef = useRef(null);
+  const raysEnabled = useDecorativeRays();
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end start'],
@@ -165,21 +190,23 @@ export default function HeroSection() {
       className="relative overflow-hidden bg-[var(--cream)] px-5 pt-24 pb-16 sm:px-8 sm:pt-[148px] sm:pb-40 lg:pb-44"
     >
       <Particles />
-      {/* Light rays from top-center, follow cursor */}
-      <LightRays
-        raysOrigin="top-center"
-        raysColor="#DDB892"
-        raysSpeed={0.6}
-        lightSpread={0.55}
-        rayLength={2.8}
-        followMouse={true}
-        mouseInfluence={0.09}
-        noiseAmount={0}
-        distortion={0}
-        pulsating={false}
-        fadeDistance={1}
-        className="z-0"
-      />
+      {/* Light rays from top-center, follow cursor (desktop only) */}
+      {raysEnabled && (
+        <LightRays
+          raysOrigin="top-center"
+          raysColor="#DDB892"
+          raysSpeed={0.6}
+          lightSpread={0.55}
+          rayLength={2.8}
+          followMouse={true}
+          mouseInfluence={0.09}
+          noiseAmount={0}
+          distortion={0}
+          pulsating={false}
+          fadeDistance={1}
+          className="z-0"
+        />
+      )}
 
       {/* Subtle radial glow at center-top */}
       <div

@@ -511,7 +511,13 @@ export function toE164India(raw: string): string {
 }
 
 // Strip legal suffixes for the spoken business name — "Aeromen Clothing LLP"
-// should be spoken as "Aeromen Clothing".
+// should be spoken as "Aeromen Clothing". Tally exports are usually ALL CAPS,
+// which the TTS reads robotically or spells out ("A-E-R-O-M-E-N"), so proper-case
+// an all-caps result. Names that already have lowercase (intentional brands like
+// "TechCorp") are left untouched.
 export function spokenBusinessName(name: string): string {
-  return name.replace(/\s+(llp|ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '').trim();
+  const stripped = name
+    .replace(/\s+(llp|ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '')
+    .trim();
+  return /[a-z]/.test(stripped) ? stripped : toProperCase(stripped);
 }

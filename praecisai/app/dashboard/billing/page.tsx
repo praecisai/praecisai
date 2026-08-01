@@ -80,7 +80,7 @@ export default function BillingPage() {
             <div>
               <p className="font-semibold text-[var(--dark-brown)]">Complete your onboarding payment</p>
               <p className="text-sm text-[var(--walnut)] mt-1">
-                One-time setup of ₹50,000 + GST (includes your first month). A discount coupon is required.
+                One-time setup of ₹50,000, no GST (includes your first month). Apply a discount coupon if you have one.
               </p>
             </div>
             <Link
@@ -107,7 +107,7 @@ export default function BillingPage() {
                 <CalendarClock size={16} className="text-[var(--mahogany)]" />
                 {sub?.next_debit_date ? fmtDate(sub.next_debit_date) : '-'}
               </p>
-              <p className="text-xs text-[var(--walnut)] mt-1">₹5,900 incl. GST (₹5,000 + 18%)</p>
+              <p className="text-xs text-[var(--walnut)] mt-1">₹5,000 per month, no GST</p>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">Mandate status</p>
@@ -136,7 +136,9 @@ export default function BillingPage() {
                     {formatPaise(onboarding.total_amount)}
                   </p>
                   <p className="text-xs text-[var(--walnut)] mt-1">
-                    Setup {formatPaise(onboarding.setup_component)} · First month {formatPaise(onboarding.subscription_component)} · GST {formatPaise(onboarding.gst_amount)}
+                    Setup {formatPaise(onboarding.setup_component)} · First month {formatPaise(onboarding.subscription_component)}
+                    {onboarding.gst_amount > 0 ? ` · GST ${formatPaise(onboarding.gst_amount)}` : ''}
+                    {onboarding.trial_credit_amount > 0 ? ` · Trial adjusted -${formatPaise(onboarding.trial_credit_amount)}` : ''}
                     {onboarding.coupon ? ` · Coupon ${onboarding.coupon.code} (${onboarding.coupon.percent}%)` : ''}
                   </p>
                 </>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   IconThumbUp,
@@ -16,7 +17,13 @@ import {
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
-import DemoSignupForm from '../demo/DemoSignupForm';
+
+// The signup form drags in react-hook-form + zod (~130 KB). It sits far below
+// the fold, so it is loaded in the browser only, after the page is interactive.
+const DemoSignupForm = dynamic(() => import('../demo/DemoSignupForm'), {
+  ssr: false,
+  loading: () => <div className="h-[420px] animate-pulse rounded-xl bg-[var(--sand)]" />,
+});
 
 type FilterTab = 'all' | 'employees' | 'owners';
 

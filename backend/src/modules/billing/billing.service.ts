@@ -49,7 +49,9 @@ export class BillingService {
 
   /** Throws with a user-readable message when the coupon can't be used. */
   async validateCoupon(code: string, businessId: string): Promise<Coupon> {
-    if (!code?.trim()) throw new BadRequestException('A coupon code is required at checkout');
+    // Only reached when the customer actually typed a code: coupons are
+    // optional, checkout without one charges the full price.
+    if (!code?.trim()) throw new BadRequestException('Enter a coupon code to validate');
     const coupon = await this.prisma.coupon.findUnique({
       where: { code: code.trim().toUpperCase() },
     });
@@ -68,11 +70,28 @@ export class BillingService {
     return coupon;
   }
 
+  /**
+   * Has this tenant already paid the ₹10,000 trial? That amount is credited
+   * against onboarding (non-refundable otherwise).
+   */
+  private async hasPaidTrial(businessId: string): Promise<boolean> {
+    const paidTrial = await this.prisma.billingPayment.findFirst({
+      where: { business_id: businessId, type: 'TRIAL', status: 'PAID' },
+      select: { id: true },
+    });
+    return !!paidTrial;
+  }
+
   /** Preview: coupon + full server-side quote (never trust client math). */
   async quoteOnboarding(code: string, businessId: string) {
     const coupon = await this.validateCoupon(code, businessId);
-    const quote = computeOnboardingQuote(coupon.percent);
+    const quote = computeOnboardingQuote(coupon.percent, await this.hasPaidTrial(businessId));
     return { coupon: { code: coupon.code, percent: coupon.percent }, quote };
+  }
+
+  /** Quote with no coupon: used by the onboarding page before a code is typed. */
+  async quoteOnboardingPlain(businessId: string) {
+    return computeOnboardingQuote(0, await this.hasPaidTrial(businessId));
   }
 
   // ─── Onboarding checkout ────────────────────────────────────────────────────
@@ -84,14 +103,16 @@ export class BillingService {
       throw new BadRequestException('Onboarding payment has already been completed');
     }
 
-    // Coupon is optional: no code → full price (0% discount)
+    // Coupon is optional: no code → full price (0% discount). A paid trial
+    // credits ₹10,000 after the discount.
+    const trialPaid = await this.hasPaidTrial(businessId);
     let coupon: Coupon | null = null;
     let quote: ReturnType<typeof computeOnboardingQuote>;
     if (couponCode?.trim()) {
       coupon = await this.validateCoupon(couponCode.trim(), businessId);
-      quote = computeOnboardingQuote(coupon.percent);
+      quote = computeOnboardingQuote(coupon.percent, trialPaid);
     } else {
-      quote = computeOnboardingQuote(0); // full price, no discount
+      quote = computeOnboardingQuote(0, trialPaid); // full price, no discount
     }
 
     const startAt = firstDebitDate(new Date(), this.anchorMode);
@@ -101,7 +122,9 @@ export class BillingService {
       planId,
       startAt,
       upfrontPaise: quote.totalAmount,
-      upfrontLabel: 'PraecisAI onboarding (setup + first month) incl. 18% GST',
+      upfrontLabel: quote.trialCreditAmount
+        ? 'PraecisAI onboarding (setup + first month), trial amount adjusted'
+        : 'PraecisAI onboarding (setup + first month)',
       notes: {
         praecis_business_id: businessId,
         praecis_type: 'onboarding',
@@ -133,6 +156,7 @@ export class BillingService {
         razorpay_subscription_id: subscription.id,
         base_amount: quote.baseAmount,
         discount_amount: quote.discountAmount,
+        trial_credit_amount: quote.trialCreditAmount,
         setup_component: quote.setupComponent,
         subscription_component: quote.subscriptionComponent,
         gst_amount: quote.gstAmount,
@@ -153,7 +177,7 @@ export class BillingService {
     };
   }
 
-  // ─── Trial checkout (₹10,000 ex-GST · 10 days of full access) ───────────────
+  // ─── Trial checkout (₹10,000 · 10 days of full access) ──────────────────────
 
   async createTrialCheckout(businessId: string) {
     const business = await this.prisma.business.findUnique({ where: { id: businessId } });
@@ -439,7 +463,7 @@ export class BillingService {
     await this.notifications.create(
       sub.business_id,
       'DEBIT_SUCCESS',
-      `Monthly subscription of Rs.5,900 (Rs.5,000 + GST) debited successfully. Next debit: ${nextDebit.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
+      `Monthly subscription of Rs.5,000 debited successfully. Next debit: ${nextDebit.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
     );
 
     await this.invoices.createForPayment(payment);

@@ -13,13 +13,14 @@ const BUCKET = 'billing-invoices';
 // next download re-renders it in the new format and purges the old object.
 // v1 = original mahogany layout · v2 = Praecis AI logo header · v3 = totals
 // rewrite (alignment still off) · v4 = totals value column aligned to the
-// line-item AMOUNT column.
-const PDF_TEMPLATE_VERSION = 4;
+// line-item AMOUNT column · v5 = GST removed (no tax charged).
+const PDF_TEMPLATE_VERSION = 5;
 
 /**
- * GST invoices for Praecis fees. Numbers are sequential inside each Indian
- * financial year: PRAE/25-26/0001. PDFs live in the private
- * `billing-invoices` bucket; downloads go through short-lived signed URLs.
+ * Invoices for Praecis fees. No GST is charged: the listed price is the whole
+ * amount. Numbers are sequential inside each Indian financial year:
+ * PRAE/25-26/0001. PDFs live in the private `billing-invoices` bucket;
+ * downloads go through short-lived signed URLs.
  */
 @Injectable()
 export class BillingInvoiceService {
@@ -158,6 +159,14 @@ export class BillingInvoiceService {
               ? [
                   {
                     description: `Coupon discount applied: Rs.${(payment.discount_amount / 100).toLocaleString('en-IN')} off Rs.${(payment.base_amount / 100).toLocaleString('en-IN')} base`,
+                    amount: 0,
+                  },
+                ]
+              : []),
+            ...(payment.trial_credit_amount > 0
+              ? [
+                  {
+                    description: `Trial amount already paid, adjusted: Rs.${(payment.trial_credit_amount / 100).toLocaleString('en-IN')}`,
                     amount: 0,
                   },
                 ]

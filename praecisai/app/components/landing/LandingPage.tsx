@@ -2,43 +2,58 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { createClient } from '../../../lib/supabase/client';
 // import { AnimatePresence } from 'framer-motion';
 // import WorkflowSplash from '../splash/WorkflowSplash';
 import Navbar from './Navbar';
 import HeroSection from './HeroSection';
-import TwoWaysSection from './TwoWaysSection';
-import HowItWorks from './HowItWorks';
-import DifferentiatorSection from './DifferentiatorSection';
-import IndustriesStrip from './IndustriesStrip';
-import FeaturesSection from './FeaturesSection';
-import BentoSection from './BentoSection';
-import CapabilitiesSection from './CapabilitiesSection';
-import ReportsSection from './ReportsSection';
-import StatsSection from './StatsSection';
-import PricingSection from './PricingSection';
-import TestimonialsSection from './TestimonialsSection';
-import FounderSection from './FounderSection';
-import FaqSection from './FaqSection';
-import CtaSection from './CtaSection';
-import Footer from './Footer';
-import CardSpotlight from '../CardSpotlight';
-import WhatsAppWidget from '../marketing/WhatsAppWidget';
+
+// Everything below the fold is code-split so the first paint only ships the
+// navbar + hero. `ssr` stays on (the default), so the HTML is still fully
+// server-rendered and SEO/crawlers see the complete page: only the hydration
+// JS moves into separate chunks that load after the hero.
+const TwoWaysSection = dynamic(() => import('./TwoWaysSection'));
+const HowItWorks = dynamic(() => import('./HowItWorks'));
+const DifferentiatorSection = dynamic(() => import('./DifferentiatorSection'));
+const IndustriesStrip = dynamic(() => import('./IndustriesStrip'));
+const FeaturesSection = dynamic(() => import('./FeaturesSection'));
+const BentoSection = dynamic(() => import('./BentoSection'));
+const CapabilitiesSection = dynamic(() => import('./CapabilitiesSection'));
+const ReportsSection = dynamic(() => import('./ReportsSection'));
+const StatsSection = dynamic(() => import('./StatsSection'));
+const PricingSection = dynamic(() => import('./PricingSection'));
+const TestimonialsSection = dynamic(() => import('./TestimonialsSection'));
+const FounderSection = dynamic(() => import('./FounderSection'));
+const FaqSection = dynamic(() => import('./FaqSection'));
+const CtaSection = dynamic(() => import('./CtaSection'));
+const Footer = dynamic(() => import('./Footer'));
+// Decorative/interactive only: no SSR value, so keep them out of the
+// server render and the critical path entirely.
+const CardSpotlight = dynamic(() => import('../CardSpotlight'), { ssr: false });
+const WhatsAppWidget = dynamic(() => import('../marketing/WhatsAppWidget'), { ssr: false });
 
 // let sessionStarted = false;
 
 export default function LandingPage() {
   const router = useRouter();
 
-  // Fallback: if OAuth code lands on homepage instead of /auth/callback, exchange it here
+  // Fallback: if an OAuth code lands on the homepage instead of /auth/callback,
+  // exchange it here. The Supabase client (~240 KB) is imported ONLY in that
+  // rare case, so ordinary visitors never download it with the landing page.
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('code');
     if (!code) return;
-    const supabase = createClient();
-    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-      if (!error) router.replace('/dashboard');
+    let cancelled = false;
+    import('../../../lib/supabase/client').then(({ createClient }) => {
+      if (cancelled) return;
+      createClient()
+        .auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (!error && !cancelled) router.replace('/dashboard');
+        });
     });
+    return () => { cancelled = true; };
   }, [router]);
   // ── Splash temporarily disabled — uncomment below to re-enable ──
   // const [showSplash, setShowSplash] = useState(() => !sessionStarted);

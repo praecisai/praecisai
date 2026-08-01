@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminTenants } from '../../../lib/api/hooks';
-import { Plus, AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, MinusCircle, Search, X } from 'lucide-react';
 
 const ONBOARDING_COLORS: Record<string, string> = {
   PENDING: '#6B7280',
@@ -30,13 +31,30 @@ function Dot({ ok }: { ok: boolean }) {
 export default function AdminTenantsPage() {
   const router = useRouter();
   const { data: tenants, isLoading } = useAdminTenants();
+  const [search, setSearch] = useState('');
+
+  // The whole tenant list is already loaded, so filtering happens here:
+  // instant, no extra request. Matches name, owner email and status.
+  const filtered = useMemo(() => {
+    const list = tenants ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((t: any) =>
+      [t.name, t.owner_email, t.onboarding_status, t.billing_subscriptions?.[0]?.status]
+        .filter(Boolean)
+        .some((f: string) => String(f).toLowerCase().includes(q)),
+    );
+  }, [tenants, search]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-bold text-[var(--dark-brown)]">Tenants</h1>
-          <p className="text-xs text-[var(--walnut)]">All businesses on the platform with live health</p>
+          <p className="text-xs text-[var(--walnut)]">
+            All businesses on the platform with live health
+            {search && ` · ${filtered.length} of ${tenants?.length ?? 0} shown`}
+          </p>
         </div>
         <Link
           href="/admin/tenants/new"
@@ -45,6 +63,34 @@ export default function AdminTenantsPage() {
         >
           <Plus size={15} /> New tenant
         </Link>
+      </div>
+
+      {/* Search */}
+      <div className="glass-card p-3">
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+          style={{ borderColor: 'var(--caramel)', background: 'var(--surface-warm)' }}
+        >
+          <Search size={14} className="flex-shrink-0" style={{ color: 'var(--walnut)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tenants by business name, owner email or status…"
+            className="bg-transparent border-none outline-none text-sm w-full"
+            style={{ color: 'var(--dark-brown)' }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="p-0.5 rounded flex-shrink-0"
+              style={{ color: 'var(--walnut)' }}
+              title="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="glass-card overflow-x-auto">
@@ -65,7 +111,7 @@ export default function AdminTenantsPage() {
               </tr>
             </thead>
             <tbody>
-              {(tenants ?? []).map((t: any) => (
+              {filtered.map((t: any) => (
                 <tr
                   key={t.id}
                   onClick={() => router.push(`/admin/tenants/${t.id}`)}
@@ -169,10 +215,12 @@ export default function AdminTenantsPage() {
                   </td>
                 </tr>
               ))}
-              {tenants?.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-center text-sm text-[var(--walnut)] py-8">
-                    No tenants yet: create the first one
+                    {search
+                      ? `No tenants match "${search}"`
+                      : 'No tenants yet: create the first one'}
                   </td>
                 </tr>
               )}

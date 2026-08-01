@@ -102,6 +102,12 @@ export class BillingController {
     return this.billing.quoteOnboarding(dto.code, businessId);
   }
 
+  /** Full-price quote (no coupon): already reflects any ₹10,000 trial credit. */
+  @Get('onboarding/quote')
+  onboardingQuote(@BusinessId() businessId: string) {
+    return this.billing.quoteOnboardingPlain(businessId);
+  }
+
   @Post('checkout/trial')
   createTrialCheckout(@BusinessId() businessId: string) {
     return this.billing.createTrialCheckout(businessId);

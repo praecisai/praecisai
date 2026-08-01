@@ -89,7 +89,7 @@ export default function AdminBillingPage() {
                               <th className="text-left">Coupon</th>
                               <th className="text-right">Setup</th>
                               <th className="text-right">Subscription</th>
-                              <th className="text-right">GST</th>
+                              <th className="text-right">Trial adj.</th>
                               <th className="text-right">Total</th>
                             </tr>
                           </thead>
@@ -104,7 +104,9 @@ export default function AdminBillingPage() {
                                 </td>
                                 <td className="text-right text-xs">{formatPaise(p.setup_component)}</td>
                                 <td className="text-right text-xs">{formatPaise(p.subscription_component)}</td>
-                                <td className="text-right text-xs">{formatPaise(p.gst_amount)}</td>
+                                <td className="text-right text-xs">
+                                  {p.trial_credit_amount > 0 ? `- ${formatPaise(p.trial_credit_amount)}` : '-'}
+                                </td>
                                 <td className="text-right text-sm font-semibold text-[var(--dark-brown)]">
                                   {formatPaise(p.total_amount)}
                                 </td>
