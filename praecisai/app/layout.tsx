@@ -24,7 +24,7 @@ const SITE_URL = 'https://www.praecisai.in';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'AI Calling Agent for Payment Recovery | PraecisAI',
+    default: 'Praecis AI - AI Calling Agent for Payment Recovery',
     template: '%s | PraecisAI',
   },
   description:

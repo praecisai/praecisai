@@ -5,12 +5,18 @@ import { GoogleTagManager } from '@next/third-parties/google';
 
 /**
  * Loads Google Tag Manager (which in turn injects gtag + the Meta/Facebook
- * pixel) only AFTER the page is interactive — on the first real user gesture,
- * or a 3.5s fallback. The GTM container pulls ~370 KB of third-party JS; keeping
- * it off the initial main thread is the single biggest TBT/LCP win on mobile.
+ * pixel + CAPI helper, ~450 KB of third-party JS) only once it can no longer
+ * hurt the initial render. This is the widely-used "lazy third-party" pattern:
  *
- * Tracking is preserved: every engaged visitor triggers it on their first
- * scroll/tap/keypress, and idle visitors still load it after the timeout.
+ *   • Fire on the FIRST real user gesture (scroll / tap / key), which covers
+ *     virtually every engaged visitor within the first moment, OR
+ *   • Fall back to `requestIdleCallback` AFTER the window `load` event, so a
+ *     visitor who never interacts is still tracked — just once the page has
+ *     finished loading and the main thread is idle, never during it.
+ *
+ * No tracking is dropped (every visitor still triggers one path); the heavy
+ * scripts simply move off the critical path, which is what tanks LCP/TBT on
+ * throttled mobile.
  */
 export function DeferredGTM({ gtmId }: { gtmId: string }) {
   const [ready, setReady] = useState(false);
@@ -19,9 +25,13 @@ export function DeferredGTM({ gtmId }: { gtmId: string }) {
     if (ready) return;
     let done = false;
     const events = ['scroll', 'pointerdown', 'keydown', 'touchstart'] as const;
+    const idleWin = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
 
     const cleanup = () => {
       events.forEach((e) => window.removeEventListener(e, trigger));
+      window.removeEventListener('load', onLoad);
     };
     const trigger = () => {
       if (done) return;
@@ -30,15 +40,20 @@ export function DeferredGTM({ gtmId }: { gtmId: string }) {
       setReady(true);
     };
 
+    // Idle-after-load fallback for visitors who never interact.
+    const scheduleIdle = () =>
+      idleWin.requestIdleCallback
+        ? idleWin.requestIdleCallback(trigger, { timeout: 6000 })
+        : window.setTimeout(trigger, 5000);
+    const onLoad = () => scheduleIdle();
+
     events.forEach((e) =>
       window.addEventListener(e, trigger, { passive: true, once: true }),
     );
-    const timer = window.setTimeout(trigger, 3500);
+    if (document.readyState === 'complete') scheduleIdle();
+    else window.addEventListener('load', onLoad, { once: true });
 
-    return () => {
-      window.clearTimeout(timer);
-      cleanup();
-    };
+    return cleanup;
   }, [ready]);
 
   return ready ? <GoogleTagManager gtmId={gtmId} /> : null;
