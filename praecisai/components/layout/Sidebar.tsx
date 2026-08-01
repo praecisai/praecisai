@@ -84,7 +84,7 @@ export function Sidebar() {
         style={{ background: 'var(--surface-warm)', borderRight: '1px solid var(--caramel)' }}
       >
         {/* Logo + Theme Toggle */}
-        <div className="flex items-center justify-between px-5 py-5 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <Logo />
           <div className="flex items-center gap-1">
             <AnimatedThemeToggler />
@@ -96,6 +96,32 @@ export function Sidebar() {
               <X size={18} />
             </button>
           </div>
+        </div>
+
+        {/* Which tenant you are signed in to. Shown here rather than only in
+            Settings: with several Aeromen logins it must be obvious at a glance
+            whose ledger is on screen. */}
+        <div className="px-5 pb-4 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
+          {user?.business?.name ? (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--rust)]">
+                Business
+              </p>
+              <p
+                className="mt-1 text-sm font-semibold text-[var(--dark-brown)] truncate"
+                title={user.business.name}
+              >
+                {user.business.name}
+              </p>
+            </>
+          ) : (
+            // Skeleton rather than an ellipsis: a pending load should not look
+            // like a missing value.
+            <div className="space-y-1.5">
+              <div className="h-2.5 w-16 rounded animate-pulse" style={{ background: 'var(--sand)' }} />
+              <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: 'var(--sand)' }} />
+            </div>
+          )}
         </div>
 
         {/* Nav: scrollable, pushes footer to bottom */}
@@ -143,8 +169,21 @@ export function Sidebar() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--dark-brown)] truncate">{user?.name ?? user?.email ?? '...'}</p>
-              {user?.name && <p className="text-xs text-[var(--walnut)] truncate">{user.email}</p>}
+              {/* `name` only exists on Google sign-ins (it comes from OAuth
+                  metadata, not our users table), so email is the reliable
+                  label for email/password accounts. */}
+              {user ? (
+                <>
+                  <p className="text-sm font-medium text-[var(--dark-brown)] truncate">
+                    {user.name ?? user.email ?? 'Signed in'}
+                  </p>
+                  {user.name && user.email && (
+                    <p className="text-xs text-[var(--walnut)] truncate">{user.email}</p>
+                  )}
+                </>
+              ) : (
+                <div className="h-3.5 w-24 rounded animate-pulse" style={{ background: 'var(--caramel)' }} />
+              )}
             </div>
             <button
               id="logout-btn"

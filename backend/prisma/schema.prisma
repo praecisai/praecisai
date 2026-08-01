@@ -166,6 +166,19 @@ model Business {
   // OFF by default: automatic dialing is never enabled without an explicit
   // opt-in from the business.
   auto_calls_enabled Boolean    @default(false)
+  // Master switch for the unattended 10:00 IST WhatsApp statement run.
+  // OFF by default, same reasoning as auto_calls_enabled.
+  auto_whatsapp_enabled Boolean @default(false)
+  // Per-segment override for how many days must pass before the same party may
+  // receive another automated statement. Null = platform defaults
+  // (Soft Reminder 15 days, every other contactable segment 7 days).
+  // Shape: { "Soft Reminder": 15, "Follow-up": 7, ... }
+  whatsapp_cadence_days Json?
+  // Safety ceilings for one automated run. These exist to protect the tenant's
+  // WhatsApp quality rating and calling CLI, not to price the product: a run
+  // that would exceed the cap stops early and resumes at the next slot.
+  daily_whatsapp_cap Int        @default(200)
+  daily_call_cap     Int        @default(200)
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
 

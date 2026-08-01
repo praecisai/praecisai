@@ -29,6 +29,7 @@ export const MAX_HONOURED_DAYS = 15;
 export type CallbackIntent =
   | { kind: 'later' } // "baadme", no time
   | { kind: 'tomorrow' } // "kal", no time
+  | { kind: 'relativeMinutes'; minutes: number } // "paanch minute baad"
   | { kind: 'relativeHours'; hours: number } // "ek ghante baad"
   | { kind: 'relativeDays'; days: number } // "do din baad" / "X din baad"
   | { kind: 'specific'; at: Date; hasTime: boolean } // explicit date/time
@@ -97,6 +98,17 @@ export function computeCallbackTime(
 
     case 'tomorrow':
       return noonSlotDaysAhead(now, 1);
+
+    // "paanch minute baad" — honoured as stated. A short callback is the one
+    // case where the customer is still at their desk, so drifting it to the
+    // next bulk window would miss the moment entirely.
+    case 'relativeMinutes': {
+      const m = Number(intent.minutes);
+      if (!Number.isFinite(m) || m <= 0) return nextBulkSlot(now);
+      // Anything past a day is not a "few minutes" request; treat as mischief.
+      if (m > 24 * 60) return nextBulkSlot(now);
+      return new Date(now.getTime() + m * 60_000);
+    }
 
     case 'relativeHours': {
       const h = Number(intent.hours);

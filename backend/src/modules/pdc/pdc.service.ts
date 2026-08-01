@@ -4,13 +4,26 @@ import { PdcStatus } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import Fuse from 'fuse.js';
 
-// PDC Excel field aliases: detects columns in any order
+// PDC Excel field aliases: detects columns in any order.
+//
+// `cheque_date` is listed most-specific-first because a real Tally PDC export
+// carries BOTH a receive date and a cheque date ("Cheque Recive Date",
+// "Cheque Date"). Exact matching walks the header row, so without the specific
+// alias the wrong column can win and every cheque lands with the date it was
+// handed over rather than the date it is payable.
 const PDC_ALIASES = {
   party_name: ['Party Name', 'Party', 'Customer Name', 'Customer', 'Name', 'Client'],
   cheque_no:  ['Cheque No', 'Cheque Number', 'Chq No', 'Chq Number', 'Check No', 'Cheque No.'],
-  cheque_date:['Date', 'Cheque Date', 'Chq Date', 'Payment Date', 'Dated'],
-  amount:     ['Amount', 'Cheque Amount', 'Value', 'Rs', 'Amount (Rs)', 'Amount (₹)'],
+  cheque_date:['Cheque Date', 'Chq Date', 'Date', 'Payment Date', 'Dated', 'Due Date'],
+  amount:     [
+    'Amount', 'Amt', 'Cheque Amount', 'Cheque Amt', 'Chq Amount', 'Chq Amt',
+    'Value', 'Rs', 'Amount (Rs)', 'Amount (₹)', 'Amount Rs', 'Cheque Value',
+  ],
 };
+
+// Headers that must never be picked for `cheque_date`: they describe when the
+// cheque was received, not when it can be banked.
+const RECEIVE_DATE_HINTS = ['recive', 'receive', 'recd', 'received', 'entry'];
 
 function parseExcelRows(buffer: Buffer): Record<string, string>[] {
   const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
@@ -28,9 +41,23 @@ function parseExcelRows(buffer: Buffer): Record<string, string>[] {
 function autoDetectColumns(headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const [field, aliases] of Object.entries(PDC_ALIASES)) {
-    const exact = headers.find(h => aliases.some(a => a.toLowerCase() === h.toLowerCase()));
+    // A receive/entry date must never be mistaken for the cheque date.
+    const pool =
+      field === 'cheque_date'
+        ? headers.filter(
+            (h) => !RECEIVE_DATE_HINTS.some((hint) => h.toLowerCase().includes(hint)),
+          )
+        : headers;
+    if (pool.length === 0) continue;
+
+    // Aliases are ordered most-specific-first, so try them in order rather
+    // than walking the header row: "Cheque Date" must beat a bare "Date".
+    const exact = aliases
+      .map((a) => pool.find((h) => h.toLowerCase() === a.toLowerCase()))
+      .find(Boolean);
     if (exact) { mapping[field] = exact; continue; }
-    const fuse = new Fuse(headers, { includeScore: true, threshold: 0.4 });
+
+    const fuse = new Fuse(pool, { includeScore: true, threshold: 0.4 });
     let best: { col: string; score: number } | null = null;
     for (const alias of aliases) {
       const res = fuse.search(alias);
@@ -120,8 +147,25 @@ export class PdcService {
       data: { business_id: businessId, file_name: file.originalname, records_total: rows.length },
     });
 
+    // Re-upload guard. PDC files are cumulative in practice: the same register
+    // gets exported again next week with a few new rows appended. Without this,
+    // every re-upload duplicates every cheque, which then double-counts against
+    // the next outstanding decrease and clears cheques that were never banked.
+    // Identity = party + cheque number + amount, scoped to the business.
+    const existing = await this.db.pdcCheque.findMany({
+      where: { business_id: businessId },
+      select: { party_name: true, cheque_no: true, amount: true },
+    });
+    const chequeKey = (party: string, no: string, amt: number) =>
+      `${party.toLowerCase()}|${no.toLowerCase()}|${amt.toFixed(2)}`;
+    const alreadyStored = new Set<string>(
+      existing.map((c: any) => chequeKey(c.party_name, c.cheque_no, c.amount)),
+    );
+
     let matched = 0;
     let skipped = 0;
+    let duplicates = 0;
+    const seenInFile = new Set<string>();
     const chequeRows: Record<string, any>[] = [];
 
     for (const row of rows) {
@@ -139,6 +183,15 @@ export class PdcService {
 
       // Exact name first, fuzzy only as a fallback
       const lookupName = normalizePartyName(partyName);
+
+      // Skip anything already on file, and anything repeated inside this file.
+      const key = chequeKey(lookupName || partyName, chequeNo, amount);
+      if (alreadyStored.has(key) || seenInFile.has(key)) {
+        duplicates++;
+        continue;
+      }
+      seenInFile.add(key);
+
       let customerId: string | null = exactByName.get(lookupName.toLowerCase()) ?? null;
       if (!customerId) {
         const results = fuse.search(lookupName);
@@ -164,7 +217,9 @@ export class PdcService {
       // Nothing usable: drop the empty batch so history stays meaningful
       await this.db.pdcUploadHistory.delete({ where: { id: batch.id } }).catch(() => undefined);
       throw new BadRequestException(
-        `No valid cheque rows found in this file. Every row needs a party name, a cheque number and an amount greater than zero (${skipped} row(s) were incomplete).`,
+        duplicates > 0
+          ? `No new cheques in this file: all ${duplicates} row(s) are already on record. Re-uploading the same register is safe, nothing was duplicated.`
+          : `No valid cheque rows found in this file. Every row needs a party name, a cheque number and an amount greater than zero (${skipped} row(s) were incomplete).`,
       );
     }
 
@@ -177,13 +232,15 @@ export class PdcService {
     });
 
     this.logger.log(
-      `PDC upload "${file.originalname}": ${chequeRows.length} cheque(s), ${matched} matched to customers, ${skipped} skipped`,
+      `PDC upload "${file.originalname}": ${chequeRows.length} new cheque(s), ${matched} matched to customers, ` +
+        `${duplicates} already on record, ${skipped} incomplete`,
     );
 
     return {
       batch_id: batch.id,
       records_total: chequeRows.length,
       records_matched: matched,
+      records_duplicate: duplicates,
       records_unmatched: chequeRows.length - matched,
       records_skipped: skipped,
       columns_detected: colMap,
@@ -238,18 +295,22 @@ export class PdcService {
       }),
     ]);
 
-    // Update batch cleared count
-    const batchIds = [...new Set(
-      (await this.db.pdcCheque.findMany({
-        where: { id: { in: clearedIds } },
-        select: { upload_batch_id: true },
-      })).map(r => r.upload_batch_id)
-    )];
+    // Update each batch by the number of ITS OWN cheques that cleared. The
+    // previous version incremented every touched batch by the full run count,
+    // so a clearing that spanned two uploads reported double.
+    const cleared = await this.db.pdcCheque.findMany({
+      where: { id: { in: clearedIds } },
+      select: { upload_batch_id: true },
+    });
+    const perBatch = new Map<string, number>();
+    for (const c of cleared) {
+      perBatch.set(c.upload_batch_id, (perBatch.get(c.upload_batch_id) ?? 0) + 1);
+    }
 
-    for (const batchId of batchIds) {
+    for (const [batchId, count] of perBatch) {
       await this.db.pdcUploadHistory.update({
         where: { id: batchId },
-        data: { records_cleared: { increment: clearedIds.length } },
+        data: { records_cleared: { increment: count } },
       });
     }
 

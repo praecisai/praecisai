@@ -12,7 +12,15 @@ export interface CallExtractionResult {
   is_sensitive: boolean;
   whatsapp_requested: boolean;
   callback: {
-    kind: 'none' | 'later' | 'tomorrow' | 'relative_hours' | 'relative_days' | 'specific';
+    kind:
+      | 'none'
+      | 'later'
+      | 'tomorrow'
+      | 'relative_minutes'
+      | 'relative_hours'
+      | 'relative_days'
+      | 'specific';
+    minutes: number | null;
     hours: number | null;
     days: number | null;
     datetime: string | null;
@@ -44,7 +52,8 @@ const USER_PROMPT = `Extract the following from the call transcript:
   "is_sensitive": <true if the customer mentioned a death, funeral, hospitalization, serious illness, accident, medical emergency, or family tragedy: including indirect Hindi phrasing such as "गुज़र गए", "नहीं रहे", "देहांत", "स्वर्गवास", "expire ho gaye", "off ho gaya", "chal base", "upar chala gaya", "admit hai", "ICU", "tabiyat bahut kharab", "accident ho gaya", "ghar mein maatam": else false>,
   "whatsapp_requested": <true ONLY IF the CUSTOMER themselves explicitly and unambiguously asked to RECEIVE the outstanding / statement / bill on WhatsApp — a direct request like "WhatsApp par bhej do", "statement bhej dijiye", "mujhe WhatsApp kar do", "send it on WhatsApp", "details bhej dijiye main check kar lunga". Set FALSE in every other case: if only the agent (Meena) mentioned or offered WhatsApp, if WhatsApp came up vaguely / in passing / hypothetically, if the customer only said "okay" to an offer, or if you are not certain. When in ANY doubt, set FALSE — a false send is worse than a missed one. The customer's own clear request is required>,
   "callback": {
-    "kind": "<none | later | tomorrow | relative_hours | relative_days | specific>",
+    "kind": "<none | later | tomorrow | relative_minutes | relative_hours | relative_days | specific>",
+    "minutes": <integer or null>,
     "hours": <integer or null>,
     "days": <integer or null>,
     "datetime": "<ISO 8601 date or date-time, or null>",
@@ -58,7 +67,8 @@ const USER_PROMPT = `Extract the following from the call transcript:
 }
 
 Callback guide: set ONLY when the customer asks to be called back later or says they are busy now:
-- "later": busy / call later with NO day or time: "baad mein call karo", "abhi busy hoon", "thodi der baad", "aap baad mein call kariye"
+- "later": busy / call later with NO number of minutes, hours, day or time: "baad mein call karo", "abhi busy hoon", "thodi der baad", "aap baad mein call kariye"
+- "relative_minutes": a COUNT OF MINUTES was stated: "paanch minute baad", "5 minute mein call karo", "das minute baad", "call me in 10 minutes", "aadhe ghante baad" (aadha ghanta = 30) → set minutes = N
 - "tomorrow": "kal", "kal call karo": no clock time
 - "relative_hours": "ek ghante baad", "do ghante baad" → set hours = N
 - "relative_days": "do din baad", "teen din baad", "hafte baad" (hafte = 7), "X din baad" → set days = N

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import { parseSegmentRules, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
-import { IsString, IsOptional, IsEnum, IsArray, MinLength, Matches } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, MinLength, Matches, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StrictOptionalBoolean } from '../../common/decorators/strict-boolean.decorator';
 
@@ -57,6 +57,30 @@ export class UpdateBusinessDto {
   // and silently start automatic dialing.
   @StrictOptionalBoolean()
   auto_calls_enabled?: unknown;
+
+  // Master switch for the unattended 10:00 IST WhatsApp statement run.
+  // Same strict-boolean treatment as auto_calls_enabled: a coerced "false"
+  // would silently start messaging every party in the ledger.
+  @StrictOptionalBoolean()
+  auto_whatsapp_enabled?: unknown;
+
+  // { "Soft Reminder": 15, "Follow-up": 7, ... } — days between automated
+  // statements per segment. Validated in the service.
+  @IsOptional()
+  @Type(() => Object)
+  whatsapp_cadence_days?: Record<string, number> | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5000)
+  daily_whatsapp_cap?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5000)
+  daily_call_cap?: number;
 }
 
 // Segments the AI can actually speak: the VIP override must map to one of these
@@ -114,9 +138,32 @@ export class BusinessService {
       }
     }
 
-    const { vip_rule, ...rest } = dto;
+    // WhatsApp cadence override: every key must be a contactable segment and
+    // every value a sane day count. A bad value here would mean messaging the
+    // same party daily, which is the fastest way to lose a WhatsApp number.
+    if (dto.whatsapp_cadence_days !== undefined && dto.whatsapp_cadence_days !== null) {
+      for (const [segment, value] of Object.entries(dto.whatsapp_cadence_days)) {
+        if (!CONTACT_SEGMENTS.includes(segment)) {
+          throw new BadRequestException(
+            `whatsapp_cadence_days key "${segment}" is not a contactable segment. Allowed: ${CONTACT_SEGMENTS.join(', ')}`,
+          );
+        }
+        const days = Number(value);
+        if (!Number.isFinite(days) || days < 1 || days > 365) {
+          throw new BadRequestException(
+            `whatsapp_cadence_days["${segment}"] must be between 1 and 365 days`,
+          );
+        }
+      }
+    }
+
+    const { vip_rule, whatsapp_cadence_days, ...rest } = dto;
     const data: any = { ...rest };
     if (vip_rule !== undefined) data.vip_rule = vip_rule === null ? Prisma.DbNull : vip_rule;
+    if (whatsapp_cadence_days !== undefined) {
+      data.whatsapp_cadence_days =
+        whatsapp_cadence_days === null ? Prisma.DbNull : whatsapp_cadence_days;
+    }
 
     const updated = await this.prisma.business.update({
       where: { id },

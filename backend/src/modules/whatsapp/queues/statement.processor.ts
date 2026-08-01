@@ -9,8 +9,14 @@ import { WhatsappService } from '../whatsapp.service';
 // Failures are per-customer: sendStatementToCustomer already writes a FAILED
 // WhatsAppLog for AiSensy errors; we log and swallow so one bad customer
 // never stalls the rest of the segment.
+// Pacing: one send every 2s (~30/min). Meta does not publish a per-second cap
+// for template sends, but an even trickle is what a human-run account looks
+// like; a 500-message burst from a number with no history is what gets a
+// sender reported and its quality rating cut. The limiter is worker-wide, so
+// manual bulk sends and the 10:00 automated run share the same pipe.
 @Processor('whatsapp-statements', {
   concurrency: 1,
+  limiter: { max: 1, duration: 2000 },
   stalledInterval: 60000,
   maxStalledCount: 1,
 })

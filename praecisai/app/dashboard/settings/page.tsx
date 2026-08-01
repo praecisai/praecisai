@@ -7,13 +7,15 @@ import {
   useMe, useUpdateBusiness, useBolnaCredits,
   useBillingAccess,
 } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Coins, Star } from 'lucide-react';
+import { Settings, Users, Shield, Coins, Star, Zap } from 'lucide-react';
+import { AutomationSettings } from '../../../components/shared/AutomationSettings';
 import { toast } from 'sonner';
 
 // Platform API keys (Bolna/AiSensy) are managed by the Praecis admin panel
 // only: tenants must never see or edit them, so there is no Integrations tab.
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
+  { id: 'automation', label: 'Automation', icon: Zap },
   { id: 'users', label: 'Users & Roles', icon: Users },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
   { id: 'credits', label: 'Credit Status', icon: Coins },
@@ -177,6 +179,8 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          {activeTab === 'automation' && <AutomationSettings />}
+
           {activeTab === 'business' && (
             <div className="glass-card p-4 sm:p-6 space-y-5">
               <h3 className="font-semibold text-[var(--dark-brown)]">Business Settings</h3>

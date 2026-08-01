@@ -4,8 +4,14 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { DemoRunStatus, CallStatus } from '@prisma/client';
 import { TenantKeysService } from '../../billing/tenant-keys.service';
 
+// Pacing: one dial every 5s (~12/min, ~720/hr). Indian operators flag a CLI
+// that emits a dense burst of short, unanswered calls, and a flagged CLI is
+// slow to clear. An even trickle across the 12:00/16:00 windows looks like a
+// collections desk rather than a dialer. Worker-wide, so manual bulk and the
+// automated runs share the same pipe.
 @Processor('outbound-calls', {
   concurrency: 1,
+  limiter: { max: 1, duration: 5000 },
   stalledInterval: 60000,
   maxStalledCount: 1,
 })

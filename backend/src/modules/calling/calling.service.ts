@@ -12,6 +12,8 @@ import {
   applyVipRule,
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
+import { dedupeByPhone } from '../../common/utils/contact-cadence.util';
+import { isPdcCooldownActive, pdcCooldownMessage } from '../../common/utils/pdc-cooldown.util';
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import { computePromiseDate, promiseBasisLabel, PromiseIntent } from '../../common/utils/promise-date.util';
 import { BillingGateService } from '../billing/billing-gate.service';
@@ -51,6 +53,8 @@ export class CallingService {
         return { kind: 'later' };
       case 'tomorrow':
         return { kind: 'tomorrow' };
+      case 'relative_minutes':
+        return { kind: 'relativeMinutes', minutes: Number(cb.minutes) || 5 };
       case 'relative_hours':
         return { kind: 'relativeHours', hours: Number(cb.hours) || 1 };
       case 'relative_days':
@@ -94,7 +98,21 @@ export class CallingService {
   async queueCustomerCall(
     businessId: string,
     customerId: string,
-    opts: { phoneOverride?: string; skipCooldown?: boolean } = {},
+    opts: {
+      phoneOverride?: string;
+      /**
+       * Fallback dial to the next number of the SAME attempt. Every
+       * per-customer guard already passed moments ago, so none are re-run.
+       */
+      skipCooldown?: boolean;
+      /**
+       * A re-dial the customer explicitly asked for ("call me in 5 minutes").
+       * Waives ONLY the 60-minute repeat gap, which exists to stop accidental
+       * double-dialling in bulk runs and should not override a direct request.
+       * The sensitive-situation and PDC cooldowns still apply.
+       */
+      isScheduledCallback?: boolean;
+    } = {},
   ) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
@@ -131,9 +149,26 @@ export class CallingService {
       );
     }
 
-    // 60-min same-customer cooldown: never ring the same person twice in a
-    // row. Skipped for fallback dials to the next number of the SAME attempt.
+    // PDC cooldown: a party whose cheque just cleared is not chased again while
+    // the payment settles. Skipped for fallback dials within the same attempt,
+    // which have already passed this check once.
     if (!opts.skipCooldown) {
+      const outstanding = await this.prisma.outstanding.findFirst({
+        where: { business_id: businessId, customer_id: customerId },
+        select: { pdc_cooldown_until: true },
+      });
+      if (isPdcCooldownActive(outstanding?.pdc_cooldown_until)) {
+        throw new BadRequestException(
+          pdcCooldownMessage(customer.customer_name, outstanding!.pdc_cooldown_until!),
+        );
+      }
+    }
+
+    // 60-min same-customer cooldown: never ring the same person twice in a
+    // row. Skipped for fallback dials to the next number of the SAME attempt,
+    // and for a callback the customer themselves asked for — a request to be
+    // rung back in 5 minutes must not be swallowed by an anti-repeat guard.
+    if (!opts.skipCooldown && !opts.isScheduledCallback) {
       const recentCall = await this.prisma.callLog.findFirst({
         where: {
           customer_id: customerId,
@@ -322,12 +357,21 @@ export class CallingService {
         status: 'ACTIVE',
         ...(isVipSegment ? {} : { segment }),
         customer: { is_vip: isVipSegment || vipOnly },
+        // Parties still settling a cleared cheque are excluded up front, so the
+        // reported count reflects what will actually be dialed.
+        OR: [{ pdc_cooldown_until: null }, { pdc_cooldown_until: { lte: new Date() } }],
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
     });
 
-    const eligible = outstandings.filter((o) => o.customer?.phone);
-    const noPhone = outstandings.length - eligible.length;
+    const withPhone = outstandings.filter((o) => o.customer?.phone);
+    const noPhone = outstandings.length - withPhone.length;
+
+    // One dial per physical handset. Several parties in the same ledger
+    // routinely share a number (a group accountant, one proprietor with three
+    // firms); without this, that single phone rings once per party back to
+    // back, which is exactly what gets a CLI reported as spam.
+    const { unique: eligible, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
 
     // Billing gate: batches are skipped while the subscription mandate is
     // halted or the tenant's Bolna balance can't cover the estimated cost.
@@ -340,7 +384,10 @@ export class CallingService {
     }
 
     let queued = 0;
-    const skipped: Array<{ customer: string; reason: string }> = [];
+    const skipped: Array<{ customer: string; reason: string }> = duplicates.map((o) => ({
+      customer: o.customer.customer_name,
+      reason: 'Another party in this batch shares the same phone number',
+    }));
 
     for (const o of eligible) {
       try {
@@ -356,8 +403,9 @@ export class CallingService {
       segment,
       queued,
       no_phone: noPhone,
+      shared_number: duplicates.length,
       skipped,
-      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}`,
+      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}`,
     };
   }
 
@@ -717,7 +765,11 @@ export class CallingService {
     if (!promisedDate && !isSensitive && callbackIntent.kind !== 'none') {
       const when = computeCallbackTime(callbackIntent);
       const delayMs = when ? when.getTime() - Date.now() : 0;
-      if (when && delayMs > 60_000 && delayMs <= 25 * 24 * 60 * 60 * 1000) {
+      // Floor is 20s, not 60s: extraction runs after the call ends, so a
+      // "5 minute baad" asked early in a 4-minute call already has most of its
+      // delay spent by the time we get here. A 60s floor silently dropped
+      // those. Anything under the floor is effectively "now" and is skipped.
+      if (when && delayMs > 20_000 && delayMs <= 25 * 24 * 60 * 60 * 1000) {
         const cbLog = await this.prisma.callLog.findUnique({
           where: { retell_call_id: callId },
           select: { business_id: true, customer_id: true },

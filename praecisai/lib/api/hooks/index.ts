@@ -387,6 +387,10 @@ export function useUpdateBusiness() {
       vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
       call_language?: 'HINDI' | 'ENGLISH';
       auto_calls_enabled?: boolean;
+      auto_whatsapp_enabled?: boolean;
+      whatsapp_cadence_days?: Record<string, number> | null;
+      daily_whatsapp_cap?: number;
+      daily_call_cap?: number;
     }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });

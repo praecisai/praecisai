@@ -36,7 +36,14 @@ export class CallbackProcessor extends WorkerHost {
 
     this.logger.log(`Firing scheduled callback re-dial for customer ${customerId} (was set for ${scheduledFor})`);
     try {
-      await this.callingService.queueCustomerCall(businessId, customerId);
+      // isScheduledCallback waives only the 60-minute repeat gap. Without it a
+      // customer who asked to be rung back inside the hour never got the call:
+      // the guard fired, this catch swallowed it, and the dashboard still
+      // showed a "next call" that never happened. Sensitive and PDC cooldowns
+      // are unaffected and still stop the dial.
+      await this.callingService.queueCustomerCall(businessId, customerId, {
+        isScheduledCallback: true,
+      });
     } catch (err: any) {
       // Expected when the customer paid, has no phone, or is in cooldown: skip quietly.
       this.logger.warn(`Callback re-dial skipped for ${customerId}: ${err?.message || err}`);

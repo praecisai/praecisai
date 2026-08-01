@@ -151,7 +151,12 @@ export default function PdcPage() {
           {uploadResult && (
             <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-700">
               <p className="font-semibold mb-1">✅ Upload successful</p>
-              <p>Total rows: <strong>{uploadResult.records_total}</strong> · Matched to customers: <strong>{uploadResult.records_matched}</strong> · Unmatched: <strong>{uploadResult.records_unmatched}</strong></p>
+              <p>New cheques: <strong>{uploadResult.records_total}</strong> · Matched to customers: <strong>{uploadResult.records_matched}</strong> · Unmatched: <strong>{uploadResult.records_unmatched}</strong></p>
+              {uploadResult.records_duplicate > 0 && (
+                <p className="mt-1">
+                  <strong>{uploadResult.records_duplicate}</strong> cheque(s) were already on record and were skipped, so nothing got counted twice.
+                </p>
+              )}
               {uploadResult.columns_detected && (
                 <p className="mt-1 text-[11px] opacity-70">
                   Detected: {Object.entries(uploadResult.columns_detected).map(([f, c]) => `${f} → "${c}"`).join(' · ')}

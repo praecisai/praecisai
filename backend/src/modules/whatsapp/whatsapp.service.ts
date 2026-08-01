@@ -14,6 +14,8 @@ import {
   applyVipRule,
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
+import { dedupeByPhone } from '../../common/utils/contact-cadence.util';
+import { isPdcCooldownActive, pdcCooldownMessage } from '../../common/utils/pdc-cooldown.util';
 
 @Injectable()
 export class WhatsappService {
@@ -72,6 +74,21 @@ export class WhatsappService {
     if (!destinationPhone) throw new BadRequestException('Customer has no phone number');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
+
+    // PDC cooldown: a party whose cheque just cleared is not messaged again
+    // while the payment settles. An inbound reply (overridePhone) is exempt —
+    // the party asked us for the statement, so sending it is not chasing.
+    if (!overridePhone) {
+      const outstanding = await this.prisma.outstanding.findFirst({
+        where: { business_id: businessId, customer_id: customerId },
+        select: { pdc_cooldown_until: true },
+      });
+      if (isPdcCooldownActive(outstanding?.pdc_cooldown_until)) {
+        throw new BadRequestException(
+          pdcCooldownMessage(customer.customer_name, outstanding!.pdc_cooldown_until!),
+        );
+      }
+    }
 
     // A per-customer custom schedule overrides the business segment rules
     const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
@@ -220,12 +237,19 @@ export class WhatsappService {
         status: 'ACTIVE',
         ...(isVipSegment ? {} : { segment }),
         customer: { is_vip: isVipSegment || vipOnly },
+        // Parties still settling a cleared cheque are excluded up front.
+        OR: [{ pdc_cooldown_until: null }, { pdc_cooldown_until: { lte: new Date() } }],
       },
       include: { customer: { select: { id: true, customer_name: true, phone: true } } },
     });
 
-    const eligible = outstandings.filter((o) => o.customer?.phone);
-    const noPhone = outstandings.length - eligible.length;
+    const withPhone = outstandings.filter((o) => o.customer?.phone);
+    const noPhone = outstandings.length - withPhone.length;
+
+    // One message per physical handset: parties sharing a number would
+    // otherwise each trigger a send, which reads as spam to the recipient and
+    // costs the tenant's WhatsApp quality rating.
+    const { unique: eligible, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
 
     await this.statementQueue.addBulk(
       eligible.map((o) => ({
@@ -243,8 +267,12 @@ export class WhatsappService {
       segment,
       queued: eligible.length,
       no_phone: noPhone,
-      skipped: [],
-      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}: sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}`,
+      shared_number: duplicates.length,
+      skipped: duplicates.map((o) => ({
+        customer: o.customer.customer_name,
+        reason: 'Another party in this batch shares the same phone number',
+      })),
+      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}: sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}`,
     };
   }
 
