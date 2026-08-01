@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: 'PraecisAI',
     locale: 'en_IN',
-    title: 'AI Calling Agent for Payment Recovery | PraecisAI',
+    title: 'Praecis AI - AI Calling Agent for Payment Recovery',
     description:
       'An AI collections agent that calls and WhatsApps your B2B customers to recover outstanding payments. Built for Indian MSMEs. Live in 10 minutes.',
     images: [
