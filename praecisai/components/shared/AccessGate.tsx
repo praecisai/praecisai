@@ -175,7 +175,7 @@ function PlanCard({
       </div>
       <p className="text-2xl font-bold text-[var(--dark-brown)]">{price}</p>
       <p className="text-xs text-[var(--walnut)] mb-4">{priceSub}</p>
-      <ul className="space-y-2 mb-5 flex-1">
+      <ul className="space-y-2 mb-3">
         {points.map((p) => (
           <li key={p} className="flex items-start gap-2 text-xs text-[var(--dark-brown)]">
             <CheckCircle2 size={13} className="flex-shrink-0 mt-0.5" style={{ color: '#2E7D32' }} />
@@ -183,7 +183,10 @@ function PlanCard({
           </li>
         ))}
       </ul>
+      {/* `note` sits directly under the bullets; the spacer below it takes the
+          slack so only the footer is pinned to the bottom of the card. */}
       {note}
+      <div className="flex-1" />
       {footer}
     </div>
   );
@@ -346,15 +349,8 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
                   'Guided setup with the Praecis team',
                   'Discount coupon applied at checkout',
                 ]}
-                footer={
-                  <Link
-                    href="/dashboard/billing/onboarding"
-                    className="w-full py-2.5 rounded-lg text-sm font-bold text-center block"
-                    style={{ background: 'var(--dark-brown)', color: 'var(--cream)' }}
-                  >
-                    Get started
-                  </Link>
-                }
+                // The CTA belongs to the pair, so it sits below both columns
+                footer={null}
               />
             </div>
 
@@ -390,14 +386,26 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
                   'Invoice for every debit',
                   'Cancel anytime with the Praecis team',
                 ]}
-                footer={
-                  <p className="text-xs text-center text-[var(--walnut)] py-2">
-                    Set up automatically with Full Onboarding
+                // Sits directly under its own bullets, not pinned to the
+                // bottom of the card (`note` renders before the flexible gap)
+                note={
+                  <p className="text-xs text-[var(--walnut)]">
+                    Set up automatically with Full Onboarding.
                   </p>
                 }
+                footer={null}
               />
             </div>
           </div>
+
+          {/* One CTA for the combined purchase */}
+          <Link
+            href="/dashboard/billing/onboarding"
+            className="mt-6 w-full py-3 rounded-lg text-sm font-bold text-center block"
+            style={{ background: 'var(--dark-brown)', color: 'var(--cream)' }}
+          >
+            Get started
+          </Link>
         </div>
       </div>
 
