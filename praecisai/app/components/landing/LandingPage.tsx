@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
 // import { AnimatePresence } from 'framer-motion';
 // import WorkflowSplash from '../splash/WorkflowSplash';
 import Navbar from './Navbar';
@@ -72,12 +71,7 @@ export default function LandingPage() {
   // );
 
   return (
-    <motion.main
-      className="landing-page min-h-screen"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
+    <main className="landing-page min-h-screen">
       <CardSpotlight />
       <Navbar />
       <HeroSection />
@@ -97,6 +91,6 @@ export default function LandingPage() {
       <CtaSection />
       <Footer />
       <WhatsAppWidget />
-    </motion.main>
+    </main>
   );
 }

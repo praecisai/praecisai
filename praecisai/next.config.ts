@@ -2,7 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  // framer-motion is a large barrel imported by nearly every landing section;
+  // the icon/chart libs below are already optimized by Next's defaults.
+  experimental: {
+    optimizePackageImports: ['framer-motion'],
+  },
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',

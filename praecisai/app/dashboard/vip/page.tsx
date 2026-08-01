@@ -15,16 +15,20 @@ function UnstarButton({ customerId, name }: { customerId: string; name: string }
   return (
     <button
       title="Remove VIP"
-      onClick={() =>
+      disabled={update.isPending}
+      onClick={() => {
+        // The row is removed optimistically by the mutation, so confirm
+        // instantly instead of waiting for the server round-trip.
+        toast.success(`${name} removed from VIP`);
         update.mutate(
           { is_vip: false },
           {
-            onSuccess: () => toast.success(`${name} removed from VIP`),
-            onError: (e: any) => toast.error('Could not update', { description: e.message }),
+            onError: (e: any) =>
+              toast.error(`Could not remove ${name}`, { description: e?.message }),
           },
-        )
-      }
-      className="p-1.5 rounded-lg text-slate-400 hover:text-[#C62828] hover:bg-[#C62828]/10 transition-colors"
+        );
+      }}
+      className="p-1.5 rounded-lg text-slate-400 hover:text-[#C62828] hover:bg-[#C62828]/10 transition-colors disabled:opacity-50"
     >
       <X size={14} />
     </button>

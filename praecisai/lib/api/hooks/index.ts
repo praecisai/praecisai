@@ -95,17 +95,35 @@ export function useUpdateCustomer(id: string) {
     onMutate: async (data: any) => {
       await qc.cancelQueries({ queryKey: ['customers'] });
       const snapshots = qc.getQueriesData({ queryKey: ['customers'] });
-      qc.setQueriesData({ queryKey: ['customers'] }, (old: any) => {
-        if (!old) return old;
-        if (Array.isArray(old?.data)) {
-          return {
-            ...old,
-            data: old.data.map((c: any) => (c.id === id ? { ...c, ...data } : c)),
-          };
+      // Iterate each cached list ourselves (rather than setQueriesData's blind
+      // updater) so we can read that query's own filter from its key and drop
+      // the row when it no longer matches — e.g. un-starring on a VIP-only list
+      // must make the row vanish immediately, not linger until a refetch.
+      for (const [key, old] of snapshots) {
+        if (!old) continue;
+        const filters = (Array.isArray(key) && key[1] && typeof key[1] === 'object'
+          ? (key[1] as Record<string, unknown>)
+          : {});
+        const stillMatches = (c: any) => {
+          if (filters.is_vip === true && c.is_vip === false) return false;
+          return true;
+        };
+        const o = old as any;
+        if (Array.isArray(o?.data)) {
+          const patched = o.data.map((c: any) => (c.id === id ? { ...c, ...data } : c));
+          const kept = patched.filter(stillMatches);
+          const removed = patched.length - kept.length;
+          qc.setQueryData(key, {
+            ...o,
+            data: kept,
+            ...(typeof o.total === 'number' ? { total: Math.max(0, o.total - removed) } : {}),
+          });
+        } else if (Array.isArray(o)) {
+          qc.setQueryData(key, o.map((c: any) => (c.id === id ? { ...c, ...data } : c)));
+        } else if (o?.id === id) {
+          qc.setQueryData(key, { ...o, ...data });
         }
-        if (old?.id === id) return { ...old, ...data };
-        return old;
-      });
+      }
       return { snapshots };
     },
     onError: (_err, _data, ctx: any) => {
@@ -368,6 +386,7 @@ export function useUpdateBusiness() {
       segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
       vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
       call_language?: 'HINDI' | 'ENGLISH';
+      auto_calls_enabled?: boolean;
     }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });

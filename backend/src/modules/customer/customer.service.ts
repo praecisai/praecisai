@@ -2,8 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import { Prisma } from '@prisma/client';
-import { IsString, IsOptional, IsEmail, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
+import { StrictOptionalBoolean } from '../../common/decorators/strict-boolean.decorator';
 import * as XLSX from 'xlsx';
 
 export class CreateCustomerDto {
@@ -12,7 +13,9 @@ export class CreateCustomerDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsArray() tags?: string[];
-  @IsOptional() @IsBoolean() is_vip?: boolean;
+  // `unknown` + StrictOptionalBoolean: a plain boolean would be coerced, so
+  // is_vip: "false" would mark the customer VIP instead of clearing it.
+  @StrictOptionalBoolean() is_vip?: unknown;
 }
 
 export class UpdateCustomerDto {
@@ -21,7 +24,7 @@ export class UpdateCustomerDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsArray() tags?: string[];
-  @IsOptional() @IsBoolean() is_vip?: boolean;
+  @StrictOptionalBoolean() is_vip?: unknown;
   // Per-customer segment day ranges (same shape as business segment_rules);
   // null clears the override. Validated structurally in the service.
   // @Type(() => Object) guards against the ValidationPipe's implicit
@@ -116,8 +119,10 @@ export class CustomerService {
   }
 
   async create(businessId: string, dto: CreateCustomerDto) {
+    // is_vip is typed `unknown` on the DTO (see StrictOptionalBoolean) but is
+    // guaranteed to be a real boolean by the time validation has passed.
     return this.prisma.customer.create({
-      data: { ...dto, business_id: businessId },
+      data: { ...dto, is_vip: dto.is_vip as boolean | undefined, business_id: businessId },
     });
   }
 

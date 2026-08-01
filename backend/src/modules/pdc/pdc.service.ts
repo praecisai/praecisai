@@ -46,15 +46,28 @@ function autoDetectColumns(headers: string[]): Record<string, string> {
 
 function parseDateFlexible(raw: string): Date | null {
   if (!raw) return null;
-  // DD/MM/YYYY or YYYY-MM-DD or DD-MM-YYYY
-  const parts = raw.split(/[\/\-\.]/);
+  // DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY or YYYY-MM-DD
+  const parts = raw.trim().split(/[\/\-.]/);
   if (parts.length === 3) {
     const [a, b, c] = parts.map(Number);
-    if (c > 1000) return new Date(c, b - 1, a); // DD/MM/YYYY
-    if (a > 1000) return new Date(a, b - 1, c); // YYYY-MM-DD
+    if ([a, b, c].every((n) => Number.isFinite(n))) {
+      if (c > 1000) return new Date(c, b - 1, a); // DD/MM/YYYY
+      if (a > 1000) return new Date(a, b - 1, c); // YYYY-MM-DD
+    }
   }
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Accounting exports pad names and append the city:
+ * "SOCIETY (BHANDUP)        -MUMBAI". Customers are stored with the suffix
+ * already split off, so both sides are normalized before fuzzy matching.
+ */
+function normalizePartyName(raw: string): string {
+  const collapsed = raw.replace(/\s+/g, ' ').trim();
+  const suffix = collapsed.match(/^(.*\S)\s+-\s*[A-Za-z0-9 .()&'\/]+$/);
+  return (suffix ? suffix[1] : collapsed).trim();
 }
 
 const PDC_COOLDOWN_DAYS = 15;
@@ -87,12 +100,20 @@ export class PdcService {
       );
     }
 
-    // Load all customers for fuzzy matching
+    // Load all customers for matching. `match_name` is the normalized form so
+    // padded/city-suffixed names from the cheque file line up with stored ones.
     const customers = await this.prisma.customer.findMany({
       where: { business_id: businessId },
       select: { id: true, customer_name: true },
     });
-    const fuse = new Fuse(customers, { keys: ['customer_name'], threshold: 0.35, includeScore: true });
+    const candidates = customers.map((c) => ({
+      ...c,
+      match_name: normalizePartyName(c.customer_name),
+    }));
+    const exactByName = new Map<string, string>();
+    for (const c of candidates) exactByName.set(c.match_name.toLowerCase(), c.id);
+
+    const fuse = new Fuse(candidates, { keys: ['match_name'], threshold: 0.35, includeScore: true });
 
     // Create upload batch
     const batch = await this.db.pdcUploadHistory.create({
@@ -100,6 +121,7 @@ export class PdcService {
     });
 
     let matched = 0;
+    let skipped = 0;
     const chequeRows: Record<string, any>[] = [];
 
     for (const row of rows) {
@@ -110,43 +132,60 @@ export class PdcService {
       const dateRaw   = colMap.cheque_date ? row[colMap.cheque_date] : '';
       const chequeDate = parseDateFlexible(dateRaw) ?? new Date();
 
-      if (!partyName || !chequeNo || amount <= 0) continue;
-
-      // Fuzzy match to customer
-      const results = fuse.search(partyName);
-      let customerId: string | null = null;
-      if (results.length > 0 && results[0].score !== undefined && 1 - results[0].score > 0.65) {
-        customerId = results[0].item.id;
-        matched++;
+      if (!partyName || !chequeNo || amount <= 0) {
+        skipped++;
+        continue;
       }
+
+      // Exact name first, fuzzy only as a fallback
+      const lookupName = normalizePartyName(partyName);
+      let customerId: string | null = exactByName.get(lookupName.toLowerCase()) ?? null;
+      if (!customerId) {
+        const results = fuse.search(lookupName);
+        if (results.length > 0 && results[0].score !== undefined && 1 - results[0].score > 0.65) {
+          customerId = results[0].item.id;
+        }
+      }
+      if (customerId) matched++;
 
       chequeRows.push({
         business_id: businessId,
         ...(customerId ? { customer_id: customerId } : {}),
         upload_batch_id: batch.id,
-        party_name: partyName,
+        // Store the tidied name so the PDC table reads cleanly
+        party_name: lookupName || partyName,
         cheque_no: chequeNo,
         cheque_date: chequeDate,
         amount,
       });
     }
 
-    if (chequeRows.length > 0) {
-      for (const row of chequeRows) {
-        await this.db.pdcCheque.create({ data: row });
-      }
+    if (chequeRows.length === 0) {
+      // Nothing usable: drop the empty batch so history stays meaningful
+      await this.db.pdcUploadHistory.delete({ where: { id: batch.id } }).catch(() => undefined);
+      throw new BadRequestException(
+        `No valid cheque rows found in this file. Every row needs a party name, a cheque number and an amount greater than zero (${skipped} row(s) were incomplete).`,
+      );
     }
+
+    // One statement instead of a query per cheque
+    await this.db.pdcCheque.createMany({ data: chequeRows });
 
     await this.db.pdcUploadHistory.update({
       where: { id: batch.id },
       data: { records_total: chequeRows.length, records_matched: matched },
     });
 
+    this.logger.log(
+      `PDC upload "${file.originalname}": ${chequeRows.length} cheque(s), ${matched} matched to customers, ${skipped} skipped`,
+    );
+
     return {
       batch_id: batch.id,
       records_total: chequeRows.length,
       records_matched: matched,
       records_unmatched: chequeRows.length - matched,
+      records_skipped: skipped,
       columns_detected: colMap,
     };
   }

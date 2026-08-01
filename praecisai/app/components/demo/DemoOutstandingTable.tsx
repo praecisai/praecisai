@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { MessageCircle, Phone, CheckCircle2, Info, Clock, AlertTriangle, Layers, CreditCard, History } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { toast } from 'sonner';
 import DemoConfirmModal from './DemoConfirmModal';
 import DemoFiltersBar from './DemoFiltersBar';
 
@@ -419,9 +420,11 @@ export default function DemoOutstandingTable({
       const fallbackMsg = modalState.type === 'WHATSAPP'
         ? 'WhatsApp statement sent — check your WhatsApp!'
         : 'Calling you now — answer your phone!';
-      alert(`${modalState.type === 'WHATSAPP' ? '💬' : '📞'} ${resData.data?.message || resData.message || fallbackMsg}`);
+      toast.success(resData.data?.message || resData.message || fallbackMsg, {
+        icon: modalState.type === 'WHATSAPP' ? '💬' : '📞',
+      });
     } catch (e: any) {
-      alert(`❌ ${e.message}`);
+      toast.error(e?.message || 'Action failed');
     } finally {
       setIsSubmitting(false);
     }

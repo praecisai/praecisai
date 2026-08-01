@@ -162,6 +162,10 @@ model Business {
   // auto-contacted) with the chosen segment's script/template instead of the
   // day-range segment. Null = no override.
   vip_rule       Json?
+  // Master switch for the unattended 12:00 and 16:00 IST calling runs.
+  // OFF by default: automatic dialing is never enabled without an explicit
+  // opt-in from the business.
+  auto_calls_enabled Boolean    @default(false)
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
 

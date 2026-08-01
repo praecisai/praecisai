@@ -5,9 +5,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PdcService } from './pdc.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { BusinessId } from '../../common/decorators/current-user.decorator';
 import { PdcStatus } from '@prisma/client';
 
+// Tenant scope comes from @BusinessId (request.businessId, set by JwtAuthGuard).
+// It must NOT come from @CurrentUser: that is the raw Supabase user, which has
+// no business_id — passing undefined made writes throw and made reads drop the
+// tenant filter entirely (Prisma ignores `where: { business_id: undefined }`).
 @Controller('pdc')
 @UseGuards(JwtAuthGuard)
 export class PdcController {
@@ -16,21 +20,21 @@ export class PdcController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async upload(
-    @CurrentUser() user: any,
+    @BusinessId() businessId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.pdcService.uploadPdc(user.business_id, file);
+    return this.pdcService.uploadPdc(businessId, file);
   }
 
   @Get('cheques')
   async listCheques(
-    @CurrentUser() user: any,
+    @BusinessId() businessId: string,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
-    return this.pdcService.listCheques(user.business_id, {
+    return this.pdcService.listCheques(businessId, {
       status,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
@@ -39,21 +43,21 @@ export class PdcController {
   }
 
   @Get('stats')
-  async getStats(@CurrentUser() user: any) {
-    return this.pdcService.getStats(user.business_id);
+  async getStats(@BusinessId() businessId: string) {
+    return this.pdcService.getStats(businessId);
   }
 
   @Get('uploads')
-  async getUploadHistory(@CurrentUser() user: any) {
-    return this.pdcService.getUploadHistory(user.business_id);
+  async getUploadHistory(@BusinessId() businessId: string) {
+    return this.pdcService.getUploadHistory(businessId);
   }
 
   @Patch(':id/status')
   async updateStatus(
-    @CurrentUser() user: any,
+    @BusinessId() businessId: string,
     @Param('id') id: string,
     @Body() body: { status: PdcStatus; notes?: string },
   ) {
-    return this.pdcService.updateStatus(user.business_id, id, body.status, body.notes);
+    return this.pdcService.updateStatus(businessId, id, body.status, body.notes);
   }
 }

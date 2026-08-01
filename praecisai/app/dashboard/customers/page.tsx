@@ -22,19 +22,21 @@ function VipToggle({ customerId, isVip, name }: { customerId: string; isVip: boo
   return (
     <button
       title={isVip ? 'Remove VIP' : 'Mark as VIP'}
+      disabled={update.isPending}
       onClick={(e) => {
         e.stopPropagation();
+        // Optimistic UI updates the star instantly, so confirm right away
+        // rather than after the network round-trip.
+        toast.success(isVip ? `${name} removed from VIP` : `${name} marked as VIP ⭐`);
         update.mutate(
           { is_vip: !isVip },
           {
-            onSuccess: () =>
-              toast.success(isVip ? `${name} removed from VIP` : `${name} marked as VIP ⭐`),
             onError: (err: any) =>
-              toast.error('Could not update VIP status', { description: err.message }),
+              toast.error('Could not update VIP status', { description: err?.message }),
           },
         );
       }}
-      className="p-1 rounded transition-colors flex-shrink-0"
+      className="p-1 rounded transition-colors flex-shrink-0 disabled:opacity-50"
     >
       <Star
         size={14}

@@ -70,7 +70,9 @@ export default function PdcPage() {
       setUploadResult(res.data.data);
       qc.invalidateQueries({ queryKey: ['pdc'] });
     } catch (e: any) {
-      setUploadError(e?.response?.data?.message || 'Upload failed');
+      // The API client rejects with a plain Error carrying the server's
+      // message, so `e.response` never exists here: read `e.message`.
+      setUploadError(e?.message || 'Upload failed');
     } finally {
       setUploading(false);
     }

@@ -10,6 +10,7 @@ import {
   ChevronRight, FileSpreadsheet, Menu, X, Activity, CreditCard,
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
+import { AutoCallToggle } from '../shared/AutoCallToggle';
 import { Logo } from '../../app/components/landing/Logo';
 import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
 
@@ -179,6 +180,11 @@ export function TopHeader({ title, subtitle }: { title: string; subtitle?: strin
           <h1 className="text-base sm:text-lg font-semibold text-[var(--dark-brown)] truncate">{title}</h1>
           {subtitle && <p className="text-[11px] sm:text-xs text-[var(--walnut)] mt-0.5 truncate">{subtitle}</p>}
         </div>
+      </div>
+
+      {/* Master switch for the unattended 12:00 / 16:00 IST calling runs */}
+      <div className="flex-shrink-0">
+        <AutoCallToggle />
       </div>
     </header>
   );

@@ -5,6 +5,7 @@ import { OutstandingService } from '../outstanding/outstanding.service';
 import { parseSegmentRules, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
 import { IsString, IsOptional, IsEnum, IsArray, MinLength, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
+import { StrictOptionalBoolean } from '../../common/decorators/strict-boolean.decorator';
 
 export class UpdateBusinessDto {
   @IsOptional()
@@ -49,6 +50,13 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsEnum(['HINDI', 'ENGLISH'])
   call_language?: string;
+
+  // Master switch for the unattended 12:00 / 16:00 IST calling runs.
+  // Declared `unknown` on purpose: see StrictOptionalBoolean. A plain
+  // `boolean` would let the ValidationPipe coerce "false"/"yes" into `true`
+  // and silently start automatic dialing.
+  @StrictOptionalBoolean()
+  auto_calls_enabled?: unknown;
 }
 
 // Segments the AI can actually speak: the VIP override must map to one of these

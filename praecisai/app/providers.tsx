@@ -1,10 +1,21 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
+
+// Devtools are dev-only: lazy-loaded so the ~40 KB bundle never ships to
+// production visitors (landing page included).
+const ReactQueryDevtools =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(() =>
+        import('@tanstack/react-query-devtools').then(
+          (m) => m.ReactQueryDevtools,
+        ),
+      )
+    : () => null;
 
 // Silence the false-positive React 19 warning about script tags (from next-themes)
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {

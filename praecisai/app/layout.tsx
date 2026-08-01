@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
-import { Sora, Inter, Geist } from 'next/font/google';
+import { Sora, Inter } from 'next/font/google';
 import { GoogleTagManager } from '@next/third-parties/google';
 import './globals.css';
 import { Providers } from './providers';
 import { cn } from "@/lib/utils";
-
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 const sora = Sora({
   subsets: ['latin'],
@@ -158,7 +156,7 @@ const webSiteJsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn(sora.variable, inter.variable, "font-sans", geist.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn(sora.variable, inter.variable, "font-sans")}>
       <body className={cn(inter.className, 'bg-[var(--cream)]')}>
         <script
           type="application/ld+json"
