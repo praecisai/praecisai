@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Sora, Inter } from 'next/font/google';
-import { GoogleTagManager } from '@next/third-parties/google';
 import './globals.css';
 import { Providers } from './providers';
+import { DeferredGTM } from './components/DeferredGTM';
 import { cn } from "@/lib/utils";
 
 const sora = Sora({
@@ -168,7 +168,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             ]),
           }}
         />
-        <GoogleTagManager gtmId="GTM-MJ2RJX2F" />
+        <DeferredGTM gtmId="GTM-MJ2RJX2F" />
         <Providers>{children}</Providers>
       </body>
     </html>

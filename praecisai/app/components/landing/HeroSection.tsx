@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   IconCheck,
   IconBrandWhatsapp,
@@ -12,8 +11,6 @@ import {
   IconLock,
 } from '@tabler/icons-react';
 import dynamic from 'next/dynamic';
-import { itemVariants, sectionVariants, viewportOnce, wordItem, scaleIn } from './motion';
-import { TextAnimate } from '@/registry/magicui/text-animate';
 
 // The rays are a WebGL canvas (ogl). Purely decorative, so it is loaded only
 // in the browser and only where it is affordable: keeping `ogl` and the GL
@@ -39,7 +36,7 @@ function useDecorativeRays() {
   return enabled;
 }
 
-const line1Words = ['Stop', 'chasing', 'payments.'];
+const line1 = 'Stop chasing payments.';
 const line2Start = 'Start';
 const line2Highlight = 'recovering cash.';
 
@@ -122,7 +119,12 @@ function Particles() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // Decorative only: skip the 24 animating dots on phones and for
+    // reduced-motion users, where they just burn main-thread time.
+    const mq = window.matchMedia(
+      '(min-width: 768px) and (prefers-reduced-motion: no-preference)',
+    );
+    if (mq.matches) setMounted(true);
   }, []);
 
   const dots = useMemo(() => {
@@ -163,30 +165,12 @@ function Particles() {
 }
 
 export default function HeroSection() {
-  const sectionRef = useRef(null);
   const raysEnabled = useDecorativeRays();
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end start'],
-  });
-
-  const mockupY = useTransform(scrollYProgress, [0, 1], [0, 40]);
-  const mockupScale = useTransform(scrollYProgress, [0, 1], [1, 0.97]);
-
-  const [visibleActivities, setVisibleActivities] = useState<number[]>([]);
-
-  useEffect(() => {
-    const timers = activityFeed.map((_, i) =>
-      setTimeout(() => setVisibleActivities((prev) => [...prev, i]), 600 + i * 500)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
 
   // sm:pt-[148px] clears the desktop floating navbar; the mobile bar is only
   // 56px tall, so phones get pt-24 instead of 148px of dead space.
   return (
     <section
-      ref={sectionRef}
       className="relative overflow-hidden bg-[var(--cream)] px-5 pt-24 pb-16 sm:px-8 sm:pt-[148px] sm:pb-40 lg:pb-44"
     >
       <Particles />
@@ -218,16 +202,10 @@ export default function HeroSection() {
         }}
       />
 
-      <motion.div
-        className="relative mx-auto w-full max-w-7xl text-center"
-        variants={sectionVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={viewportOnce}
-      >
+      <div className="relative mx-auto w-full max-w-7xl text-center">
         {/* Badge */}
-        <motion.div variants={itemVariants} className="mb-6 sm:mb-10 flex justify-center">
-          <motion.div whileHover={{ scale: 1.04 }} className="pill-beam">
+        <div className="reveal mb-6 sm:mb-10 flex justify-center" style={{ animationDelay: '0.05s' }}>
+          <div className="pill-beam transition-transform duration-200 hover:scale-[1.04]">
             <div className="relative z-10 inline-flex items-center gap-2.5 rounded-full border border-[rgba(221,184,146,0.28)] bg-[rgba(159,99,68,0.10)] px-4 py-2">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--rust)] opacity-40" />
@@ -237,117 +215,90 @@ export default function HeroSection() {
                 Built for Indian Businesses
               </span>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
-        {/* Headline — line 1 char-by-char, line 2 whole-phrase for gradient to work */}
+        {/* Headline */}
         <h1
           className="text-[1.6rem] sm:text-[clamp(1.75rem,6vw,4.5rem)] mx-auto max-w-4xl text-center font-display font-bold leading-[1.1] tracking-[-0.03em] text-[var(--dark-warm)]"
         >
           {/* Line 1 */}
-          <span className="block">
-            <TextAnimate animation="blurInUp" by="character" once stagger={0.024}>
-              {line1Words.join(' ')}
-            </TextAnimate>
+          <span className="reveal-blur block" style={{ animationDelay: '0.12s' }}>
+            {line1}
           </span>
-          {' '}
-          {/* Line 2 — explicit delays so animation is clearly visible after line 1 */}
+          {/* Line 2 */}
           <span className="block mt-1">
-            <motion.span
-              className="inline-block"
-              initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.5, duration: 0.72, ease: [0.17, 0.67, 0.29, 1] }}
-            >
+            <span className="reveal-blur inline-block" style={{ animationDelay: '0.35s' }}>
               {line2Start}
-            </motion.span>
-            {/* Real space text node between the two animated words */}
+            </span>
             {' '}
-            <motion.span
-              className="inline-block animate-gradient-text font-bold"
-              initial={{ opacity: 0, y: 48, filter: 'blur(10px)' }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.68, duration: 0.72, ease: [0.17, 0.67, 0.29, 1] }}
+            <span
+              className="reveal-blur inline-block animate-gradient-text font-bold"
+              style={{ animationDelay: '0.45s' }}
             >
               {line2Highlight}
-            </motion.span>
+            </span>
           </span>
-          {' '}
           {/* Keyword line — real, spaced text inside the H1 for search crawlers */}
-          <motion.span
-            className="mt-5 block font-body text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.16em] text-[var(--rust)] sm:text-[13px]"
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.9, duration: 0.6, ease: [0.17, 0.67, 0.29, 1] }}
+          <span
+            className="reveal mt-5 block font-body text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.16em] text-[var(--rust)] sm:text-[13px]"
+            style={{ animationDelay: '0.7s' }}
           >
             AI Calling Agent for Payment &amp; Credit Recovery
-          </motion.span>
+          </span>
         </h1>
 
         {/* Subheadline */}
-        <motion.p
-          variants={itemVariants}
-          className="mx-auto mt-6 sm:mt-9 max-w-[600px] text-center font-body text-[14px] sm:text-[17px] leading-[1.7] sm:leading-[1.75] text-[var(--walnut)]"
+        <p
+          className="reveal mx-auto mt-6 sm:mt-9 max-w-[600px] text-center font-body text-[14px] sm:text-[17px] leading-[1.7] sm:leading-[1.75] text-[var(--walnut)]"
+          style={{ animationDelay: '0.5s' }}
         >
           Upload your outstanding Excel once, or connect your existing software.
           PraecisAI calls and WhatsApps every customer automatically, remembers every
           promise they make, and keeps following up until you&rsquo;re paid.
-        </motion.p>
+        </p>
 
         {/* CTA Buttons */}
-        <motion.div
-          variants={itemVariants}
-          className="mt-8 sm:mt-12 flex flex-row items-stretch justify-center gap-2.5 sm:gap-4"
+        <div
+          className="reveal mt-8 sm:mt-12 flex flex-row items-stretch justify-center gap-2.5 sm:gap-4"
+          style={{ animationDelay: '0.6s' }}
         >
           {/* flex-1 on phones so the two CTAs sit side by side instead of
               stacking as two full-width slabs; sm+ reverts to intrinsic width */}
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 sm:flex-none">
-            <Link
-              href="#demo"
-              className="group inline-flex h-full w-full sm:w-auto items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-[var(--mahogany)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)]"
-            >
-              See Live Demo
-              <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 sm:flex-none">
-            <a
-              href="#how-it-works"
-              className="inline-flex h-full w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)]"
-            >
-              {/* Full label needs ~118px but only ~111px fits at 320px */}
-              <span className="whitespace-nowrap sm:hidden">How it works</span>
-              <span className="hidden sm:inline">See how it works</span>
-            </a>
-          </motion.div>
-        </motion.div>
+          <Link
+            href="#demo"
+            className="group inline-flex flex-1 sm:flex-none w-full sm:w-auto items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-[var(--mahogany)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)] hover:scale-[1.03] active:scale-[0.97]"
+          >
+            See Live Demo
+            <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
+          </Link>
+          <a
+            href="#how-it-works"
+            className="inline-flex flex-1 sm:flex-none w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)] hover:scale-[1.03] active:scale-[0.97]"
+          >
+            {/* Full label needs ~118px but only ~111px fits at 320px */}
+            <span className="whitespace-nowrap sm:hidden">How it works</span>
+            <span className="hidden sm:inline">See how it works</span>
+          </a>
+        </div>
 
         {/* Trust row */}
         {/* gap-x-7 left only room for one item per line on phones */}
         <div className="mt-6 sm:mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-x-7 sm:gap-y-2.5">
           {trustItems.map((item, i) => (
-            <motion.span
+            <span
               key={item}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + i * 0.1, duration: 0.4 }}
-              className="inline-flex items-center gap-1.5 font-body text-[12px] sm:text-[13px] font-medium text-[var(--walnut)]"
+              className="reveal inline-flex items-center gap-1.5 font-body text-[12px] sm:text-[13px] font-medium text-[var(--walnut)]"
+              style={{ animationDelay: `${0.7 + i * 0.08}s` }}
             >
               <IconCheck size={13} className="text-[var(--mahogany)]" stroke={2.5} />
               {item}
-            </motion.span>
+            </span>
           ))}
         </div>
 
         {/* ── Dashboard Mockup ── */}
-        <motion.figure
-          variants={scaleIn}
-          style={{ y: mockupY, scale: mockupScale }}
-          className="mt-20 sm:mt-24"
-        >
+        <figure className="reveal-scale mt-20 sm:mt-24" style={{ animationDelay: '0.3s' }}>
           <figcaption className="sr-only">
             PraecisAI dashboard showing outstanding payment ageing breakdown, recovery
             rate, and a live feed of AI voice calls and WhatsApp payment reminders.
@@ -376,14 +327,9 @@ export default function HeroSection() {
                 {/* Metric cards */}
                 <div className="grid grid-cols-2 gap-4">
                   {metrics.map((m) => (
-                    <motion.div
+                    <div
                       key={m.label}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={viewportOnce}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      whileHover={{ y: -3, boxShadow: '0 8px 24px rgba(127,85,57,0.12)' }}
-                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3 sm:p-4 text-left transition-shadow duration-200"
+                      className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3 sm:p-4 text-left transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(127,85,57,0.12)]"
                     >
                       <p className={`font-display text-xl font-bold ${m.colorClass}`}>
                         <AnimatedCounter value={m.value} suffix={m.suffix} prefix={m.prefix} />
@@ -391,18 +337,12 @@ export default function HeroSection() {
                       <p className="mt-1 font-body text-[11px] leading-tight text-[var(--walnut)]">
                         {m.label}
                       </p>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
 
                 {/* Aging bars */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={viewportOnce}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5"
-                >
+                <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5">
                   <p className="mb-2.5 sm:mb-4 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)]">
                     Aging breakdown
                   </p>
@@ -414,44 +354,28 @@ export default function HeroSection() {
                           <span className="font-semibold">{bar.amount}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-[var(--sand)]">
-                          <motion.div
-                            className="h-full rounded-full bg-[var(--mahogany)]"
-                            initial={{ width: 0 }}
-                            whileInView={{ width: bar.width }}
-                            viewport={viewportOnce}
-                            transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-                            style={{ opacity: bar.opacity }}
+                          <div
+                            className="bar-grow h-full rounded-full bg-[var(--mahogany)]"
+                            style={{ width: bar.width, opacity: bar.opacity, animationDelay: '0.4s' }}
                           />
                         </div>
                       </div>
                     ))}
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               {/* Right column — activity feed */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={viewportOnce}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5"
-              >
+              <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-3.5 sm:p-5">
                 <p className="mb-2.5 sm:mb-4 font-display text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)]">
                   Live activity
                 </p>
                 <div className="space-y-2 sm:space-y-3">
                   {activityFeed.map((item, i) => (
-                    <motion.div
+                    <div
                       key={item.text}
-                      initial={{ opacity: 0, x: -16, scale: 0.95 }}
-                      animate={
-                        visibleActivities.includes(i)
-                          ? { opacity: 1, x: 0, scale: 1 }
-                          : { opacity: 0, x: -16, scale: 0.95 }
-                      }
-                      transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                      className="flex items-start gap-2.5 sm:gap-3 rounded-lg bg-[var(--surface-warm)] px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_1px_4px_rgba(127,85,57,0.07)]"
+                      className="reveal flex items-start gap-2.5 sm:gap-3 rounded-lg bg-[var(--surface-warm)] px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_1px_4px_rgba(127,85,57,0.07)]"
+                      style={{ animationDelay: `${0.6 + i * 0.15}s` }}
                     >
                       <div
                         className="mt-0.5 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg"
@@ -467,15 +391,15 @@ export default function HeroSection() {
                           {item.time}
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
 
             </div>
           </div>
-        </motion.figure>
-      </motion.div>
+        </figure>
+      </div>
     </section>
   );
 }
