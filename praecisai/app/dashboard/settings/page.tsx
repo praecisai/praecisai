@@ -7,7 +7,7 @@ import {
   useMe, useUpdateBusiness, useBolnaCredits,
   useBillingAccess,
 } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Coins, Star } from 'lucide-react';
+import { Settings, Shield, Coins, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Platform API keys (Bolna/AiSensy) are managed by the Praecis admin panel
@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 // Automation (auto calls / auto WhatsApp) now lives as header toggles, not a tab.
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
-  { id: 'users', label: 'Users & Roles', icon: Users },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
   { id: 'credits', label: 'Credit Status', icon: Coins },
 ];
@@ -237,28 +236,6 @@ export default function SettingsPage() {
                   {updateBusiness.isPending ? 'Saving…' : 'Save Transfer Number'}
                 </button>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="glass-card p-4 sm:p-6">
-              <h3 className="font-semibold text-[var(--dark-brown)] mb-4">Users & Roles</h3>
-              <div className="space-y-3">
-                {[
-                  { role: 'BUSINESS_OWNER', desc: 'Full access to all features' },
-                  { role: 'MANAGER', desc: 'Manage agents, view all data, configure campaigns' },
-                  { role: 'RECOVERY_AGENT', desc: 'View assigned customers, log interactions' },
-                ].map(({ role, desc }) => (
-                  <div key={role} className="flex items-start gap-3 p-4 rounded-lg" style={{ background: 'var(--sand)' }}>
-                    <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: 'var(--mahogany)' }} />
-                    <div>
-                      <p className="text-sm font-medium text-[var(--dark-brown)]">{role}</p>
-                      <p className="text-xs text-[var(--walnut)] mt-0.5">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-[var(--walnut)] mt-4">User management via the Users API. RBAC enforced on all endpoints.</p>
             </div>
           )}
 

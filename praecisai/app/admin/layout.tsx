@@ -10,7 +10,7 @@ import {
   setAdminToken,
 } from '../../lib/api/hooks';
 import {
-  Building2, Bell, TicketPercent, ReceiptText, ArrowLeft,
+  Building2, Bell, TicketPercent, ReceiptText,
   ShieldCheck, LogOut, KeyRound,
 } from 'lucide-react';
 import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
@@ -162,14 +162,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <div className="flex items-center gap-2.5 sm:gap-4 flex-shrink-0">
           <AnimatedThemeToggler />
-          <Link
-            href="/dashboard"
-            title="Dashboard"
-            className="flex items-center gap-1.5 text-xs font-medium text-[var(--walnut)] hover:text-[var(--mahogany)]"
-          >
-            <ArrowLeft size={13} className="flex-shrink-0" />
-            <span className="hidden sm:inline">Dashboard</span>
-          </Link>
           <button
             onClick={() => {
               setAdminToken(null);
