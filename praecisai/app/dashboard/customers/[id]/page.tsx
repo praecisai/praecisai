@@ -2,11 +2,21 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCustomer } from '../../../../lib/api/hooks';
+import { useCustomer, useMe } from '../../../../lib/api/hooks';
 import { TopHeader } from '../../../../components/layout/Sidebar';
 import { SegmentBadge, StatusBadge } from '../../../../components/shared/SegmentBadge';
 import { formatINR, formatDate } from '../../../../lib/utils/format';
 import { ArrowLeft, Phone, Mail, MapPin, Star, FileText, IndianRupee, MessageSquare } from 'lucide-react';
+
+// The configured day-range for a segment, e.g. "No Follow-up: 0-90 days".
+// Reads the business's own segment_rules (Settings), not the fixed accounting band.
+function segmentRangeLabel(rules: any, segment: string | undefined | null): string | null {
+  if (!segment || !Array.isArray(rules)) return null;
+  const rule = rules.find((r: any) => r?.segment === segment);
+  if (!rule) return null;
+  const min = typeof rule.min_days === 'number' ? rule.min_days : 0;
+  return rule.max_days == null ? `${segment}: ${min}+ days` : `${segment}: ${min}-${rule.max_days} days`;
+}
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,6 +30,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: customer, isLoading } = useCustomer(id);
+  const { data: me } = useMe();
 
   if (isLoading) {
     return (
@@ -102,11 +113,17 @@ export default function CustomerDetailPage() {
           </div>
           <div className="w-full sm:w-auto sm:text-right flex-shrink-0">
             <p className="text-xs mb-1" style={{ color: 'var(--walnut)' }}>Total Outstanding</p>
-            <p className={`text-xl sm:text-2xl font-bold ${(customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-600' : ''}`}
-               style={(customer.outstanding?.total_due ?? 0) <= 0 ? { color: 'var(--recovery-green)' } : {}}>
+            {/* No Follow-up = within credit period: keep it plain, not red/at-risk */}
+            <p className={`text-xl sm:text-2xl font-bold ${customer.outstanding?.segment === 'No Follow-up' ? '' : (customer.outstanding?.total_due ?? 0) > 0 ? 'text-red-600' : ''}`}
+               style={customer.outstanding?.segment === 'No Follow-up' ? { color: 'var(--dark-brown)' } : (customer.outstanding?.total_due ?? 0) <= 0 ? { color: 'var(--recovery-green)' } : {}}>
               {formatINR(customer.outstanding?.total_due ?? 0)}
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--walnut)' }}>{customer.outstanding?.aging_bucket ?? '-'} days bucket</p>
+            {/* Show the configured segment range (Settings) rather than the fixed
+                accounting band, which the customer found confusing. */}
+            <p className="text-xs mt-1" style={{ color: 'var(--walnut)' }}>
+              {segmentRangeLabel(me?.business?.segment_rules, customer.outstanding?.segment)
+                ?? `${customer.outstanding?.aging_bucket ?? '-'} days bucket`}
+            </p>
           </div>
         </div>
 
@@ -137,13 +154,25 @@ export default function CustomerDetailPage() {
                       <td className="text-sm font-mono text-blue-400">{inv.invoice_number}</td>
                       <td className="text-sm text-slate-400 whitespace-nowrap">{formatDate(inv.invoice_date)}</td>
                       <td className="text-right">
-                        <span className={`text-sm font-semibold ${inv.due_amount < 0 ? 'text-purple-400' : inv.due_amount === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {/* No Follow-up party = within credit period: bills shown plain, not red */}
+                        <span
+                          className={`text-sm font-semibold ${inv.due_amount < 0 ? 'text-purple-400' : inv.due_amount === 0 ? 'text-emerald-400' : customer.outstanding?.segment === 'No Follow-up' ? '' : 'text-red-400'}`}
+                          style={customer.outstanding?.segment === 'No Follow-up' && inv.due_amount > 0 ? { color: 'var(--dark-brown)' } : {}}
+                        >
                           {formatINR(inv.due_amount)}
                         </span>
                       </td>
                       <td className="text-sm text-slate-400">{inv.days_overdue}d</td>
                       {/* Negative amounts are receipts/credit notes from Tally, not paid bills */}
-                      <td><StatusBadge status={inv.due_amount < 0 ? 'CREDIT' : inv.status} /></td>
+                      <td>
+                        {customer.outstanding?.segment === 'No Follow-up' && inv.due_amount >= 0 ? (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: 'var(--walnut)', background: 'rgba(107,114,128,0.14)' }}>
+                            Within credit
+                          </span>
+                        ) : (
+                          <StatusBadge status={inv.due_amount < 0 ? 'CREDIT' : inv.status} />
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
