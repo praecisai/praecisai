@@ -264,7 +264,8 @@ DO THESE THINGS:
 1. Tell customer {due_amount_hindi} is pending.
 2. Ask warmly for a rough/expected date. Approximate is completely fine.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, आपके account में {due_amount_hindi} की एक pending payment है।"
 "यह एक छोटा सा follow-up call है, अगर approximate date भी हो तो चलेगा।"
 "आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
@@ -286,7 +287,8 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 4. Wait for the customer's answer.
 The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, आपके account में {due_amount_hindi} की एक pending payment है।"
 "मेरी तरफ से एक request थी, Accounts team मुझसे इस payment का update पूछ रही है।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
@@ -307,7 +309,8 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 4. Wait for the customer's answer.
 The amount, the thanks, and the seniors' follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, आपके account में {due_amount_hindi} की एक pending payment है।"
 "मेरी तरफ से एक छोटी सी request है, Accounts team मुझसे update पूछ रही है।"
 "Senior team भी जानकारी चाहते हैं।"
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
@@ -344,7 +347,8 @@ DO THESE THINGS:
 1. Tell the customer {due_amount_hindi} is pending.
 2. Ask warmly for a rough/expected date. Approximate is completely fine.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, there is a pending payment of {due_amount_english} on your account."
 "This is just a small follow-up call, even an approximate date is fine."
 "Could you please tell me, by when will the payment be done, approximately?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
@@ -366,7 +370,8 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 4. Wait for the customer's answer.
 The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, there is a pending payment of {due_amount_english} on your account."
 "I had a small request, our accounts team is asking me for an update on this payment."
 "If possible, please tell me, by when will the payment be done, approximately?"
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
@@ -387,7 +392,8 @@ MANDATORY ORDER — deliver every step, NEVER stop early:
 4. Wait for the customer's answer.
 The amount, the thanks, and the senior team's follow-up are INFORMATIONAL — they never end the conversation. You MUST reach the date question in step 3.
 
-SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise):
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
+"Sir, there is a pending payment of {due_amount_english} on your account."
 "I have a small request, our accounts team is asking me for an update."
 "The senior team also needs the information."
 "If possible, please tell me, by when will the payment be cleared, approximately?"
