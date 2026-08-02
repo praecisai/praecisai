@@ -7,15 +7,14 @@ import {
   useMe, useUpdateBusiness, useBolnaCredits,
   useBillingAccess,
 } from '../../../lib/api/hooks';
-import { Settings, Users, Shield, Coins, Star, Zap } from 'lucide-react';
-import { AutomationSettings } from '../../../components/shared/AutomationSettings';
+import { Settings, Users, Shield, Coins, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Platform API keys (Bolna/AiSensy) are managed by the Praecis admin panel
 // only: tenants must never see or edit them, so there is no Integrations tab.
+// Automation (auto calls / auto WhatsApp) now lives as header toggles, not a tab.
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
-  { id: 'automation', label: 'Automation', icon: Zap },
   { id: 'users', label: 'Users & Roles', icon: Users },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
   { id: 'credits', label: 'Credit Status', icon: Coins },
@@ -116,20 +115,20 @@ export default function SettingsPage() {
   // Empty is allowed (falls back to platform default); otherwise must look like a phone number.
   const handoffValid = /^(\+?[0-9]{10,15})?$/.test(handoffNumber.trim());
 
+  // Tenants can only edit the transfer number; the business name is admin-set.
   const saveBusiness = async () => {
     if (!handoffValid) return;
     try {
       await updateBusiness.mutateAsync({
-        name: businessName.trim(),
         handoff_number: handoffNumber.trim(),
       });
-      toast.success('Business settings saved', {
+      toast.success('Call transfer number saved', {
         description: handoffNumber.trim()
-          ? `Senior transfers will go to ${handoffNumber.trim()}. On calls, Meena will say “${spokenName}”.`
-          : `On calls, Meena will say “${spokenName}”.`,
+          ? `Senior transfers will go to ${handoffNumber.trim()}.`
+          : 'Transfers will use the platform default number.',
       });
     } catch (e: any) {
-      toast.error('Could not save business settings', { description: e.message });
+      toast.error('Could not save the transfer number', { description: e.message });
     }
   };
 
@@ -179,22 +178,21 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {activeTab === 'automation' && <AutomationSettings />}
-
           {activeTab === 'business' && (
             <div className="glass-card p-4 sm:p-6 space-y-5">
               <h3 className="font-semibold text-[var(--dark-brown)]">Business Settings</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Business Name</label>
-                  <input
-                    className="input-dark"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                  />
+                  {/* Read-only for tenants: the name is set by the PraecisAI admin
+                      and reflected here. On calls Meena speaks the spoken form. */}
+                  <p className="input-dark flex items-center" style={{ color: 'var(--dark-brown)' }}>
+                    {businessName || '—'}
+                  </p>
                   <p className="text-xs text-[var(--walnut)] mt-1.5">
-                    Shown on statement PDFs as written. On AI calls, legal suffixes are dropped automatically —
+                    Set by the PraecisAI team. On AI calls, legal suffixes are dropped automatically —
                     Meena will say &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;.
+                    To change it, contact the PraecisAI team.
                   </p>
                 </div>
                 <div>
@@ -233,10 +231,10 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={saveBusiness}
-                  disabled={updateBusiness.isPending || businessName.trim().length < 2 || !handoffValid}
+                  disabled={updateBusiness.isPending || !handoffValid}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
-                  {updateBusiness.isPending ? 'Saving…' : 'Save Changes'}
+                  {updateBusiness.isPending ? 'Saving…' : 'Save Transfer Number'}
                 </button>
               </div>
             </div>

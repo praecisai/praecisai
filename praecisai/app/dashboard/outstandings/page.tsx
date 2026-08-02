@@ -340,12 +340,23 @@ export default function OutstandingsPage() {
                   </td>
                   <td><SegmentBadge segment={row.segment} /></td>
                   <td className="text-right">
-                    <span className={`text-sm font-bold ${row.total_due > 0 ? 'text-red-600' : ''}`}
-                      style={row.total_due <= 0 ? { color: 'var(--recovery-green)' } : {}}>
+                    {/* No Follow-up = within credit period (not chased yet): show
+                        the amount plain, not red, so it doesn't read as at-risk. */}
+                    <span className={`text-sm font-bold ${row.segment === 'No Follow-up' ? '' : row.total_due > 0 ? 'text-red-600' : ''}`}
+                      style={row.segment === 'No Follow-up' ? { color: 'var(--dark-brown)' } : row.total_due <= 0 ? { color: 'var(--recovery-green)' } : {}}>
                       {formatINR(row.total_due)}
                     </span>
                   </td>
-                  <td><StatusBadge status={row.status} /></td>
+                  <td>
+                    {row.segment === 'No Follow-up' ? (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+                        style={{ color: 'var(--walnut)', background: 'rgba(107,114,128,0.14)' }}>
+                        Under credit limit
+                      </span>
+                    ) : (
+                      <StatusBadge status={row.status} />
+                    )}
+                  </td>
                   <td>
                     {row.total_due > 0 && row.customer?.id && !NO_CONTACT_SEGMENTS.includes(row.segment) ? (
                       <div className="flex items-center gap-1.5">

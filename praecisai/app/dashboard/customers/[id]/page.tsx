@@ -160,10 +160,35 @@ export default function CustomerDetailPage() {
                   <IndianRupee size={14} className="text-emerald-500" />
                   <h3 className="text-sm font-semibold" style={{ color: 'var(--dark-brown)' }}>Outstanding</h3>
                 </div>
-                <InfoRow label="Total Due" value={<span className="font-bold text-red-600">{formatINR(customer.outstanding.total_due)}</span>} />
+                {/* No Follow-up = within credit period: show plain, not red/at-risk */}
+                <InfoRow
+                  label="Total Due"
+                  value={
+                    <span
+                      className={`font-bold ${customer.outstanding.segment === 'No Follow-up' ? '' : 'text-red-600'}`}
+                      style={customer.outstanding.segment === 'No Follow-up' ? { color: 'var(--dark-brown)' } : {}}
+                    >
+                      {formatINR(customer.outstanding.total_due)}
+                    </span>
+                  }
+                />
                 <InfoRow label="Segment" value={<SegmentBadge segment={customer.outstanding.segment} />} />
                 <InfoRow label="Aging Bucket" value={`${customer.outstanding.aging_bucket} days`} />
-                <InfoRow label="Status" value={<StatusBadge status={customer.outstanding.status} />} />
+                <InfoRow
+                  label="Status"
+                  value={
+                    customer.outstanding.segment === 'No Follow-up' ? (
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+                        style={{ color: 'var(--walnut)', background: 'rgba(107,114,128,0.14)' }}
+                      >
+                        Under credit limit
+                      </span>
+                    ) : (
+                      <StatusBadge status={customer.outstanding.status} />
+                    )
+                  }
+                />
               </div>
             )}
 

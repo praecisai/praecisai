@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IconBrandWhatsapp } from '@tabler/icons-react';
 
-const WHATSAPP_URL = 'https://wa.me/917304862949';
+const WHATSAPP_URL = 'https://wa.me/918291485811';
 
 /**
  * Floating WhatsApp button.

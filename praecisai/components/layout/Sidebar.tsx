@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useMe } from '../../lib/api/hooks';
 import { AutoCallToggle } from '../shared/AutoCallToggle';
+import { AutoWhatsappToggle } from '../shared/AutoWhatsappToggle';
 import { Logo } from '../../app/components/landing/Logo';
 import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
 
@@ -221,9 +222,10 @@ export function TopHeader({ title, subtitle }: { title: string; subtitle?: strin
         </div>
       </div>
 
-      {/* Master switch for the unattended 12:00 / 16:00 IST calling runs */}
-      <div className="flex-shrink-0">
+      {/* Master switches: 12:00/16:00 IST calls and the 10:00 IST WhatsApp run */}
+      <div className="flex-shrink-0 flex items-center gap-2">
         <AutoCallToggle />
+        <AutoWhatsappToggle />
       </div>
     </header>
   );
