@@ -8,14 +8,24 @@ import { SegmentBadge, StatusBadge } from '../../../../components/shared/Segment
 import { formatINR, formatDate } from '../../../../lib/utils/format';
 import { ArrowLeft, Phone, Mail, MapPin, Star, FileText, IndianRupee, MessageSquare } from 'lucide-react';
 
-// The configured day-range for a segment, e.g. "No Follow-up: 0-90 days".
-// Reads the business's own segment_rules (Settings), not the fixed accounting band.
-function segmentRangeLabel(rules: any, segment: string | undefined | null): string | null {
+// The configured day-range for a segment, e.g. "0-90 days" / "200+ days".
+// Reads the business's own segment_rules (Settings), not the fixed accounting
+// band: the band was an internal accounting concept that meant nothing to the
+// people using this page.
+type SegmentRule = { segment?: string; min_days?: number; max_days?: number | null };
+
+function segmentDayRange(rules: unknown, segment: string | undefined | null): string | null {
   if (!segment || !Array.isArray(rules)) return null;
-  const rule = rules.find((r: any) => r?.segment === segment);
+  const rule = (rules as SegmentRule[]).find((r) => r?.segment === segment);
   if (!rule) return null;
   const min = typeof rule.min_days === 'number' ? rule.min_days : 0;
-  return rule.max_days == null ? `${segment}: ${min}+ days` : `${segment}: ${min}-${rule.max_days} days`;
+  return rule.max_days == null ? `${min}+ days` : `${min}-${rule.max_days} days`;
+}
+
+// The same range prefixed with the segment, e.g. "No Follow-up: 0-90 days".
+function segmentRangeLabel(rules: unknown, segment: string | undefined | null): string | null {
+  const range = segmentDayRange(rules, segment);
+  return range ? `${segment}: ${range}` : null;
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -122,7 +132,8 @@ export default function CustomerDetailPage() {
                 accounting band, which the customer found confusing. */}
             <p className="text-xs mt-1" style={{ color: 'var(--walnut)' }}>
               {segmentRangeLabel(me?.business?.segment_rules, customer.outstanding?.segment)
-                ?? `${customer.outstanding?.aging_bucket ?? '-'} days bucket`}
+                ?? customer.outstanding?.segment
+                ?? '-'}
             </p>
           </div>
         </div>
@@ -202,7 +213,13 @@ export default function CustomerDetailPage() {
                   }
                 />
                 <InfoRow label="Segment" value={<SegmentBadge segment={customer.outstanding.segment} />} />
-                <InfoRow label="Aging Bucket" value={`${customer.outstanding.aging_bucket} days`} />
+                {/* The segment's own configured day-range, not the accounting
+                    ageing band: it is the number that actually decides how this
+                    party gets contacted. */}
+                <InfoRow
+                  label="Segment Range"
+                  value={segmentDayRange(me?.business?.segment_rules, customer.outstanding.segment) ?? '-'}
+                />
                 <InfoRow
                   label="Status"
                   value={
