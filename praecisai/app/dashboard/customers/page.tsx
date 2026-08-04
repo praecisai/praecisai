@@ -227,6 +227,7 @@ export default function CustomersPage() {
                           id: customer.id,
                           customer_name: customer.customer_name,
                           custom_schedule: customer.custom_schedule ?? null,
+                          whatsapp_custom_schedule: customer.whatsapp_custom_schedule ?? null,
                           is_vip: !!customer.is_vip,
                         })
                       }

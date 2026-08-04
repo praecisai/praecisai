@@ -59,7 +59,7 @@ export class WhatsappService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true, vip_rule: true } },
+        business: { select: { name: true, segment_rules: true, whatsapp_segment_rules: true, vip_rule: true } },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -90,8 +90,15 @@ export class WhatsappService {
       }
     }
 
-    // A per-customer custom schedule overrides the business segment rules
-    const rules = parseSegmentRules(customer.custom_schedule ?? customer.business.segment_rules);
+    // WhatsApp uses its own segmentation so the manual statement matches what
+    // the automatic run would send: the customer's WhatsApp override, else the
+    // customer's call override, else the business WhatsApp ranges, else calls.
+    const rules = parseSegmentRules(
+      (customer as any).whatsapp_custom_schedule
+        ?? customer.custom_schedule
+        ?? (customer.business as any).whatsapp_segment_rules
+        ?? customer.business.segment_rules,
+    );
 
     const invoices: StatementInvoice[] = customer.invoices.map((inv) => {
       const rowSegment = getSegment(inv.days_overdue, inv.due_amount, rules);
@@ -115,7 +122,9 @@ export class WhatsappService {
       getSegment(maxDays, totalDue, rules),
       customer.is_vip,
       maxDays,
-      customer.custom_schedule ? null : parseVipRule(customer.business.vip_rule),
+      ((customer as any).whatsapp_custom_schedule || customer.custom_schedule)
+        ? null
+        : parseVipRule(customer.business.vip_rule),
     );
 
     // The No Follow-up range receives NOTHING: not even manual messages

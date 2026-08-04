@@ -384,6 +384,7 @@ export function useUpdateBusiness() {
       name?: string;
       handoff_number?: string;
       segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
+      whatsapp_segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
       vip_rule?: { min_days: number; max_days: number | null; segment: string } | null;
       call_language?: 'HINDI' | 'ENGLISH';
       auto_calls_enabled?: boolean;
@@ -391,6 +392,10 @@ export function useUpdateBusiness() {
       whatsapp_cadence_days?: Record<string, number> | null;
       daily_whatsapp_cap?: number;
       daily_call_cap?: number;
+      auto_call_hours?: number[];
+      auto_call_weekdays?: number[];
+      auto_whatsapp_hours?: number[];
+      auto_whatsapp_weekdays?: number[];
     }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });

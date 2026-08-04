@@ -247,6 +247,86 @@ export class PdcService {
     };
   }
 
+  // ─── Manual single-cheque entry ──────────────────────────────────────────────
+  // Appended alongside uploaded cheques: same party-matching and dedup as upload,
+  // grouped under a per-business "Manual entries" batch so the FK is satisfied
+  // and it shows in history.
+  async createCheque(
+    businessId: string,
+    dto: { party_name: string; cheque_no: string; cheque_date?: string; amount: number },
+  ) {
+    const partyName = (dto.party_name ?? '').trim();
+    const chequeNo = (dto.cheque_no ?? '').trim();
+    const amount = Number(dto.amount) || 0;
+    if (!partyName || !chequeNo || amount <= 0) {
+      throw new BadRequestException('Party name, cheque number and a positive amount are all required.');
+    }
+    const chequeDate = dto.cheque_date ? (parseDateFlexible(dto.cheque_date) ?? new Date()) : new Date();
+    const lookupName = normalizePartyName(partyName);
+
+    // Same identity as upload: party + cheque number + amount. Never double-count.
+    const key = (p: string, n: string, a: number) => `${p.toLowerCase()}|${n.toLowerCase()}|${a.toFixed(2)}`;
+    const existing = await this.db.pdcCheque.findMany({
+      where: { business_id: businessId },
+      select: { party_name: true, cheque_no: true, amount: true },
+    });
+    const target = key(lookupName || partyName, chequeNo, amount);
+    if (existing.some((c: any) => key(c.party_name, c.cheque_no, c.amount) === target)) {
+      throw new BadRequestException('This cheque is already on record (same party, number and amount).');
+    }
+
+    // Match to an existing customer: exact normalized name first, fuzzy fallback.
+    const customers = await this.prisma.customer.findMany({
+      where: { business_id: businessId },
+      select: { id: true, customer_name: true },
+    });
+    const candidates = customers.map((c) => ({ ...c, match_name: normalizePartyName(c.customer_name) }));
+    let customerId: string | null =
+      candidates.find((c) => c.match_name.toLowerCase() === lookupName.toLowerCase())?.id ?? null;
+    if (!customerId && candidates.length > 0) {
+      const fuse = new Fuse(candidates, { keys: ['match_name'], threshold: 0.35, includeScore: true });
+      const res = fuse.search(lookupName);
+      if (res.length > 0 && res[0].score !== undefined && 1 - res[0].score > 0.65) {
+        customerId = res[0].item.id;
+      }
+    }
+
+    const MANUAL_BATCH = 'Manual entries';
+    let batch = await this.db.pdcUploadHistory.findFirst({
+      where: { business_id: businessId, file_name: MANUAL_BATCH },
+      orderBy: { created_at: 'desc' },
+    });
+    if (!batch) {
+      batch = await this.db.pdcUploadHistory.create({
+        data: { business_id: businessId, file_name: MANUAL_BATCH },
+      });
+    }
+
+    const cheque = await this.db.pdcCheque.create({
+      data: {
+        business_id: businessId,
+        ...(customerId ? { customer_id: customerId } : {}),
+        upload_batch_id: batch.id,
+        party_name: lookupName || partyName,
+        cheque_no: chequeNo,
+        cheque_date: chequeDate,
+        amount,
+      },
+    });
+    await this.db.pdcUploadHistory.update({
+      where: { id: batch.id },
+      data: {
+        records_total: { increment: 1 },
+        ...(customerId ? { records_matched: { increment: 1 } } : {}),
+      },
+    });
+
+    this.logger.log(
+      `PDC manual entry: "${lookupName || partyName}" cheque ${chequeNo} ₹${amount} (${customerId ? 'matched' : 'unmatched'})`,
+    );
+    return { ...cheque, matched: !!customerId };
+  }
+
   // ─── Called by OutstandingService after each recalculation ──────────────────
   // Detects which cheques cleared based on outstanding amount decrease
 

@@ -24,6 +24,7 @@ import {
   buildDaysMention,
   buildMultiInvoiceNote,
   buildPartialPaymentNote,
+  buildLastBillNote,
   getISTGreeting,
   transliterateNameToDevanagari,
   transliterateCityToDevanagari,
@@ -270,6 +271,15 @@ export class CallingService {
     const daysMention = buildDaysMention(maxDays, 'HINDI');
     const daysMentionEn = buildDaysMention(maxDays, 'ENGLISH');
 
+    // Most recent bill (by invoice date) for "which/last bill" questions —
+    // amount + date only, never the Tally bill number.
+    const latestInvoice = customer.invoices.reduce((a, b) =>
+      b.invoice_date > a.invoice_date ? b : a,
+    );
+    const lastBillAmount = latestInvoice.amount || latestInvoice.due_amount;
+    const lastBillNote = buildLastBillNote(lastBillAmount, latestInvoice.invoice_date, 'HINDI');
+    const lastBillNoteEn = buildLastBillNote(lastBillAmount, latestInvoice.invoice_date, 'ENGLISH');
+
     // Hindi is what the call opens in, so names/city are transliterated to
     // Devanagari for the Indic TTS. The Roman proper-case versions ride along
     // for the moment the agent switches to English.
@@ -325,6 +335,11 @@ export class CallingService {
         days_mention_english: daysMentionEn,
         customer_name_english: customerNameEn,
         business_city_english: businessCityEn,
+        last_bill_note: lastBillNote,
+        last_bill_note_english: lastBillNoteEn,
+        // Raw Tally bill number of the latest invoice — spoken ONLY if the
+        // customer explicitly asks for the bill number (read slowly in the canvas).
+        last_bill_number: latestInvoice.invoice_number || '',
       },
     });
 

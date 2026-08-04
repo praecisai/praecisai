@@ -466,6 +466,21 @@ export function buildPartialPaymentNote(
   return `Partial payment context: Customer had already paid ${paid} earlier against this account (original was ${billed}). Acknowledge this warmly first: "आपने पहले ${paid} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${due} pending है।" Do NOT mention bill number.`;
 }
 
+// Spoken note for "what was my last bill / which is pending" — the most recent
+// bill's amount + date, in words. Never a bill NUMBER (unspeakable Tally codes,
+// and the agent's guardrail forbids it). Language-appropriate.
+export function buildLastBillNote(amount: number, date: Date, language: CallLang): string {
+  if (!amount || amount <= 0) return '';
+  if (language === 'ENGLISH') {
+    const ist = new Date(date.getTime() + 330 * 60000);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+      'August', 'September', 'October', 'November', 'December'];
+    const d = `${ist.getUTCDate()} ${months[ist.getUTCMonth()]}`;
+    return `Your most recent bill was for ${amountToEnglish(amount)}, dated ${d}.`;
+  }
+  return `जी, आपका पिछला bill लगभग ${amountToHindi(amount)} का था, ${formatHindiDate(date)} को।`;
+}
+
 // IST greeting based on time of call — server runs UTC, IST = UTC+5:30
 export function getISTGreeting(): string {
   const nowUTC = new Date();

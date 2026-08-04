@@ -26,6 +26,15 @@ export class PdcController {
     return this.pdcService.uploadPdc(businessId, file);
   }
 
+  // Manually add one cheque; appended alongside uploaded data.
+  @Post('cheques')
+  async createCheque(
+    @BusinessId() businessId: string,
+    @Body() body: { party_name: string; cheque_no: string; cheque_date?: string; amount: number },
+  ) {
+    return this.pdcService.createCheque(businessId, body);
+  }
+
   @Get('cheques')
   async listCheques(
     @BusinessId() businessId: string,

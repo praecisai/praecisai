@@ -2,9 +2,10 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
-// One daily window, deliberately BEFORE the 12:00 calling slot so a party who
-// is also due a call already has the statement PDF in hand when the phone rings.
-export const AUTO_WHATSAPP_SLOT = { key: 'morning', cron: '0 10 * * *', label: '10:00 IST' };
+// Per-business hours + weekdays now, so a single job fires at the top of every
+// hour across the allowed daytime window and the processor decides which tenants
+// are due this hour. 8:00–20:00 IST covers every selectable slot in Settings.
+export const AUTO_WHATSAPP_CRON = '0 8-20 * * *';
 
 const TIMEZONE = 'Asia/Kolkata';
 
@@ -24,7 +25,7 @@ export class AutoWhatsappScheduler implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const known = `auto-whatsapp-${AUTO_WHATSAPP_SLOT.key}`;
+      const known = 'auto-whatsapp-hourly';
       const existing = await this.queue.getJobSchedulers();
       for (const s of existing) {
         if (s.key && s.key !== known) {
@@ -35,17 +36,14 @@ export class AutoWhatsappScheduler implements OnModuleInit {
 
       await this.queue.upsertJobScheduler(
         known,
-        { pattern: AUTO_WHATSAPP_SLOT.cron, tz: TIMEZONE },
+        { pattern: AUTO_WHATSAPP_CRON, tz: TIMEZONE },
         {
           name: 'auto-whatsapp-run',
-          data: { slot: AUTO_WHATSAPP_SLOT.label },
-          opts: { removeOnComplete: 20, removeOnFail: 20 },
+          opts: { removeOnComplete: 30, removeOnFail: 30 },
         },
       );
 
-      this.logger.log(
-        `Auto-WhatsApp schedule registered: ${AUTO_WHATSAPP_SLOT.label} (${TIMEZONE})`,
-      );
+      this.logger.log(`Auto-WhatsApp schedule registered: hourly 08:00–20:00 (${TIMEZONE})`);
     } catch (err: any) {
       // Never block boot: manual sends must keep working even if Redis is
       // briefly unreachable.

@@ -31,6 +31,12 @@ export class UpdateBusinessDto {
   @Type(() => Object)
   segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }>;
 
+  // Separate WhatsApp segment ranges; same shape/validation as segment_rules.
+  // null clears them (WhatsApp then mirrors the call ranges).
+  @IsOptional()
+  @Type(() => Object)
+  whatsapp_segment_rules?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
+
   // Number the AI transfers to on a "talk to a human/senior" request.
   // Empty string clears it (call falls back to the platform default number).
   @IsOptional()
@@ -81,6 +87,40 @@ export class UpdateBusinessDto {
   @Min(1)
   @Max(5000)
   daily_call_cap?: number;
+
+  // When the unattended runs fire, per business. Hours are IST 0-23; weekdays
+  // 0=Sun … 6=Sat. Persisted as Int[] straight through to Prisma.
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(23, { each: true })
+  auto_call_hours?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  auto_call_weekdays?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(23, { each: true })
+  auto_whatsapp_hours?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  auto_whatsapp_weekdays?: number[];
 }
 
 // Segments the AI can actually speak: the VIP override must map to one of these
@@ -102,25 +142,14 @@ export class BusinessService {
   async update(id: string, dto: UpdateBusinessDto) {
     await this.findById(id);
 
-    // Validate segment rules structurally + logically before persisting
+    // Validate segment rules structurally + logically before persisting.
+    // WhatsApp ranges use the same shape; null clears them (WhatsApp then
+    // mirrors the call ranges), so only validate when an actual array is sent.
     if (dto.segment_rules !== undefined) {
-      const parsed = parseSegmentRules(dto.segment_rules);
-      if (parsed === DEFAULT_SEGMENT_RULES && dto.segment_rules.length > 0) {
-        throw new BadRequestException('Invalid segment rules format');
-      }
-      const sorted = [...parsed].sort((a, b) => a.min_days - b.min_days);
-      for (let i = 0; i < sorted.length; i++) {
-        const max = sorted[i].max_days;
-        if (max !== null && max < sorted[i].min_days) {
-          throw new BadRequestException('Segment rule max_days must be >= min_days');
-        }
-        if (i < sorted.length - 1 && (max === null || sorted[i + 1].min_days !== max + 1)) {
-          throw new BadRequestException('Segment rules must be contiguous (next min = previous max + 1)');
-        }
-      }
-      if (sorted[sorted.length - 1].max_days !== null) {
-        throw new BadRequestException('Last segment rule must be open-ended (max_days = null)');
-      }
+      this.assertValidRanges(dto.segment_rules, 'Segment');
+    }
+    if (dto.whatsapp_segment_rules != null) {
+      this.assertValidRanges(dto.whatsapp_segment_rules, 'WhatsApp segment');
     }
 
     // VIP rule: editable start AND end, plus which segment's call/template
@@ -157,12 +186,18 @@ export class BusinessService {
       }
     }
 
-    const { vip_rule, whatsapp_cadence_days, ...rest } = dto;
+    const { vip_rule, whatsapp_cadence_days, whatsapp_segment_rules, ...rest } = dto;
     const data: any = { ...rest };
     if (vip_rule !== undefined) data.vip_rule = vip_rule === null ? Prisma.DbNull : vip_rule;
     if (whatsapp_cadence_days !== undefined) {
       data.whatsapp_cadence_days =
         whatsapp_cadence_days === null ? Prisma.DbNull : whatsapp_cadence_days;
+    }
+    // Nullable Json column: null must go in as Prisma.DbNull (SQL NULL), which
+    // resets WhatsApp segmentation to mirror the call ranges again.
+    if (whatsapp_segment_rules !== undefined) {
+      data.whatsapp_segment_rules =
+        whatsapp_segment_rules === null ? Prisma.DbNull : whatsapp_segment_rules;
     }
 
     const updated = await this.prisma.business.update({
@@ -170,8 +205,10 @@ export class BusinessService {
       data,
     });
 
-    // Changed ranges re-segment every customer immediately
-    if (dto.segment_rules !== undefined) {
+    // Changed ranges re-segment every customer immediately. Either the call
+    // ranges or the WhatsApp ranges changing can alter a stored segment, so
+    // recompute on both (whatsapp_segment falls back to the call ranges).
+    if (dto.segment_rules !== undefined || whatsapp_segment_rules !== undefined) {
       const customers = await this.prisma.customer.findMany({
         where: { business_id: id },
         select: { id: true },
@@ -180,6 +217,33 @@ export class BusinessService {
     }
 
     return updated;
+  }
+
+  /**
+   * Structural + logical validation shared by the call and WhatsApp day ranges:
+   * contiguous, each max_days >= min_days, and the last bucket open-ended.
+   */
+  private assertValidRanges(
+    rules: Array<{ min_days: number; max_days: number | null; segment: string }>,
+    label: string,
+  ) {
+    const parsed = parseSegmentRules(rules);
+    if (parsed === DEFAULT_SEGMENT_RULES && rules.length > 0) {
+      throw new BadRequestException(`Invalid ${label.toLowerCase()} rules format`);
+    }
+    const sorted = [...parsed].sort((a, b) => a.min_days - b.min_days);
+    for (let i = 0; i < sorted.length; i++) {
+      const max = sorted[i].max_days;
+      if (max !== null && max < sorted[i].min_days) {
+        throw new BadRequestException(`${label} rule max_days must be >= min_days`);
+      }
+      if (i < sorted.length - 1 && (max === null || sorted[i + 1].min_days !== max + 1)) {
+        throw new BadRequestException(`${label} rules must be contiguous (next min = previous max + 1)`);
+      }
+    }
+    if (sorted[sorted.length - 1].max_days !== null) {
+      throw new BadRequestException(`Last ${label.toLowerCase()} rule must be open-ended (max_days = null)`);
+    }
   }
 
   async findAll(page = 1, limit = 20) {

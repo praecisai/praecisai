@@ -32,6 +32,11 @@ export class UpdateCustomerDto {
   @IsOptional()
   @Type(() => Object)
   custom_schedule?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
+  // Per-customer WhatsApp segment override; null clears it so WhatsApp falls
+  // back to this customer's call schedule, then the business WhatsApp ranges.
+  @IsOptional()
+  @Type(() => Object)
+  whatsapp_custom_schedule?: Array<{ min_days: number; max_days: number | null; segment: string }> | null;
 }
 
 export class CustomerFiltersDto {
@@ -129,12 +134,17 @@ export class CustomerService {
   async update(businessId: string, id: string, dto: UpdateCustomerDto) {
     await this.findById(businessId, id);
 
-    const { custom_schedule, ...rest } = dto;
+    const { custom_schedule, whatsapp_custom_schedule, ...rest } = dto;
     const data: any = { ...rest };
 
     if (custom_schedule !== undefined) {
       if (custom_schedule !== null) this.validateSchedule(custom_schedule);
       data.custom_schedule = custom_schedule === null ? Prisma.DbNull : custom_schedule;
+    }
+    if (whatsapp_custom_schedule !== undefined) {
+      if (whatsapp_custom_schedule !== null) this.validateSchedule(whatsapp_custom_schedule);
+      data.whatsapp_custom_schedule =
+        whatsapp_custom_schedule === null ? Prisma.DbNull : whatsapp_custom_schedule;
     }
 
     const updated = await this.prisma.customer.update({
@@ -142,8 +152,9 @@ export class CustomerService {
       data,
     });
 
-    // A schedule change moves the customer between segments immediately
-    if (custom_schedule !== undefined) {
+    // A schedule change (call or WhatsApp) moves the customer between segments
+    // immediately: recompute both stored segments in one pass.
+    if (custom_schedule !== undefined || whatsapp_custom_schedule !== undefined) {
       await this.outstandingService.recalculateForCustomer(businessId, id);
     }
 

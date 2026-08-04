@@ -41,16 +41,25 @@ export class AutoWhatsappProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ slot: string }>) {
-    const slot = job.data?.slot ?? 'unknown';
+  async process(_job: Job) {
+    // Fires hourly; act only on tenants whose configured hour + weekday match now.
+    const nowIst = new Date(Date.now() + 330 * 60000);
+    const hour = nowIst.getUTCHours();
+    const weekday = nowIst.getUTCDay(); // 0=Sun … 6=Sat
+    const slot = `${String(hour).padStart(2, '0')}:00 IST`;
 
     const businesses = await this.prisma.business.findMany({
-      where: { auto_whatsapp_enabled: true, status: 'ACTIVE' },
+      where: {
+        auto_whatsapp_enabled: true,
+        status: 'ACTIVE',
+        auto_whatsapp_hours: { has: hour },
+        auto_whatsapp_weekdays: { has: weekday },
+      },
       select: { id: true, name: true, whatsapp_cadence_days: true, daily_whatsapp_cap: true },
     });
 
     if (businesses.length === 0) {
-      this.logger.log(`Auto-WhatsApp ${slot}: no business has automatic messaging enabled`);
+      this.logger.log(`Auto-WhatsApp ${slot}: no business scheduled to message this hour`);
       return { slot, businesses: 0, queued: 0 };
     }
 
@@ -118,7 +127,9 @@ export class AutoWhatsappProcessor extends WorkerHost {
         where: {
           business_id: business.id,
           status: 'ACTIVE',
-          segment,
+          // WhatsApp uses its own segment (whatsapp_segment_rules), independent
+          // of the call segment.
+          whatsapp_segment: segment,
           // VIPs are never auto-contacted; they are manual-only by design.
           customer: { is_vip: false },
           // A party still settling a cleared cheque is not chased again.

@@ -7,14 +7,16 @@ import {
   useMe, useUpdateBusiness, useBolnaCredits,
   useBillingAccess,
 } from '../../../lib/api/hooks';
-import { Settings, Shield, Coins, Star } from 'lucide-react';
+import { Settings, Shield, Coins, Star, Clock, MessageSquare } from 'lucide-react';
+import { ScheduleSettings } from '../../../components/shared/ScheduleSettings';
 import { toast } from 'sonner';
 
 // Platform API keys (Bolna/AiSensy) are managed by the Praecis admin panel
 // only: tenants must never see or edit them, so there is no Integrations tab.
-// Automation (auto calls / auto WhatsApp) now lives as header toggles, not a tab.
+// Automation on/off lives as header toggles; the Schedule tab sets the timing.
 const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
+  { id: 'schedule', label: 'Schedule', icon: Clock },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
   { id: 'credits', label: 'Credit Status', icon: Coins },
 ];
@@ -87,6 +89,10 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState('');
   const [handoffNumber, setHandoffNumber] = useState('');
   const [bounds, setBounds] = useState<number[]>(DEFAULT_BOUNDS);
+  // Separate WhatsApp segment ranges. waEnabled off = mirror the call ranges
+  // above (whatsapp_segment_rules stays null); on = its own day ranges.
+  const [waEnabled, setWaEnabled] = useState(false);
+  const [waBounds, setWaBounds] = useState<number[]>(DEFAULT_BOUNDS);
   // VIP override: day range + which segment's call/template VIPs in it receive
   const [vipEnabled, setVipEnabled] = useState(false);
   const [vipMin, setVipMin] = useState(0);
@@ -97,6 +103,10 @@ export default function SettingsPage() {
     if (user?.business?.name) setBusinessName(user.business.name);
     setHandoffNumber(user?.business?.handoff_number ?? '');
     setBounds(boundsFromRules(user?.business?.segment_rules));
+    const waRules = (user?.business as any)?.whatsapp_segment_rules;
+    const hasWa = Array.isArray(waRules) && waRules.length > 0;
+    setWaEnabled(hasWa);
+    setWaBounds(boundsFromRules(hasWa ? waRules : user?.business?.segment_rules));
     const vr = user?.business?.vip_rule;
     if (vr && typeof vr.min_days === 'number') {
       setVipEnabled(true);
@@ -106,10 +116,11 @@ export default function SettingsPage() {
     } else {
       setVipEnabled(false);
     }
-  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules, user?.business?.vip_rule, user?.business?.call_language]);
+  }, [user?.business?.name, user?.business?.handoff_number, user?.business?.segment_rules, (user?.business as any)?.whatsapp_segment_rules, user?.business?.vip_rule, user?.business?.call_language]);
 
-  const boundsValid =
-    bounds[0] >= 0 && bounds[1] > bounds[0] && bounds[2] > bounds[1] && bounds[3] > bounds[2];
+  const validBounds = (b: number[]) => b[0] >= 0 && b[1] > b[0] && b[2] > b[1] && b[3] > b[2];
+  const boundsValid = validBounds(bounds);
+  const waBoundsValid = !waEnabled || validBounds(waBounds);
   const vipValid = !vipEnabled || (vipMin >= 0 && vipMax >= vipMin);
   // Empty is allowed (falls back to platform default); otherwise must look like a phone number.
   const handoffValid = /^(\+?[0-9]{10,15})?$/.test(handoffNumber.trim());
@@ -132,10 +143,12 @@ export default function SettingsPage() {
   };
 
   const saveSegments = async () => {
-    if (!boundsValid || !vipValid) return;
+    if (!boundsValid || !waBoundsValid || !vipValid) return;
     try {
       await updateBusiness.mutateAsync({
         segment_rules: rulesFromBounds(bounds),
+        // null clears the WhatsApp override so it mirrors the call ranges again.
+        whatsapp_segment_rules: waEnabled ? rulesFromBounds(waBounds) : null,
         vip_rule: vipEnabled
           ? { min_days: vipMin, max_days: vipMax, segment: vipSegment }
           : null,
@@ -177,6 +190,8 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          {activeTab === 'schedule' && <ScheduleSettings />}
+
           {activeTab === 'business' && (
             <div className="glass-card p-4 sm:p-6 space-y-5">
               <h3 className="font-semibold text-[var(--dark-brown)]">Business Settings</h3>
@@ -333,9 +348,77 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              {/* WhatsApp segment rules: independent day ranges for the automatic
+                  WhatsApp run. Off = mirror the call ranges above. */}
+              <div className="mt-6 pt-5 border-t" style={{ borderColor: 'rgba(176,137,104,0.25)' }}>
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+                  <div className="min-w-44">
+                    <h3 className="font-semibold text-[var(--dark-brown)] flex items-center gap-2">
+                      <MessageSquare size={15} className="text-[var(--mahogany)]" /> WhatsApp Segment Rules
+                    </h3>
+                    <p className="text-xs text-[var(--walnut)] mt-1">
+                      Separate day ranges that decide the <b>WhatsApp</b> template and cadence, independent of
+                      the call ranges above. Leave off to reuse the call ranges.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: 'var(--dark-brown)' }}>
+                    <input type="checkbox" checked={waEnabled} onChange={(e) => setWaEnabled(e.target.checked)} />
+                    Separate ranges
+                  </label>
+                </div>
+
+                {waEnabled ? (
+                  <>
+                    <div className="space-y-3 mt-3">
+                      {SEGMENT_META.map(({ segment, color, desc }, i) => (
+                        <div key={segment} className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 p-3 rounded-lg" style={{ background: 'var(--sand)' }}>
+                          <div className="flex items-start gap-3 min-w-0 sm:flex-1">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: color }} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-[var(--dark-brown)]">{segment}</p>
+                              <p className="text-xs text-[var(--walnut)]">{desc}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-[var(--walnut)] pl-5 sm:pl-0 flex-shrink-0">
+                            {i < 4 ? (
+                              <>
+                                <span>{i === 0 ? 0 : waBounds[i - 1] + 1} –</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={waBounds[i]}
+                                  onChange={(e) => {
+                                    const v = parseInt(e.target.value) || 0;
+                                    setWaBounds((b) => b.map((x, j) => (j === i ? v : x)));
+                                  }}
+                                  className="input-dark w-20 text-center"
+                                />
+                                <span>days</span>
+                              </>
+                            ) : (
+                              <span className="text-sm font-medium" style={{ color }}>{waBounds[3] + 1}+ days</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {!waBoundsValid && (
+                      <p className="text-xs mt-3" style={{ color: '#C62828' }}>
+                        Each boundary must be larger than the previous one.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs mt-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(74,124,89,0.08)', color: 'var(--walnut)' }}>
+                    WhatsApp is using the same day ranges as calls. Turn on &ldquo;Separate ranges&rdquo; to give
+                    WhatsApp its own segmentation.
+                  </p>
+                )}
+              </div>
+
               <button
                 onClick={saveSegments}
-                disabled={updateBusiness.isPending || !boundsValid || !vipValid}
+                disabled={updateBusiness.isPending || !boundsValid || !waBoundsValid || !vipValid}
                 className="mt-5 px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                 {updateBusiness.isPending ? 'Saving…' : 'Save Segment Rules'}

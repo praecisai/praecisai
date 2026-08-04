@@ -30,16 +30,25 @@ export class AutoCallProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ slot: string }>) {
-    const slot = job.data?.slot ?? 'unknown';
+  async process(_job: Job) {
+    // Fires hourly; act only on tenants whose configured hour + weekday match now.
+    const nowIst = new Date(Date.now() + 330 * 60000);
+    const hour = nowIst.getUTCHours();
+    const weekday = nowIst.getUTCDay(); // 0=Sun … 6=Sat
+    const slot = `${String(hour).padStart(2, '0')}:00 IST`;
 
     const businesses = await this.prisma.business.findMany({
-      where: { auto_calls_enabled: true, status: 'ACTIVE' },
+      where: {
+        auto_calls_enabled: true,
+        status: 'ACTIVE',
+        auto_call_hours: { has: hour },
+        auto_call_weekdays: { has: weekday },
+      },
       select: { id: true, name: true },
     });
 
     if (businesses.length === 0) {
-      this.logger.log(`Auto-call ${slot}: no business has automatic calling enabled`);
+      this.logger.log(`Auto-call ${slot}: no business scheduled to call this hour`);
       return { slot, businesses: 0, queued: 0 };
     }
 

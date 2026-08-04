@@ -2,24 +2,20 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
-// The two daily bulk windows, in IST (matches callback-slot.util).
-export const AUTO_CALL_SLOTS = [
-  { key: 'noon', cron: '0 12 * * *', label: '12:00 IST' },
-  { key: 'evening', cron: '0 16 * * *', label: '16:00 IST' },
-];
-
+// The runs are now per-business (chosen hours + weekdays), so a single job fires
+// at the top of every hour across the allowed daytime window and the processor
+// decides which businesses are due this hour. 8:00–20:00 IST covers every
+// selectable slot in Settings.
+export const AUTO_CALL_CRON = '0 8-20 * * *';
 const TIMEZONE = 'Asia/Kolkata';
 
 /**
- * Registers the repeatable jobs that drive the unattended 12:00 / 16:00 runs.
+ * Registers the hourly job behind the unattended calling runs.
  *
- * The schedule lives in Redis, so it survives restarts and fires once per slot
- * no matter how many API instances are running. Registration is idempotent:
- * old schedulers with the same key are replaced, so changing a cron here does
- * not leave a stale duplicate behind.
- *
- * Whether anything is actually dialed is decided per tenant at run time by
- * `auto_calls_enabled`: this only guarantees the check happens.
+ * The schedule lives in Redis so it survives restarts and fires once per hour
+ * regardless of how many API instances are running. Which businesses are dialed
+ * is decided in the processor by each tenant's `auto_call_hours` /
+ * `auto_call_weekdays` (and `auto_calls_enabled`).
  */
 @Injectable()
 export class AutoCallScheduler implements OnModuleInit {
@@ -29,31 +25,26 @@ export class AutoCallScheduler implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      // Drop schedules that are no longer in AUTO_CALL_SLOTS (e.g. a renamed
-      // slot), so removing one here removes it in Redis too.
-      const known = new Set(AUTO_CALL_SLOTS.map((s) => `auto-call-${s.key}`));
+      // Drop any older per-slot schedulers (auto-call-noon / -evening) so the
+      // switch to the hourly job doesn't leave stale duplicates behind.
+      const known = 'auto-call-hourly';
       const existing = await this.queue.getJobSchedulers();
       for (const s of existing) {
-        if (s.key && !known.has(s.key)) {
+        if (s.key && s.key !== known) {
           await this.queue.removeJobScheduler(s.key);
           this.logger.log(`Removed stale auto-call schedule ${s.key}`);
         }
       }
 
-      for (const slot of AUTO_CALL_SLOTS) {
-        await this.queue.upsertJobScheduler(
-          `auto-call-${slot.key}`,
-          { pattern: slot.cron, tz: TIMEZONE },
-          {
-            name: 'auto-call-run',
-            data: { slot: slot.label },
-            opts: { removeOnComplete: 20, removeOnFail: 20 },
-          },
-        );
-      }
-      this.logger.log(
-        `Auto-call schedule registered: ${AUTO_CALL_SLOTS.map((s) => s.label).join(' and ')} (${TIMEZONE})`,
+      await this.queue.upsertJobScheduler(
+        known,
+        { pattern: AUTO_CALL_CRON, tz: TIMEZONE },
+        {
+          name: 'auto-call-run',
+          opts: { removeOnComplete: 30, removeOnFail: 30 },
+        },
       );
+      this.logger.log(`Auto-call schedule registered: hourly 08:00–20:00 (${TIMEZONE})`);
     } catch (err: any) {
       // Never block boot on the scheduler: manual calling must keep working
       // even if Redis is briefly unreachable.

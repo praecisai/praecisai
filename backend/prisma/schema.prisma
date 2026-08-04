@@ -146,6 +146,10 @@ model Business {
   plan           BusinessPlan   @default(FREE)
   // Per-business segment day ranges; null = platform defaults
   segment_rules  Json?
+  // Separate day ranges that decide the WhatsApp segment (template + cadence),
+  // independent of the call segment. Null = mirror segment_rules (so WhatsApp
+  // behaves exactly like calls until the business sets its own ranges).
+  whatsapp_segment_rules Json?
   // Number the AI transfers a call to when the customer asks for a human/senior.
   // Null = fall back to the platform default (BOLNA_HANDOFF_NUMBER env var).
   handoff_number String?
@@ -169,6 +173,14 @@ model Business {
   // Master switch for the unattended 10:00 IST WhatsApp statement run.
   // OFF by default, same reasoning as auto_calls_enabled.
   auto_whatsapp_enabled Boolean @default(false)
+  // When the unattended runs fire, per business. Hours are IST (0-23); weekdays
+  // are 0=Sun … 6=Sat. Defaults preserve the original fixed behaviour: calls at
+  // 12:00 and 16:00, WhatsApp at 10:00, every day. The schedulers run hourly and
+  // only act on a business when the current IST hour+weekday match.
+  auto_call_hours       Int[]   @default([12, 16])
+  auto_call_weekdays    Int[]   @default([0, 1, 2, 3, 4, 5, 6])
+  auto_whatsapp_hours   Int[]   @default([10])
+  auto_whatsapp_weekdays Int[]  @default([0, 1, 2, 3, 4, 5, 6])
   // Per-segment override for how many days must pass before the same party may
   // receive another automated statement. Null = platform defaults
   // (Soft Reminder 15 days, every other contactable segment 7 days).
@@ -260,6 +272,9 @@ model Customer {
   // Per-customer segment day-range override; same shape as
   // businesses.segment_rules. Null = follow the business rules.
   custom_schedule Json?
+  // Per-customer WhatsApp segment override. Null = follow the business
+  // whatsapp_segment_rules (which itself falls back to the call ranges).
+  whatsapp_custom_schedule Json?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
@@ -314,6 +329,9 @@ model Outstanding {
   total_due          Float             @default(0)
   aging_bucket       String            @default("0-60")
   segment            String            @default("Soft Reminder")
+  // WhatsApp segment, computed from whatsapp_segment_rules (falls back to the
+  // call segment). Drives the automatic WhatsApp run's template + cadence.
+  whatsapp_segment   String            @default("Soft Reminder")
   status             OutstandingStatus @default(ACTIVE)
   pdc_cooldown_until DateTime?
   total_pdc_cleared  Float             @default(0)

@@ -5,8 +5,9 @@ import { useDebounce } from '@/lib/hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api/client';
 import { TopHeader } from '@/components/layout/Sidebar';
-import { Upload, FileSpreadsheet, CheckCircle2, Clock, XCircle, TrendingDown, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, Clock, XCircle, TrendingDown, AlertCircle, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { toast } from 'sonner';
 
 type PdcStatus = 'PENDING' | 'CLEARED' | 'BOUNCED';
 
@@ -58,6 +59,25 @@ export default function PdcPage() {
       api.patch(`/pdc/${id}/status`, { status }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['pdc'] }); },
   });
+
+  // Manual single-cheque entry: appended alongside uploaded data.
+  const emptyForm = { party_name: '', cheque_no: '', cheque_date: '', amount: '' };
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const addCheque = useMutation({
+    mutationFn: (payload: any) => api.post('/pdc/cheques', payload),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['pdc'] });
+      setShowAdd(false);
+      setForm(emptyForm);
+      toast.success(res?.data?.data?.matched ? 'Cheque added and matched to a customer' : 'Cheque added');
+    },
+    onError: (e: any) => toast.error('Could not add cheque', { description: e?.message }),
+  });
+  const formValid =
+    form.party_name.trim().length > 1 &&
+    form.cheque_no.trim().length > 0 &&
+    Number(form.amount) > 0;
 
   async function handleUpload(file: File) {
     setUploading(true);
@@ -123,7 +143,15 @@ export default function PdcPage() {
 
         {/* Upload section */}
         <div className="rounded-xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-6">
-          <h3 className="font-display text-[15px] font-semibold text-[var(--dark-brown)] mb-4">Upload PDC Excel</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-[15px] font-semibold text-[var(--dark-brown)]">Upload PDC Excel</h3>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--caramel)] px-3 py-1.5 text-[12px] font-medium text-[var(--mahogany)] hover:border-[var(--mahogany)] transition-colors"
+            >
+              <Plus size={14} strokeWidth={2} /> Add cheque manually
+            </button>
+          </div>
 
           <div
             className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[var(--caramel)] bg-[var(--sand)]/40 px-4 sm:px-6 py-8 sm:py-10 text-center cursor-pointer hover:border-[var(--mahogany)] transition-colors"
@@ -269,6 +297,96 @@ export default function PdcPage() {
           </div>
         )}
       </div>
+
+      {/* Manual entry modal */}
+      {showAdd && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(30,20,12,0.5)' }}
+          onClick={() => !addCheque.isPending && setShowAdd(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-5 sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-[16px] font-semibold text-[var(--dark-brown)]">Add cheque manually</h3>
+              <button onClick={() => setShowAdd(false)} className="text-[var(--walnut)] hover:text-[var(--mahogany)]">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Party Name</label>
+                <input
+                  value={form.party_name}
+                  onChange={(e) => setForm((f) => ({ ...f, party_name: e.target.value }))}
+                  placeholder="e.g. ALIENS WORLD (JODHPUR)"
+                  className="w-full rounded-lg border border-[var(--caramel)] bg-[var(--cream)] px-3 py-2 text-[13px] text-[var(--dark-brown)] outline-none focus:border-[var(--mahogany)]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Cheque No.</label>
+                  <input
+                    value={form.cheque_no}
+                    onChange={(e) => setForm((f) => ({ ...f, cheque_no: e.target.value }))}
+                    placeholder="466833"
+                    className="w-full rounded-lg border border-[var(--caramel)] bg-[var(--cream)] px-3 py-2 text-[13px] text-[var(--dark-brown)] outline-none focus:border-[var(--mahogany)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Amount (₹)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.amount}
+                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                    placeholder="50000"
+                    className="w-full rounded-lg border border-[var(--caramel)] bg-[var(--cream)] px-3 py-2 text-[13px] text-[var(--dark-brown)] outline-none focus:border-[var(--mahogany)]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Cheque Date</label>
+                <input
+                  type="date"
+                  value={form.cheque_date}
+                  onChange={(e) => setForm((f) => ({ ...f, cheque_date: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--caramel)] bg-[var(--cream)] px-3 py-2 text-[13px] text-[var(--dark-brown)] outline-none focus:border-[var(--mahogany)]"
+                />
+                <p className="mt-1 text-[11px] text-[var(--walnut)]">The date the cheque is payable. Leave blank to use today.</p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAdd(false)}
+                disabled={addCheque.isPending}
+                className="rounded-lg border border-[var(--caramel)] px-4 py-2 text-[13px] font-medium text-[var(--walnut)] hover:bg-[var(--sand)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  addCheque.mutate({
+                    party_name: form.party_name.trim(),
+                    cheque_no: form.cheque_no.trim(),
+                    cheque_date: form.cheque_date || undefined,
+                    amount: Number(form.amount),
+                  })
+                }
+                disabled={!formValid || addCheque.isPending}
+                className="rounded-lg px-4 py-2 text-[13px] font-medium text-[var(--cream)] disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
+              >
+                {addCheque.isPending ? 'Adding…' : 'Add cheque'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

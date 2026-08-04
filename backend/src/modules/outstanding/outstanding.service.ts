@@ -79,15 +79,26 @@ export class OutstandingService {
       }),
       this.prisma.business.findUnique({
         where: { id: businessId },
-        select: { segment_rules: true },
+        select: { segment_rules: true, whatsapp_segment_rules: true },
       }),
       this.prisma.customer.findUnique({
         where: { id: customerId },
-        select: { custom_schedule: true },
+        select: { custom_schedule: true, whatsapp_custom_schedule: true },
       }),
     ]);
     // A per-customer custom schedule overrides the business segment rules
     const rules = parseSegmentRules(customer?.custom_schedule ?? business?.segment_rules);
+    // WhatsApp segment precedence, most specific first: this customer's WhatsApp
+    // override, then their call override (a per-customer setting outranks a
+    // business one, and the modal promises "WhatsApp follows the call schedule"),
+    // then the business WhatsApp ranges, then the business call ranges. Kept
+    // identical to bulkRecalculate and the manual WhatsApp send.
+    const waRules = parseSegmentRules(
+      (customer as any)?.whatsapp_custom_schedule
+        ?? customer?.custom_schedule
+        ?? (business as any)?.whatsapp_segment_rules
+        ?? business?.segment_rules,
+    );
 
     const totalDue = invoices.reduce((sum, inv) => {
       return inv.due_amount > 0 ? sum + inv.due_amount : sum;
@@ -98,6 +109,7 @@ export class OutstandingService {
     }, 0);
 
     const segment = getSegment(maxDaysOverdue, totalDue, rules);
+    const whatsappSegment = getSegment(maxDaysOverdue, totalDue, waRules);
     const agingBucket = getAgingBucket(maxDaysOverdue);
     const status = totalDue === 0 ? 'CLEARED' : 'ACTIVE';
 
@@ -109,12 +121,14 @@ export class OutstandingService {
         total_due: totalDue,
         aging_bucket: agingBucket,
         segment,
+        whatsapp_segment: whatsappSegment,
         status: status as any,
       },
       update: {
         total_due: totalDue,
         aging_bucket: agingBucket,
         segment,
+        whatsapp_segment: whatsappSegment,
         status: status as any,
       },
     });
@@ -142,17 +156,33 @@ export class OutstandingService {
 
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      select: { segment_rules: true },
+      select: { segment_rules: true, whatsapp_segment_rules: true },
     });
     const businessRules = parseSegmentRules(business?.segment_rules);
+    // WhatsApp business ranges fall back to the call ranges when unset.
+    const businessWaRules = parseSegmentRules(
+      (business as any)?.whatsapp_segment_rules ?? business?.segment_rules,
+    );
 
     // Customers with a custom schedule are segmented by their own day ranges
     const customSchedules = await this.prisma.customer.findMany({
-      where: { business_id: businessId, id: { in: customerIds }, custom_schedule: { not: Prisma.AnyNull } },
-      select: { id: true, custom_schedule: true },
+      where: { business_id: businessId, id: { in: customerIds } },
+      select: { id: true, custom_schedule: true, whatsapp_custom_schedule: true },
     });
     const rulesByCustomer = new Map(
-      customSchedules.map((c) => [c.id, parseSegmentRules(c.custom_schedule)]),
+      customSchedules
+        .filter((c) => c.custom_schedule != null)
+        .map((c) => [c.id, parseSegmentRules(c.custom_schedule)]),
+    );
+    // WhatsApp per-customer ranges: own override, else the customer's call
+    // override, else fall through to the business WhatsApp ranges below.
+    const waRulesByCustomer = new Map(
+      customSchedules
+        .filter((c) => (c as any).whatsapp_custom_schedule != null || c.custom_schedule != null)
+        .map((c) => [
+          c.id,
+          parseSegmentRules((c as any).whatsapp_custom_schedule ?? c.custom_schedule),
+        ]),
     );
 
     const prev = await this.prisma.outstanding.findMany({
@@ -188,7 +218,9 @@ export class OutstandingService {
         chunk.map(async (customerId) => {
           const totals = totalsByCustomer.get(customerId) ?? { totalDue: 0, maxDays: 0 };
           const rules = rulesByCustomer.get(customerId) ?? businessRules;
+          const waRules = waRulesByCustomer.get(customerId) ?? businessWaRules;
           const segment = getSegment(totals.maxDays, totals.totalDue, rules);
+          const whatsappSegment = getSegment(totals.maxDays, totals.totalDue, waRules);
           const agingBucket = getAgingBucket(totals.maxDays);
           const status = totals.totalDue === 0 ? 'CLEARED' : 'ACTIVE';
 
@@ -200,12 +232,14 @@ export class OutstandingService {
               total_due: totals.totalDue,
               aging_bucket: agingBucket,
               segment,
+              whatsapp_segment: whatsappSegment,
               status: status as any,
             },
             update: {
               total_due: totals.totalDue,
               aging_bucket: agingBucket,
               segment,
+              whatsapp_segment: whatsappSegment,
               status: status as any,
             },
           });
