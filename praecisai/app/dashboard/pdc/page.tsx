@@ -79,6 +79,24 @@ export default function PdcPage() {
     form.cheque_no.trim().length > 0 &&
     Number(form.amount) > 0;
 
+  // Party-name autocomplete against existing customers (server-side search).
+  const [partyFocused, setPartyFocused] = useState(false);
+  const debouncedParty = useDebounce(form.party_name, 200);
+  const { data: partyMatches } = useQuery({
+    queryKey: ['pdc', 'party-search', debouncedParty],
+    queryFn: async () =>
+      (await api.get('/customers', { params: { search: debouncedParty, limit: 8 } })).data.data,
+    enabled: showAdd && debouncedParty.trim().length >= 2,
+  });
+  const partyList: any[] = partyMatches?.data ?? [];
+  const showPartyDropdown =
+    partyFocused &&
+    partyList.length > 0 &&
+    form.party_name.trim().length >= 2 &&
+    !partyList.some(
+      (c) => c.customer_name?.toLowerCase() === form.party_name.trim().toLowerCase(),
+    );
+
   async function handleUpload(file: File) {
     setUploading(true);
     setUploadError('');
@@ -317,14 +335,37 @@ export default function PdcPage() {
             </div>
 
             <div className="space-y-3.5">
-              <div>
+              <div className="relative">
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Party Name</label>
                 <input
                   value={form.party_name}
                   onChange={(e) => setForm((f) => ({ ...f, party_name: e.target.value }))}
-                  placeholder="e.g. ALIENS WORLD (JODHPUR)"
+                  onFocus={() => setPartyFocused(true)}
+                  onBlur={() => setTimeout(() => setPartyFocused(false), 120)}
+                  autoComplete="off"
+                  placeholder="Start typing a customer name…"
                   className="w-full rounded-lg border border-[var(--caramel)] bg-[var(--cream)] px-3 py-2 text-[13px] text-[var(--dark-brown)] outline-none focus:border-[var(--mahogany)]"
                 />
+                {showPartyDropdown && (
+                  <div className="absolute z-10 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-[var(--caramel)] bg-[var(--surface-warm)] shadow-lg">
+                    {partyList.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setForm((f) => ({ ...f, party_name: c.customer_name }));
+                          setPartyFocused(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-[var(--dark-brown)] hover:bg-[var(--sand)] transition-colors"
+                      >
+                        <span className="truncate">{c.customer_name}</span>
+                        {c.city && <span className="text-[11px] text-[var(--walnut)] flex-shrink-0">{c.city}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1 text-[11px] text-[var(--walnut)]">Pick an existing customer, or type a new name.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
