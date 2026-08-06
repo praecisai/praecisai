@@ -3,10 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from './crypto.service';
 import { OnboardingStatus } from '@prisma/client';
+import { toE164India } from '../../common/utils/call-script.util';
 
 export interface BolnaKeys {
   apiKey: string | null;
   agentId: string | null;
+  /** Outbound caller ID (E.164). Null means Bolna dials from its shared pool. */
+  fromNumber: string | null;
   /** true when the key came from the tenant record (not the env fallback) */
   fromTenant: boolean;
 }
@@ -31,18 +34,24 @@ export class TenantKeysService {
   async getBolnaKeys(businessId: string): Promise<BolnaKeys> {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      select: { bolna_api_key: true, bolna_agent_id: true },
+      select: { bolna_api_key: true, bolna_agent_id: true, bolna_from_number: true },
     });
+    // The caller ID resolves independently of the API key: a tenant still on
+    // the platform's Bolna account can already own the number it dials from.
+    const fromNumber =
+      business?.bolna_from_number || this.config.get<string>('BOLNA_FROM_NUMBER') || null;
     if (business?.bolna_api_key) {
       return {
         apiKey: this.cryptoService.decrypt(business.bolna_api_key),
         agentId: business.bolna_agent_id ?? this.config.get<string>('BOLNA_AGENT_ID') ?? null,
+        fromNumber,
         fromTenant: true,
       };
     }
     return {
       apiKey: this.config.get<string>('BOLNA_API_KEY') ?? null,
       agentId: this.config.get<string>('BOLNA_AGENT_ID') ?? null,
+      fromNumber,
       fromTenant: false,
     };
   }
@@ -63,7 +72,12 @@ export class TenantKeysService {
    */
   async setKeys(
     businessId: string,
-    keys: { bolnaApiKey?: string; bolnaAgentId?: string; aisensyApiKey?: string },
+    keys: {
+      bolnaApiKey?: string;
+      bolnaAgentId?: string;
+      bolnaFromNumber?: string;
+      aisensyApiKey?: string;
+    },
   ) {
     const data: Record<string, string | null> = {};
     if (keys.bolnaApiKey !== undefined) {
@@ -71,6 +85,10 @@ export class TenantKeysService {
     }
     if (keys.bolnaAgentId !== undefined) {
       data.bolna_agent_id = keys.bolnaAgentId || null;
+    }
+    // Stored E.164: Bolna rejects a bare 10-digit number as a caller ID.
+    if (keys.bolnaFromNumber !== undefined) {
+      data.bolna_from_number = keys.bolnaFromNumber ? toE164India(keys.bolnaFromNumber) : null;
     }
     if (keys.aisensyApiKey !== undefined) {
       data.aisensy_api_key = keys.aisensyApiKey
@@ -108,11 +126,18 @@ export class TenantKeysService {
   async keyPreviews(businessId: string) {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      select: { bolna_api_key: true, bolna_agent_id: true, aisensy_api_key: true },
+      select: {
+        bolna_api_key: true,
+        bolna_agent_id: true,
+        bolna_from_number: true,
+        aisensy_api_key: true,
+      },
     });
     return {
       bolna_key_last4: this.cryptoService.last4(business?.bolna_api_key),
       bolna_agent_id: business?.bolna_agent_id ?? null,
+      // Not a secret: shown in full so the admin can confirm the caller ID.
+      bolna_from_number: business?.bolna_from_number ?? null,
       aisensy_key_last4: this.cryptoService.last4(business?.aisensy_api_key),
     };
   }

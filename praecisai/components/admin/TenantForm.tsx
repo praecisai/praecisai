@@ -8,6 +8,7 @@ export interface TenantFormValues {
   allowedEmails: string[];
   bolnaApiKey?: string;
   bolnaAgentId?: string;
+  bolnaFromNumber?: string;
   aisensyApiKey?: string;
   lowBalanceThresholdUsd?: number;
   billingEmail?: string;
@@ -18,6 +19,7 @@ export interface TenantFormValues {
 interface KeyPreviews {
   bolna_key_last4?: string | null;
   bolna_agent_id?: string | null;
+  bolna_from_number?: string | null;
   aisensy_key_last4?: string | null;
 }
 
@@ -105,6 +107,7 @@ export function TenantForm({
   const [emails, setEmails] = useState((initial?.allowedEmails ?? []).join(', '));
   const [bolnaApiKey, setBolnaApiKey] = useState<string | undefined>(undefined);
   const [bolnaAgentId, setBolnaAgentId] = useState(previews?.bolna_agent_id ?? '');
+  const [bolnaFromNumber, setBolnaFromNumber] = useState(previews?.bolna_from_number ?? '');
   const [aisensyApiKey, setAisensyApiKey] = useState<string | undefined>(undefined);
   const [threshold, setThreshold] = useState(String(initial?.lowBalanceThresholdUsd ?? 5));
   const [billingEmail, setBillingEmail] = useState(initial?.billingEmail ?? '');
@@ -121,6 +124,9 @@ export function TenantForm({
         .filter(Boolean),
       ...(bolnaApiKey !== undefined ? { bolnaApiKey } : {}),
       ...(bolnaAgentId !== (previews?.bolna_agent_id ?? '') ? { bolnaAgentId } : {}),
+      ...(bolnaFromNumber !== (previews?.bolna_from_number ?? '')
+        ? { bolnaFromNumber: bolnaFromNumber.trim() }
+        : {}),
       ...(aisensyApiKey !== undefined ? { aisensyApiKey } : {}),
       lowBalanceThresholdUsd: Number(threshold) || 5,
       billingEmail: billingEmail.trim(),
@@ -163,6 +169,19 @@ export function TenantForm({
           <input value={bolnaAgentId} onChange={(e) => setBolnaAgentId(e.target.value)} className={inputCls} style={inputStyle} />
         </Field>
       </div>
+
+      <Field
+        label="Outbound caller ID"
+        hint="The Bolna number this business bought. Customers see it when the AI calls, and it's the number they call back. Leave empty to dial from Bolna's shared pool."
+      >
+        <input
+          value={bolnaFromNumber}
+          onChange={(e) => setBolnaFromNumber(e.target.value)}
+          className={inputCls}
+          style={inputStyle}
+          placeholder="+918071582906"
+        />
+      </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SecretField label="AiSensy API key" saved={previews?.aisensy_key_last4} value={aisensyApiKey} onChange={setAisensyApiKey} />

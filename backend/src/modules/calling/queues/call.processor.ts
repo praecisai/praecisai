@@ -35,10 +35,15 @@ export class CallProcessor extends WorkerHost {
     // until the key migration runs). Demo calls stay on the platform account.
     let apiKey = process.env.BOLNA_API_KEY;
     let agentId = process.env.BOLNA_AGENT_ID;
+    // Outbound caller ID. Omitted, Bolna dials from its own shared pool, so the
+    // customer sees a number that rotates, cannot be called back, and carries
+    // none of the tenant's Truecaller verification.
+    let fromNumber = process.env.BOLNA_FROM_NUMBER || '';
     if (callLogId && businessId) {
       const keys = await this.tenantKeys.getBolnaKeys(businessId);
       if (keys.apiKey) apiKey = keys.apiKey;
       if (keys.agentId) agentId = keys.agentId;
+      if (keys.fromNumber) fromNumber = keys.fromNumber;
     }
 
     try {
@@ -51,6 +56,9 @@ export class CallProcessor extends WorkerHost {
         body: JSON.stringify({
           agent_id: agentId,
           recipient_phone_number: formattedPhone,
+          // Only sent when set: an empty value makes Bolna reject the call
+          // rather than silently fall back to the pool.
+          ...(fromNumber ? { from_phone_number: fromNumber } : {}),
           user_data: {
             // Echoed back in the transfer pre-call webhook (%(call_log_id)s) so
             // the handoff briefing can reliably find this call. Harmless as a

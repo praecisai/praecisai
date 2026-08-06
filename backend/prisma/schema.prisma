@@ -200,6 +200,11 @@ model Business {
   // the backend.
   bolna_api_key             String?
   bolna_agent_id            String?
+  // Caller ID for outbound calls (E.164). Bolna dials from its shared pool
+  // unless the call payload names a number the tenant owns, so an unset value
+  // means customers see a rotating Bolna number they cannot call back and the
+  // tenant's Truecaller verification never applies. Null = env fallback.
+  bolna_from_number         String?
   aisensy_api_key           String?
   low_balance_threshold_usd Float            @default(5)
   billing_email             String?

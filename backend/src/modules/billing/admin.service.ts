@@ -10,6 +10,7 @@ export interface UpsertTenantDto {
   allowedEmails?: string[];
   bolnaApiKey?: string;
   bolnaAgentId?: string;
+  bolnaFromNumber?: string;
   aisensyApiKey?: string;
   lowBalanceThresholdUsd?: number;
   billingEmail?: string;
@@ -160,6 +161,7 @@ export class AdminService {
         city: true,
         bolna_api_key: true,
         bolna_agent_id: true,
+        bolna_from_number: true,
         aisensy_api_key: true,
         trial_ends_at: true,
         created_at: true,
@@ -230,10 +232,11 @@ export class AdminService {
       },
     });
 
-    if (dto.bolnaApiKey || dto.bolnaAgentId || dto.aisensyApiKey) {
+    if (dto.bolnaApiKey || dto.bolnaAgentId || dto.bolnaFromNumber || dto.aisensyApiKey) {
       await this.tenantKeys.setKeys(business.id, {
         bolnaApiKey: dto.bolnaApiKey,
         bolnaAgentId: dto.bolnaAgentId,
+        bolnaFromNumber: dto.bolnaFromNumber,
         aisensyApiKey: dto.aisensyApiKey,
       });
     }
@@ -266,10 +269,16 @@ export class AdminService {
       },
     });
 
-    if (dto.bolnaApiKey !== undefined || dto.bolnaAgentId !== undefined || dto.aisensyApiKey !== undefined) {
+    if (
+      dto.bolnaApiKey !== undefined ||
+      dto.bolnaAgentId !== undefined ||
+      dto.bolnaFromNumber !== undefined ||
+      dto.aisensyApiKey !== undefined
+    ) {
       await this.tenantKeys.setKeys(id, {
         bolnaApiKey: dto.bolnaApiKey,
         bolnaAgentId: dto.bolnaAgentId,
+        bolnaFromNumber: dto.bolnaFromNumber,
         aisensyApiKey: dto.aisensyApiKey,
       });
     }
