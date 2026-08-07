@@ -169,7 +169,7 @@ export class CallingService {
     // row. Skipped for fallback dials to the next number of the SAME attempt,
     // and for a callback the customer themselves asked for — a request to be
     // rung back in 5 minutes must not be swallowed by an anti-repeat guard.
-    if (!opts.skipCooldown && !opts.isScheduledCallback) {
+    if (!opts.skipCooldown && !opts.isScheduledCallback && !this.isTestNumber(dialPhone)) {
       const recentCall = await this.prisma.callLog.findFirst({
         where: {
           customer_id: customerId,
@@ -843,6 +843,24 @@ export class CallingService {
 
   private toIST(date: Date): Date {
     return new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+  }
+
+  /**
+   * Numbers we own and dial repeatedly while testing. Only the 60-minute
+   * anti-repeat gap is waived: the sensitive-situation and PDC cooldowns are
+   * about the customer's circumstances, not about accidental double-dialling,
+   * so they still apply. Comma-separated in CALL_TEST_NUMBERS; any Indian
+   * format works because both sides are normalised to E.164.
+   */
+  private isTestNumber(phone: string): boolean {
+    const raw = process.env.CALL_TEST_NUMBERS;
+    if (!raw) return false;
+    const dialed = toE164India(phone);
+    return raw
+      .split(',')
+      .map((n) => toE164India(n.trim()))
+      .filter(Boolean)
+      .includes(dialed);
   }
 
   private mapSentiment(moodSummary: any, retellSentiment: any): CallSentiment {

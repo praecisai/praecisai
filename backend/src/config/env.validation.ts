@@ -129,6 +129,13 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   BOLNA_API_BASE?: string;
+
+  // Comma-separated numbers exempt from the 60-minute same-customer call gap,
+  // so a tester can re-dial their own phone. Testing affordance only: leave
+  // unset in production.
+  @IsOptional()
+  @IsString()
+  CALL_TEST_NUMBERS?: string;
 }
 
 export function validate(config: Record<string, unknown>) {
