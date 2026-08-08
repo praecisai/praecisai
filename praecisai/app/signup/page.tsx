@@ -31,6 +31,24 @@ export default function SignupPage() {
       return;
     }
 
+    // Supabase answers an already-registered email with a decoy user that has
+    // an empty identities array and NO error, so email addresses can't be
+    // enumerated. Without this check signup reports success, creates nothing,
+    // and the password silently fails at login forever after.
+    if ((data.user.identities?.length ?? 0) === 0) {
+      setError('This email is already registered. Please sign in instead, or use "Forgot password" to set one.');
+      setLoading(false);
+      return;
+    }
+
+    // Email confirmation is on: there is no session yet, so onboarding would
+    // fail unauthenticated. Send them to their inbox instead of the dashboard.
+    if (!data.session) {
+      setError('Almost there: confirm your email address from the link we just sent, then sign in.');
+      setLoading(false);
+      return;
+    }
+
     // 2. Onboard: create business + user record
     try {
       await api.post('/auth/onboard', { businessName });

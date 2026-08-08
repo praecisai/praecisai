@@ -13,11 +13,37 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  // Routes through /auth/callback so the recovery code is exchanged for a
+  // session before the set-password screen renders.
+  async function handleForgotPassword() {
+    setError('');
+    setNotice('');
+    if (!email.trim()) {
+      setError('Enter your email address first, then tap "Forgot password".');
+      return;
+    }
+
+    setLoading(true);
+    const supabase = createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+    });
+    setLoading(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    setNotice('Password reset link sent. Check your inbox, including spam.');
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setNotice('');
 
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -86,6 +112,15 @@ export default function LoginPage() {
               </div>
             )}
 
+            {notice && (
+              <div
+                className="p-3 rounded-lg text-sm border"
+                style={{ background: 'rgba(22,101,52,0.06)', borderColor: 'rgba(22,101,52,0.2)', color: '#166534' }}
+              >
+                {notice}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleGoogleLogin}
@@ -124,9 +159,19 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-[var(--walnut)] uppercase tracking-wider">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loading}
+                  className="text-xs font-semibold text-[var(--mahogany)] hover:text-[var(--rust)] disabled:opacity-50"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 id="password"
                 type="password"

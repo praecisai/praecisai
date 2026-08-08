@@ -4,8 +4,14 @@ import { createClient } from '../../../lib/supabase/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  // A recovery link must end on the set-password screen, never the dashboard.
+  // The dashboard's own "Send password recovery" button sends no `next`, so the
+  // type marker is the only signal in that case.
+  const isRecovery = searchParams.get('type') === 'recovery';
   // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/dashboard';
+  const next = isRecovery
+    ? '/auth/update-password'
+    : (searchParams.get('next') ?? '/dashboard');
 
   if (code) {
     const supabase = await createClient();
