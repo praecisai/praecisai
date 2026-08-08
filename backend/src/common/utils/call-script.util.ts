@@ -238,8 +238,29 @@ export async function transliterateNameToDevanagari(name: string): Promise<strin
 
 // ─── Segment-specific call scripts ───────────────────────────────────────────
 // Each segment has STRICT boundaries. Agent must NOT use language from a higher segment.
-const REFUSAL_GUARD = `ACCEPT-FIRST (highest priority): if the customer gives ANY clear date or timeframe within two months — "कल", "इस हफ्ते", "अगले हफ्ते"/"next week", "दस-पंद्रह दिन में", "इस महीने", or a specific तारीख — that is ACCEPTED. Say EXACTLY "ठीक है जी। Thank you so much." and stop. NEVER ask the "कोई खास परेशानी है" line for an accepted date. The difficulty/seniors probe is ONLY for an outright refusal or a date beyond two months — never for a normal date like "next week".
-ONLY if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement — no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of TWO times in the whole call — if the customer refuses again after the second attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
+
+// Accepting a commitment takes TWO turns, never one. The canvas disconnects the
+// call the instant "Thank you so much" is spoken, so fusing the acknowledgement
+// and the sign-off into a single line meant every early acknowledgement hung up
+// on a customer who was still mid-sentence ("मैं करवाता हूँ… और एक बात…").
+// Splitting them makes a premature acknowledgement recoverable: the customer
+// keeps talking and the agent is still on the line to hear it.
+const ACCEPT_CLOSE = `acknowledge with ONLY "ठीक है जी।" then STOP and WAIT. Do NOT say "Thank you so much" in that same turn — the call is NOT over yet. On their NEXT turn: if they added anything at all (a reason, a condition, another question, "और एक बात", or any unfinished thought), handle it warmly and stay in the call, then acknowledge again the same way. Only once they have clearly finished and added nothing new (silence, "ठीक है", "ok", "बस", "अच्छा") do you say EXACTLY "Thank you so much." and then go completely silent.`;
+
+// An intention to pay is not a date. "मैं कर दूँगी" commits to nothing a
+// recovery desk can follow up on, and accepting it lets a customer end the call
+// without ever naming a day. Acceptance therefore requires a TIME reference;
+// everything else earns exactly one warm probe first.
+const DATE_PROBE = `NO-DATE CHECK — run this BEFORE accepting anything. A promise WITHOUT a time reference is NOT a date, it is vague. Vague (probe, do NOT close): "मैं कर दूँगा", "मैं कर दूँगी", "हो जाएगा", "करवाता हूँ", "करवा दूँगा", "जल्दी", "जल्दी कर दूँगा", "देखते हैं", "देख लेंगे", "try करता हूँ", "जब possible होगा तब बता दूँगा", "जब हो जाएगा तब बता दूँगी", "बता दूँगा", "अभी देखता हूँ". It counts as a REAL date only if it NAMES a time: कल, परसों, इस हफ्ते, अगले हफ्ते, दस-पंद्रह दिन में, इस महीने, अगले महीने, or a specific तारीख.
+On a vague reply, ask ONCE — warmly, humbly, never pushing — EXACTLY: "बिल्कुल जी, शुक्रिया। मेरी एक छोटी सी request है, कोई approximate date बता दीजिए, जैसे पंद्रह या बीस तारीख तक?" Then STOP and wait. This probe is asked a MAXIMUM of ONCE in the whole call. Whatever comes back — a real date, or vague again — accept it and close. Never probe a second time.`;
+
+const DATE_PROBE_EN = `NO-DATE CHECK — run this BEFORE accepting anything. A promise WITHOUT a time reference is NOT a date, it is vague. Vague (probe, do NOT close): "I will do it", "it will happen", "I'll get it done", "soon", "let's see", "we'll see", "I'll try", "I'll tell you when it's possible", "I'll let you know once done". It counts as a REAL date only if it NAMES a time: tomorrow, day after, this week, next week, in ten to fifteen days, this month, next month, or a specific date.
+On a vague reply, ask ONCE — warmly, humbly, never pushing — EXACTLY: "Of course sir, thank you. I had one small request, could you give me an approximate date, say by the 15th or 20th?" Then STOP and wait. This probe is asked a MAXIMUM of ONCE in the whole call. Whatever comes back — a real date, or vague again — accept it and close. Never probe a second time.`;
+
+const ACCEPT_CLOSE_EN = `acknowledge with ONLY "Alright sir." then STOP and WAIT. Do NOT say "Thank you so much" in that same turn — the call is NOT over yet. On their NEXT turn: if they added anything at all (a reason, a condition, another question, "one more thing", or any unfinished thought), handle it warmly and stay in the call, then acknowledge again the same way. Only once they have clearly finished and added nothing new (silence, "ok", "alright", "that's it") do you say EXACTLY "Thank you so much." and then go completely silent.`;
+const REFUSAL_GUARD = `${DATE_PROBE}
+ACCEPT-FIRST (applies once a REAL date exists): if the customer gives ANY clear date or timeframe within two months — "कल", "इस हफ्ते", "अगले हफ्ते"/"next week", "दस-पंद्रह दिन में", "इस महीने", or a specific तारीख — that is ACCEPTED: ${ACCEPT_CLOSE} NEVER ask the "कोई खास परेशानी है" line for an accepted date. The difficulty/seniors probe is ONLY for an outright refusal or a date beyond two months — never for a normal date like "next week".
+ONLY if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement — no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of TWO times in the whole call — if the customer refuses again after the second attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → ${ACCEPT_CLOSE} If their turn also contains questions, answer every question first, then continue this step in the same response.`;
 
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
   'Soft Reminder': `
@@ -251,9 +272,10 @@ ONLY DO THESE TWO THINGS — NOTHING ELSE:
 
 THAT IS ALL. No pressure. No probing. No firmness.
 
-If customer gives ANY answer (date, week, month, anything) — say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
-If customer gives no answer — say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
-NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
+${DATE_PROBE}
+Once a REAL date is given (or the one probe has already been used) — ${ACCEPT_CLOSE}
+If customer gives no answer at all — say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
+Beyond that ONE approximate-date request, never probe again and never add extra sentences.`,
 
   'Follow-up': `
 SEGMENT: Follow-up
@@ -271,9 +293,8 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने) — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
-If customer gives truly vague answer ("जल्दी", "देखते हैं") — ask once more gently for a rough date.
-If still no date — say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
+Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने) — ${ACCEPT_CLOSE} Do not probe further.
+If the customer says nothing at all — say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
@@ -294,7 +315,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal timeframe within two months — capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+Otherwise, if customer gives ANY normal timeframe within two months — capture it, then ${ACCEPT_CLOSE} The NO-DATE CHECK above already governs vague replies: never add a second probe here.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -317,26 +338,28 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+Otherwise, if customer gives ANY normal commitment within two months — ${ACCEPT_CLOSE} NEVER threaten or pressure.`,
 };
 
 // ─── English segment scripts — mirror the Hindi ones, Indian English ─────────
-const REFUSAL_GUARD_EN = `ACCEPT-FIRST (highest priority): if the customer gives ANY clear date or timeframe within two months — "tomorrow", "this week", "next week", "in ten to fifteen days", "this month", or a specific date — that is ACCEPTED. Say EXACTLY "Alright sir. Thank you so much." and stop. NEVER ask the "Is there some particular difficulty" line for an accepted date. The difficulty/seniors probe is ONLY for an outright refusal or a date beyond two months — never for a normal date like "next week".
-ONLY if the customer REFUSES to pay ("I won't pay", "I can't pay now", "not possible right now", "no money"), OR gives a date MORE than two months away ("after three months", "next year") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "Is there some particular difficulty, or shall I connect you with our seniors?" Never begin this line with an acknowledgement — no "sure", no "I understand", no "alright". The first word is "Is". You may ask this line a MAXIMUM of TWO times in the whole call — if the customer refuses again after the second attempt, close warmly with "No problem sir, we understand. Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "I completely understand sir, there is no pressure at all." then say "Thank you so much." and stop; wants seniors → "Of course, I will connect you right away." and connect; a sooner date (within two months) → "Alright sir. Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
+const REFUSAL_GUARD_EN = `${DATE_PROBE_EN}
+ACCEPT-FIRST (applies once a REAL date exists): if the customer gives ANY clear date or timeframe within two months — "tomorrow", "this week", "next week", "in ten to fifteen days", "this month", or a specific date — that is ACCEPTED: ${ACCEPT_CLOSE_EN} NEVER ask the "Is there some particular difficulty" line for an accepted date. The difficulty/seniors probe is ONLY for an outright refusal or a date beyond two months — never for a normal date like "next week".
+ONLY if the customer REFUSES to pay ("I won't pay", "I can't pay now", "not possible right now", "no money"), OR gives a date MORE than two months away ("after three months", "next year") — do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "Is there some particular difficulty, or shall I connect you with our seniors?" Never begin this line with an acknowledgement — no "sure", no "I understand", no "alright". The first word is "Is". You may ask this line a MAXIMUM of TWO times in the whole call — if the customer refuses again after the second attempt, close warmly with "No problem sir, we understand. Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "I completely understand sir, there is no pressure at all." then say "Thank you so much." and stop; wants seniors → "Of course, I will connect you right away." and connect; a sooner date (within two months) → ${ACCEPT_CLOSE_EN} If their turn also contains questions, answer every question first, then continue this step in the same response.`;
 
 const SEGMENT_INSTRUCTIONS_EN: Record<string, string> = {
   'Soft Reminder': `
 SEGMENT: Soft Reminder
 
 ONLY DO THESE TWO THINGS — NOTHING ELSE:
-1. Tell the customer that {due_amount_hindi} is pending.
+1. Tell the customer that {due_amount_english} is pending.
 2. Ask "Could you please tell me by when it can be cleared?"
 
 THAT IS ALL. No pressure. No probing. No firmness.
 
-If customer gives ANY answer (date, week, month, anything) — say EXACTLY "Alright sir. Thank you so much." then say NOTHING more, no matter what the customer says.
-If customer gives no answer — say EXACTLY "No problem sir, we understand. Thank you so much." then say NOTHING more.
-NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
+${DATE_PROBE_EN}
+Once a REAL date is given (or the one probe has already been used) — ${ACCEPT_CLOSE_EN}
+If customer gives no answer at all — say EXACTLY "No problem sir, we understand. Thank you so much." then say NOTHING more.
+Beyond that ONE approximate-date request, never probe again and never add extra sentences.`,
 
   'Follow-up': `
 SEGMENT: Follow-up
@@ -344,7 +367,7 @@ SEGMENT: Follow-up
 TONE: friendly, gentle reminder — you had contact before, this is just a soft follow-up. Never firm, never pressuring.
 
 DO THESE THINGS:
-1. Tell the customer {due_amount_hindi} is pending.
+1. Tell the customer {due_amount_english} is pending.
 2. Ask warmly for a rough/expected date. Approximate is completely fine.
 
 SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (short 4-7 word sentences, in order — do not improvise). The FIRST line is ALWAYS the amount; never skip it:
@@ -354,9 +377,8 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD_EN}
-Otherwise, if customer gives ANY normal timeframe within two months (a week, tomorrow, two-three days, this month) — say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
-If customer gives a truly vague answer ("soon", "let's see") — ask once more gently for a rough date.
-If still no date — say EXACTLY: "No problem sir, we understand. Thank you so much." Then say NOTHING more.`,
+Otherwise, if customer gives ANY normal timeframe within two months (a week, tomorrow, two-three days, this month) — ${ACCEPT_CLOSE_EN} Do not probe further.
+If the customer says nothing at all — say EXACTLY: "No problem sir, we understand. Thank you so much." Then say NOTHING more.`,
 
   'Strong Follow-up': `
 SEGMENT: Strong Follow-up
@@ -377,7 +399,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD_EN}
-Otherwise, if customer gives ANY normal timeframe within two months — capture it, then say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague — ask once more for a rough date.
+Otherwise, if customer gives ANY normal timeframe within two months — capture it, then ${ACCEPT_CLOSE_EN} The NO-DATE CHECK above already governs vague replies: never add a second probe here.
 NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
 
   'Escalation': `
@@ -400,7 +422,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN — do NOT pause between them, do NOT h
 The date question above is ALWAYS the FINAL sentence — wait for the customer ONLY after it, never before.
 
 ${REFUSAL_GUARD_EN}
-Otherwise, if customer gives ANY normal commitment within two months — say EXACTLY: "Alright sir. Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+Otherwise, if customer gives ANY normal commitment within two months — ${ACCEPT_CLOSE_EN} NEVER threaten or pressure.`,
 };
 
 // Resolves {business_name} here rather than leaving it for Bolna's template
