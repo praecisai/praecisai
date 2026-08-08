@@ -5,15 +5,11 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconMenu2, IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils/cn';
+import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
 import { Logo } from './Logo';
 
 function scrollToDemo(e: React.MouseEvent) {
-  e.preventDefault();
-  const el = document.getElementById('demo');
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.history.replaceState(null, '', '#demo');
-  }
+  handleAnchorClick(e, 'demo');
 }
 
 const navLinks = [
@@ -77,6 +73,7 @@ function NavTabs() {
             if (el) refs.current.set(link.href, el);
             else refs.current.delete(link.href);
           }}
+          onClick={(e) => handleAnchorClick(e, link.href.slice(1))}
           onMouseEnter={() => { setHovered(link.href); measure(link.href); }}
           onMouseLeave={() => setHovered(null)}
           className={cn(
@@ -257,7 +254,8 @@ export default function Navbar() {
           >
             <div className="flex flex-col gap-0.5 p-3">
               {navLinks.map((link) => (
-                <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
+                <a key={link.href} href={link.href}
+                  onClick={(e) => { setMobileOpen(false); handleAnchorClick(e, link.href.slice(1)); }}
                   className="rounded-xl px-4 py-2.5 font-body text-sm font-medium text-[var(--mahogany)]/80 transition-colors hover:bg-[rgba(221,184,146,0.1)] hover:text-[var(--mahogany)]">
                   {link.label}
                 </a>

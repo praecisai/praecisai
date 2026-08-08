@@ -103,6 +103,16 @@ html {
   -moz-osx-font-smoothing: grayscale;
   width: 100%;
   overflow-x: hidden;
+  /* The navbar is fixed (h-14 at top-0 on mobile, a pill at top-5 on lg), so
+     without this every "#section" jump parks the heading underneath it. Applies
+     to native hash navigation AND scrollIntoView, so one value covers both. */
+  scroll-padding-top: 4.5rem;
+}
+
+@media (min-width: 1024px) {
+  html {
+    scroll-padding-top: 6.5rem;
+  }
 }
 
 /* ─── Base body — warm cream for landing page ─────────────────── */

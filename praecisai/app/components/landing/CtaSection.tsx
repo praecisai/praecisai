@@ -4,14 +4,10 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { IconBrandWhatsapp, IconArrowRight } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
+import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
 
 function scrollToDemo(e: React.MouseEvent) {
-  e.preventDefault();
-  const el = document.getElementById('demo');
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.history.replaceState(null, '', '#demo');
-  }
+  handleAnchorClick(e, 'demo');
 }
 
 export default function CtaSection() {

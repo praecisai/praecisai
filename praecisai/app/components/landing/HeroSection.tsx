@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
 import {
   IconCheck,
   IconBrandWhatsapp,
@@ -267,6 +268,7 @@ export default function HeroSection() {
               stacking as two full-width slabs; sm+ reverts to intrinsic width */}
           <Link
             href="#demo"
+            onClick={(e) => handleAnchorClick(e, 'demo')}
             className="group inline-flex flex-1 sm:flex-none w-full sm:w-auto items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-[var(--mahogany)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--cream)] shadow-[0_4px_20px_rgba(127,85,57,0.3)] transition-all duration-200 hover:bg-[var(--rust)] hover:shadow-[0_6px_28px_rgba(156,102,68,0.35)] hover:scale-[1.03] active:scale-[0.97]"
           >
             See Live Demo
@@ -274,6 +276,7 @@ export default function HeroSection() {
           </Link>
           <a
             href="#how-it-works"
+            onClick={(e) => handleAnchorClick(e, 'how-it-works')}
             className="inline-flex flex-1 sm:flex-none w-full sm:w-auto items-center justify-center rounded-xl border border-[var(--caramel)] px-3 py-3 sm:px-7 sm:py-3.5 font-display text-[13px] sm:text-[15px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:bg-[var(--sand)] hover:border-[var(--walnut)] hover:scale-[1.03] active:scale-[0.97]"
           >
             {/* Full label needs ~118px but only ~111px fits at 320px */}

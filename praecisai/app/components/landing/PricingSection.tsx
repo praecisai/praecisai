@@ -12,14 +12,10 @@ import {
 } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import AnimatedHeading from './AnimatedHeading';
+import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
 
 function scrollToDemo(e: React.MouseEvent) {
-  e.preventDefault();
-  const el = document.getElementById('demo');
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.history.replaceState(null, '', '#demo');
-  }
+  handleAnchorClick(e, 'demo');
 }
 
 const platformFeatures = [

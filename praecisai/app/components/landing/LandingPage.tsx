@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 // import WorkflowSplash from '../splash/WorkflowSplash';
 import Navbar from './Navbar';
 import HeroSection from './HeroSection';
+import ScrollMemory from './ScrollMemory';
 
 // Everything below the fold is code-split so the first paint only ships the
 // navbar + hero. `ssr` stays on (the default), so the HTML is still fully
@@ -72,6 +73,7 @@ export default function LandingPage() {
 
   return (
     <main className="landing-page min-h-screen">
+      <ScrollMemory />
       <CardSpotlight />
       <Navbar />
       <HeroSection />
