@@ -443,11 +443,14 @@ export function buildMultiInvoiceNote(
   language: CallLang,
 ): string {
   if (invoiceCount <= 1) return '';
-  const amt = amountToSpoken(totalDue, language);
+  // Deliberately states neither the amount nor the overdue days: the segment
+  // script already speaks this exact total as its first line, and
+  // {days_mention} carries the duration. Repeating either here is what made the
+  // agent open with a pile of context before it had said what was owed.
   if (language === 'ENGLISH') {
-    return `IMPORTANT: Multiple bills are pending for this party. Total due across all invoices is ${amt}. The oldest bill has been pending for about ${maxDays} days. In conversation, mention the TOTAL amount (${amt}) and say "You have several bills pending." Do NOT mention any specific bill number.`;
+    return `CONTEXT: several bills are pending for this party and the amount you speak is their combined total. Never state an amount here. After the amount line, add ONE short sentence: "You have several bills pending." Do NOT mention any bill number or the number of bills.`;
   }
-  return `IMPORTANT: Multiple bills pending for this party: Total due across all invoices is ${amt}. The oldest bill is ${numberToHindiWords(maxDays)} दिन से pending है. In conversation, mention the TOTAL amount (${amt}) and say "कई bills pending हैं आपके।" Do NOT mention any specific bill number.`;
+  return `CONTEXT: इस party के कई bills pending हैं, और जो amount आप बोलती हैं वही सबका total है। यहाँ कोई amount दोबारा मत बोलिए। Amount वाली line के बाद सिर्फ ONE short sentence जोड़िए: "आपके कई bills pending हैं।" कोई bill number या bills की गिनती मत बोलिए।`;
 }
 
 export function buildPartialPaymentNote(
@@ -460,10 +463,14 @@ export function buildPartialPaymentNote(
   const paid = amountToSpoken(previousPaid, language);
   const billed = amountToSpoken(totalBilled, language);
   const due = amountToSpoken(totalDue, language);
+  // States only the amount already PAID: the pending figure is spoken by the
+  // segment script's amount line, so repeating it here made the agent say the
+  // same number twice. "Thank you so much" is deliberately forbidden here too,
+  // since the canvas reserves that exact phrase for the closing branch.
   if (language === 'ENGLISH') {
-    return `Partial payment context: Customer had already paid ${paid} earlier against this account (original was ${billed}). Acknowledge this warmly first: "You had paid ${paid} earlier, thank you so much." Then say: "Still ${due} is pending." Do NOT mention bill number.`;
+    return `CONTEXT: this party already paid ${paid} earlier against this account. Before the amount line, say ONE short warm sentence: "You had paid ${paid} earlier sir, thank you for that." Never say "thank you so much" here — that phrase belongs only to the closing. Then go straight to the amount line. Do NOT state the pending amount here and do NOT mention any bill number.`;
   }
-  return `Partial payment context: Customer had already paid ${paid} earlier against this account (original was ${billed}). Acknowledge this warmly first: "आपने पहले ${paid} दिए थे, बहुत शुक्रिया जी।" फिर बोलो: "अभी भी ${due} pending है।" Do NOT mention bill number.`;
+  return `CONTEXT: इस party ने पहले ${paid} की payment कर दी थी। Amount वाली line से पहले सिर्फ ONE short warm sentence बोलिए: "आपने पहले ${paid} दिए थे, उसके लिए शुक्रिया जी।" यहाँ "Thank you so much" कभी मत बोलिए — वो सिर्फ closing के लिए है। उसके बाद सीधे amount वाली line पर जाइए। यहाँ pending amount मत बोलिए और कोई bill number मत बोलिए।`;
 }
 
 // Spoken note for "what was my last bill / which is pending" — the most recent
