@@ -17,7 +17,7 @@ const AUTO_CALL_SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'E
  * runs ONCE per slot even when several API instances are live. Each tenant is
  * processed only while `auto_calls_enabled` is true, and every per-customer
  * guard still applies downstream (VIP, No Follow-up, PDC/sensitive cooldowns,
- * the 60-minute repeat gap, and the billing/balance gate).
+ * the same-customer repeat gap, and the billing/balance gate).
  */
 @Processor('auto-calls', { concurrency: 1 })
 export class AutoCallProcessor extends WorkerHost {

@@ -108,7 +108,7 @@ export class CallingService {
       skipCooldown?: boolean;
       /**
        * A re-dial the customer explicitly asked for ("call me in 5 minutes").
-       * Waives ONLY the 60-minute repeat gap, which exists to stop accidental
+       * Waives ONLY the same-customer repeat gap, which exists to stop accidental
        * double-dialling in bulk runs and should not override a direct request.
        * The sensitive-situation and PDC cooldowns still apply.
        */
@@ -165,20 +165,21 @@ export class CallingService {
       }
     }
 
-    // 60-min same-customer cooldown: never ring the same person twice in a
-    // row. Skipped for fallback dials to the next number of the SAME attempt,
-    // and for a callback the customer themselves asked for — a request to be
-    // rung back in 5 minutes must not be swallowed by an anti-repeat guard.
+    // Same-customer cooldown: never ring the same person twice in a row.
+    // Skipped for fallback dials to the next number of the SAME attempt, and
+    // for a callback the customer themselves asked for — a request to be rung
+    // back in 5 minutes must not be swallowed by an anti-repeat guard.
     if (!opts.skipCooldown && !opts.isScheduledCallback && !this.isTestNumber(dialPhone)) {
+      const cooldownMinutes = this.repeatCooldownMinutes();
       const recentCall = await this.prisma.callLog.findFirst({
         where: {
           customer_id: customerId,
-          created_at: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+          created_at: { gte: new Date(Date.now() - cooldownMinutes * 60 * 1000) },
         },
       });
       if (recentCall) {
         throw new BadRequestException(
-          'This customer was called within the last 60 minutes. Please wait before calling again.',
+          `This customer was called within the last ${cooldownMinutes} minute${cooldownMinutes !== 1 ? 's' : ''}. Please wait before calling again.`,
         );
       }
     }
@@ -353,7 +354,7 @@ export class CallingService {
 
   // ─── Bulk: queue calls to every eligible customer in a segment ─────────────
   // Eligible = ACTIVE outstanding in the segment AND a phone number on file.
-  // Per-customer guards (sensitive cooldown, 60-min gap) still apply: those
+  // Per-customer guards (sensitive cooldown, repeat-dial gap) still apply: those
   // customers are reported as skipped, not errors.
   async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
     // The No Follow-up range receives no contact at all
@@ -846,8 +847,20 @@ export class CallingService {
   }
 
   /**
-   * Numbers we own and dial repeatedly while testing. Only the 60-minute
-   * anti-repeat gap is waived: the sensitive-situation and PDC cooldowns are
+   * How long the same customer must wait between dials. Guards against an
+   * automated run and a manual bulk send double-ringing the same party, so
+   * raising it back up is the safe direction. Override with
+   * CALL_REPEAT_COOLDOWN_MINUTES; a missing or unparseable value falls back
+   * to the default rather than disabling the guard.
+   */
+  private repeatCooldownMinutes(): number {
+    const parsed = Number(process.env.CALL_REPEAT_COOLDOWN_MINUTES);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  }
+
+  /**
+   * Numbers we own and dial repeatedly while testing. Only the repeat-dial
+   * gap is waived: the sensitive-situation and PDC cooldowns are
    * about the customer's circumstances, not about accidental double-dialling,
    * so they still apply. Comma-separated in CALL_TEST_NUMBERS; any Indian
    * format works because both sides are normalised to E.164.

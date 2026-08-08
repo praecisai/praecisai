@@ -130,12 +130,18 @@ class EnvironmentVariables {
   @IsString()
   BOLNA_API_BASE?: string;
 
-  // Comma-separated numbers exempt from the 60-minute same-customer call gap,
+  // Comma-separated numbers exempt from the same-customer call gap entirely,
   // so a tester can re-dial their own phone. Testing affordance only: leave
   // unset in production.
   @IsOptional()
   @IsString()
   CALL_TEST_NUMBERS?: string;
+
+  // Minutes the same customer must wait between dials (default 1). Raise this
+  // to stop an automated run and a manual bulk send double-ringing a party.
+  @IsOptional()
+  @IsString()
+  CALL_REPEAT_COOLDOWN_MINUTES?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

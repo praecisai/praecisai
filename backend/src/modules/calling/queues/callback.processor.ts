@@ -7,7 +7,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 // Fires a scheduled callback re-dial once its delay elapses. The exact slot was
 // computed at analysis time (see callback-slot.util); here we just place the
 // call, rebuilding fresh context (segment, amounts) as of now. queueCustomerCall
-// enforces its own guards (sensitive cooldown, 60-min gap, no outstanding), so a
+// enforces its own guards (sensitive cooldown, repeat-dial gap, no outstanding), so a
 // customer who paid or was recently rung is safely skipped.
 @Processor('callback-redials', { concurrency: 1 })
 export class CallbackProcessor extends WorkerHost {
@@ -36,7 +36,7 @@ export class CallbackProcessor extends WorkerHost {
 
     this.logger.log(`Firing scheduled callback re-dial for customer ${customerId} (was set for ${scheduledFor})`);
     try {
-      // isScheduledCallback waives only the 60-minute repeat gap. Without it a
+      // isScheduledCallback waives only the same-customer repeat gap. Without it a
       // customer who asked to be rung back inside the hour never got the call:
       // the guard fired, this catch swallowed it, and the dashboard still
       // showed a "next call" that never happened. Sensitive and PDC cooldowns
