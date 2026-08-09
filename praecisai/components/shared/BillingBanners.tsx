@@ -1,6 +1,6 @@
 'use client';
 
-import { useBillingSummary, useBillingAccess } from '../../lib/api/hooks';
+import { useBillingSummary, useBillingAccess, useBillingPlatforms } from '../../lib/api/hooks';
 import { AlertTriangle, PauseCircle, MessageCircleWarning, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
@@ -14,9 +14,21 @@ const KIND_STYLES: Record<string, { color: string; icon: React.ElementType }> = 
  * Open billing alerts (low Bolna balance, AiSensy issues, halted mandate)
  * surfaced on the main dashboard as well as inside Billing & Usage.
  */
+/**
+ * A BOLNA_LOW banner's stored message freezes the balance and threshold as they
+ * were when the alert first fired, so it drifts from Billing & Usage (which
+ * reads both live). Recompose that one from the same live source; every other
+ * kind has a static message and keeps it.
+ */
+function bannerText(b: any, bolna: any): string {
+  if (b.kind !== 'BOLNA_LOW' || !bolna || bolna.balance_usd == null) return b.message;
+  return `Bolna calling balance is low: $${Number(bolna.balance_usd).toFixed(2)} (threshold $${bolna.threshold_usd}). AI calls stop when the balance runs out. Add funds on ${bolna.topup_url} (paid directly to Bolna, not to Praecis).`;
+}
+
 export function BillingBanners() {
   const { data } = useBillingSummary();
   const { data: access } = useBillingAccess();
+  const { data: platforms } = useBillingPlatforms();
   const banners: any[] = data?.banners ?? [];
   const showTrial = access?.reason === 'TRIAL' && access?.trial_active;
   if (!banners.length && !showTrial) return null;
@@ -58,7 +70,7 @@ export function BillingBanners() {
           >
             <Icon size={17} className="flex-shrink-0 mt-0.5" style={{ color: style.color }} />
             <div className="min-w-0 flex-1">
-              <p>{b.message}</p>
+              <p>{bannerText(b, platforms?.bolna)}</p>
               <Link
                 href="/dashboard/billing"
                 className="text-xs font-semibold underline underline-offset-2"

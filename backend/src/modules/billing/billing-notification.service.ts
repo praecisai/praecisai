@@ -35,6 +35,21 @@ export class BillingNotificationService {
     return { created: true, notification };
   }
 
+  /**
+   * Rewrite the message of an already-open notification. Alerts fire once per
+   * crossing, but a message that quotes live figures ("balance $3.70, threshold
+   * $5") would otherwise keep showing the numbers from the moment it crossed —
+   * including a threshold the tenant has since changed in settings. Callers
+   * whose text embeds current values should call this on every poll.
+   */
+  async refreshOpen(businessId: string, kind: BillingNotificationKind, message: string) {
+    const res = await this.prisma.billingNotification.updateMany({
+      where: { business_id: businessId, kind, resolved_at: null },
+      data: { message },
+    });
+    return res.count;
+  }
+
   /** Always create (used for per-event notifications like DEBIT_SUCCESS). */
   async create(businessId: string, kind: BillingNotificationKind, message: string) {
     return this.prisma.billingNotification.create({

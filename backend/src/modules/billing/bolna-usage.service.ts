@@ -91,11 +91,12 @@ export class BolnaUsageService {
     // 3. Threshold crossing: alert ONCE per crossing, auto-clear on recovery
     const threshold = business.low_balance_threshold_usd ?? 5;
     if (balanceUsd < threshold) {
-      const { created } = await this.notifications.createOnce(
-        businessId,
-        'BOLNA_LOW',
-        `Bolna calling balance is low: $${balanceUsd.toFixed(2)} (threshold $${threshold}). AI calls stop when the balance runs out. Add funds on ${BOLNA_TOPUP_URL} (paid directly to Bolna, not to Praecis).`,
-      );
+      const message = `Bolna calling balance is low: $${balanceUsd.toFixed(2)} (threshold $${threshold}). AI calls stop when the balance runs out. Add funds on ${BOLNA_TOPUP_URL} (paid directly to Bolna, not to Praecis).`;
+      const { created } = await this.notifications.createOnce(businessId, 'BOLNA_LOW', message);
+      // The alert still fires only once per crossing, but its text quotes a
+      // live balance and threshold, so an already-open one is rewritten each
+      // poll instead of showing the figures from when it first crossed.
+      if (!created) await this.notifications.refreshOpen(businessId, 'BOLNA_LOW', message);
       if (created) {
         await this.notifications.emailNudge(
           business.billing_email,

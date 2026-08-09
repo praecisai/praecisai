@@ -78,8 +78,19 @@ export class AdminController {
   }
 
   @Patch('tenants/:id')
-  updateTenant(@Param('id') id: string, @Body() dto: UpsertTenantDto) {
-    return this.admin.updateTenant(id, dto);
+  async updateTenant(@Param('id') id: string, @Body() dto: UpsertTenantDto) {
+    const result = await this.admin.updateTenant(id, dto);
+    // A changed threshold rewrites the tenant's low-balance banner, which
+    // otherwise keeps quoting the old figure until the next 30-minute poll.
+    // Best-effort: a Bolna outage must not fail the settings save.
+    if (dto.lowBalanceThresholdUsd !== undefined) {
+      try {
+        await this.bolnaUsage.pollTenant(id);
+      } catch {
+        // banner catches up on the next scheduled poll
+      }
+    }
+    return result;
   }
 
   @Delete('tenants/:id')
