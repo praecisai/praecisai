@@ -83,6 +83,8 @@ Promise guide: set ONLY when the customer commits to PAYING by some date/timefra
 - "end_of_week": "is hafte ke end tak", "weekend tak", "by the end of this week"
 - "end_of_month": "mahine ke end tak", "end of the month", "month end tak", "isi month mein"
 - "none": no payment timeframe was committed (only a callback, a refusal, or nothing)
+PRECEDENCE when one turn contains BOTH a loose timeframe and a concrete date: the concrete date wins. "agle hafte karwata hu, 15 tarikh tak" → kind = "specific", datetime = the 15th (NOT relative_days 7). The customer's own date is always more accurate than the timeframe around it.
+A promise phrase with no time at all ("main kar dunga", "ho jayega", "karwata hu", "dekhte hain") is kind = "none": it commits to nothing datable. But the SAME phrase alongside any timeframe IS a promise: "main agle hafte karwata hu" → relative_days 7.
 This is SEPARATE from callback: "call me next week" = callback; "I'll PAY next week" = promise relative_days 7. A turn can have a promise with callback "none".
 
 Disposition guide:
