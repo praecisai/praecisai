@@ -63,7 +63,7 @@ export default function FounderSection() {
           {/* Founder quote */}
           <blockquote className="mt-6 border-l-2 border-[var(--mahogany)] pl-5">
             <p className="font-body text-[14px] sm:text-[16px] italic leading-[1.8] text-[var(--dark-brown)]/85">
-              &ldquo;I run Element Clothing. Chasing outstanding payments from my own
+              &ldquo;I run Aeromen Clothing. Chasing outstanding payments from my own
               customers, daily calls, endless reminders, promises that still slipped
               through, was a problem I lived with for years. PraecisAI is what I built to
               solve it for myself, and now for other business owners like me.&rdquo;

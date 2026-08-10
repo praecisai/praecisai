@@ -16,7 +16,7 @@ export default function AboutPage() {
       <PageHero
         eyebrow="About"
         title="Built by Someone Who Lived the Problem"
-        lead="PraecisAI is an AI calling agent for payment and credit recovery, and it exists because its founder needed one. Ravi Prajapati runs Element Clothing. For years, chasing outstanding payments from his own B2B customers was a daily grind: endless calls, reminders that got forgotten, promises that quietly slipped through."
+        lead="PraecisAI is an AI calling agent for payment and credit recovery, and it exists because its founder needed one. Ravi Prajapati runs Aeromen Clothing. For years, chasing outstanding payments from his own B2B customers was a daily grind: endless calls, reminders that got forgotten, promises that quietly slipped through."
       />
 
       <Section tone="cream">
