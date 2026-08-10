@@ -230,18 +230,27 @@ export class CallingService {
     const partialPaymentNote = buildPartialPaymentNote(previousPaid, totalDue, totalBilled, 'HINDI');
     const partialPaymentNoteEn = buildPartialPaymentNote(previousPaid, totalDue, totalBilled, 'ENGLISH');
 
-    // Call history from previous completed production calls
+    // Call history from previous completed production calls. Capped at the 3
+    // most recent: every entry is concatenated into {call_history_summary} and
+    // sent as part of the agent's system prompt, so an uncapped query made the
+    // prompt grow with every call to that party and pushed LLM time-to-first-
+    // token up on exactly the customers contacted most often. Fetched newest
+    // first, then reversed so the agent still reads them oldest to newest.
+    const HISTORY_LIMIT = 3;
     const history =
       segment === 'Soft Reminder'
         ? []
-        : await this.prisma.callLog.findMany({
-            where: {
-              customer_id: customerId,
-              call_status: CallStatus.COMPLETED,
-            },
-            select: { call_summary: true, disposition: true, promise_date: true },
-            orderBy: { created_at: 'asc' },
-          });
+        : (
+            await this.prisma.callLog.findMany({
+              where: {
+                customer_id: customerId,
+                call_status: CallStatus.COMPLETED,
+              },
+              select: { call_summary: true, disposition: true, promise_date: true },
+              orderBy: { created_at: 'desc' },
+              take: HISTORY_LIMIT,
+            })
+          ).reverse();
     const histSummary = buildCallHistorySummary(history as any, segment);
 
     // Unresolved dispute: if the LAST analyzed call ended as DISPUTE, Meena
