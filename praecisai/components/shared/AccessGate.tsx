@@ -310,7 +310,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="font-display text-2xl font-bold text-[var(--dark-brown)]">Choose your plan</h1>
         <p className="text-sm text-[var(--walnut)] mt-2">
@@ -326,9 +326,9 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
         )}
       </div>
 
-      {/* The third column holds TWO sub-cards (onboarding + monthly) side by
-          side, so it needs roughly double the width of a single trial card. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,2.2fr)] gap-5 items-stretch">
+      {/* Two trials side by side on top; the combined onboarding + monthly
+          card spans the full width underneath them. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
         {/* Two paid trial tiers, side by side */}
         {(Object.keys(TRIAL_TIERS) as TrialTier[]).map((tier) => {
           const plan = TRIAL_TIERS[tier];
@@ -385,9 +385,8 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
         {/* flex-col + a flex-1 row so the CTA is pinned to the bottom of the
             stretched card and lines up with the two trial buttons, instead of
             sitting mid-card with dead space under it. */}
-        {/* md:col-span-2 — in the 2-column md range a half-width card would
-            squeeze its two halves to ~130px each, so it takes the whole row. */}
-        <div className="glass-card p-6 relative flex flex-col md:col-span-2 lg:col-span-1">
+        {/* Spans both columns so it sits on its own row under the two trials */}
+        <div className="glass-card p-6 relative flex flex-col md:col-span-2">
           <div className="flex flex-1 flex-col md:flex-row gap-2 md:gap-0 items-stretch">
             <div className="flex flex-1 min-w-0 md:pr-5 lg:pr-6">
               <PlanCard
