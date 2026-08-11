@@ -35,6 +35,25 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
+/**
+ * Mirrors TRIAL_PLANS / ONBOARDING_BASE_PAISE in the backend's
+ * billing-math.util.ts. The server is the source of truth for what is actually
+ * charged; these are display strings only.
+ */
+export type TrialTier = 'STARTER' | 'STANDARD';
+
+const TRIAL_TIERS: Record<
+  TrialTier,
+  { days: number; priceLabel: string; afterCreditLabel: string; featured?: boolean; badge?: string }
+> = {
+  STARTER: { days: 15, priceLabel: '₹5,000', afterCreditLabel: '₹35,000', featured: true, badge: 'Best value' },
+  STANDARD: { days: 10, priceLabel: '₹10,000', afterCreditLabel: '₹30,000' },
+};
+
+/** Launch price actually charged for onboarding, and the struck-through list price. */
+const ONBOARDING_PRICE_LABEL = '₹40,000';
+const ONBOARDING_LIST_LABEL = '₹50,000';
+
 const FEATURES = [
   'AI recovery calls in Hindi + English',
   'WhatsApp statement PDFs',
@@ -135,9 +154,11 @@ function BareChrome({ children }: { children: React.ReactNode }) {
 
 function PlanCard({
   highlight,
+  badge,
   icon: Icon,
   title,
   price,
+  wasPrice,
   priceSub,
   points,
   footer,
@@ -145,9 +166,12 @@ function PlanCard({
   bare,
 }: {
   highlight?: boolean;
+  badge?: string;
   icon: React.ElementType;
   title: string;
   price: string;
+  /** Struck-through "was" price, e.g. ₹50,000 beside the ₹40,000 launch price */
+  wasPrice?: string;
   priceSub: string;
   points: string[];
   footer: React.ReactNode;
@@ -163,17 +187,22 @@ function PlanCard({
     >
       {highlight && (
         <span
-          className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"
+          className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider whitespace-nowrap"
           style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
         >
-          Try it first
+          {badge ?? 'Try it first'}
         </span>
       )}
       <div className="flex items-center gap-2 mb-3">
-        <Icon size={18} className="text-[var(--mahogany)]" />
+        <Icon size={18} className="text-[var(--mahogany)] flex-shrink-0" />
         <h3 className="font-semibold text-[var(--dark-brown)]">{title}</h3>
       </div>
-      <p className="text-2xl font-bold text-[var(--dark-brown)]">{price}</p>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="text-2xl font-bold text-[var(--dark-brown)]">{price}</p>
+        {wasPrice && (
+          <p className="text-base font-semibold line-through text-[var(--walnut)]">{wasPrice}</p>
+        )}
+      </div>
       <p className="text-xs text-[var(--walnut)] mb-4">{priceSub}</p>
       <ul className="space-y-2 mb-3">
         {points.map((p) => (
@@ -198,13 +227,18 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
   const simulateTrial = useSimulateTrialPaid();
   const verifyTrial = useVerifyTrialCheckout();
   const [mockPending, setMockPending] = useState<any>(null);
+  // Which trial card is mid-checkout / awaiting the mock confirm, so only that
+  // card shows a spinner instead of both.
+  const [pendingTier, setPendingTier] = useState<TrialTier | null>(null);
   const [paying, setPaying] = useState(false);
   const [activating, setActivating] = useState(false);
 
-  async function startTrial() {
+  async function startTrial(tier: TrialTier) {
     setPaying(true);
+    setPendingTier(tier);
     try {
-      const data = await trialCheckout.mutateAsync();
+      const data = await trialCheckout.mutateAsync(tier);
+      const days = data?.quote?.days ?? TRIAL_TIERS[tier].days;
       if (data.mock) {
         setMockPending(data);
         setPaying(false);
@@ -218,7 +252,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
         amount: data.amount_paise,
         currency: 'INR',
         name: 'PraecisAI',
-        description: '10-day full access trial (non-refundable)',
+        description: `${days}-day full access trial (non-refundable)`,
         theme: { color: '#7F5539' },
         handler: (response: any) => {
           // Verify the signature server-side and activate immediately: no
@@ -232,7 +266,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
             },
             {
               onSuccess: () => {
-                toast.success('Payment verified: your 10-day trial is active');
+                toast.success(`Payment verified: your ${days}-day trial is active`);
                 qc.invalidateQueries({ queryKey: ['billing'] });
               },
               onError: (err: any) => {
@@ -251,14 +285,16 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
       rzp.open();
     } catch (err: any) {
       setPaying(false);
+      setPendingTier(null);
       toast.error(err.message);
     }
   }
 
   async function simulate() {
+    const days = mockPending?.quote?.days ?? (pendingTier ? TRIAL_TIERS[pendingTier].days : 10);
     try {
       await simulateTrial.mutateAsync();
-      toast.success('Trial activated (test mode): 10 days of full access');
+      toast.success(`Trial activated (test mode): ${days} days of full access`);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -274,7 +310,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="font-display text-2xl font-bold text-[var(--dark-brown)]">Choose your plan</h1>
         <p className="text-sm text-[var(--walnut)] mt-2">
@@ -285,65 +321,82 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
             className="inline-flex items-center gap-2 text-xs font-semibold mt-3 px-3 py-1.5 rounded-full"
             style={{ background: '#C6282815', color: '#C62828', border: '1px solid #C6282840' }}
           >
-            <Clock3 size={13} /> Your 10-day trial has ended. Continue with onboarding to keep going.
+            <Clock3 size={13} /> Your trial has ended. Continue with onboarding to keep going.
           </p>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-5 items-stretch">
-        {/* Trial */}
-        <PlanCard
-          highlight={!trialExpired}
-          icon={Sparkles}
-          title="10-Day Trial"
-          price="₹10,000"
-          priceSub="one-time · 10 days of full access · no GST"
-          points={[...FEATURES, 'Access closes automatically after 10 days']}
-          note={
-            <div
-              className="text-[11px] leading-relaxed rounded-lg p-2.5 mb-4"
-              style={{ background: 'var(--sand)', color: 'var(--walnut)' }}
-            >
-              Once the trial starts this ₹10,000 is <b>not refundable</b>, whether or not you
-              continue. If you do continue, it is adjusted against onboarding: you pay
-              <b> ₹40,000</b> instead of ₹50,000, and your discount coupon still applies.
-            </div>
-          }
-          footer={
-            trialExpired ? (
-              <p className="text-xs text-center text-[var(--walnut)] py-2">Trial already used</p>
-            ) : mockPending ? (
-              <button
-                onClick={simulate}
-                className="w-full py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
-                style={{ background: '#B8860B', color: '#fff' }}
-              >
-                <FlaskConical size={14} /> Simulate trial payment (test mode)
-              </button>
-            ) : (
-              <button
-                onClick={startTrial}
-                disabled={paying}
-                className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50"
-                style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
-              >
-                {paying ? 'Opening checkout…' : 'Start 10-day trial'}
-              </button>
-            )
-          }
-        />
+      {/* The third column holds TWO sub-cards (onboarding + monthly) side by
+          side, so it needs roughly double the width of a single trial card. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,2.2fr)] gap-5 items-stretch">
+        {/* Two paid trial tiers, side by side */}
+        {(Object.keys(TRIAL_TIERS) as TrialTier[]).map((tier) => {
+          const plan = TRIAL_TIERS[tier];
+          const isPending = pendingTier === tier;
+          return (
+            <PlanCard
+              key={tier}
+              highlight={!trialExpired && plan.featured}
+              badge={plan.badge}
+              icon={Sparkles}
+              title={`${plan.days}-Day Trial`}
+              price={plan.priceLabel}
+              priceSub={`one-time · ${plan.days} days of full access · no GST`}
+              points={[...FEATURES, `Access closes automatically after ${plan.days} days`]}
+              note={
+                <div
+                  className="text-[11px] leading-relaxed rounded-lg p-2.5 mb-4"
+                  style={{ background: 'var(--sand)', color: 'var(--walnut)' }}
+                >
+                  Once the trial starts this {plan.priceLabel} is <b>not refundable</b>, whether or
+                  not you continue. If you do continue, it is adjusted against onboarding: you pay
+                  <b> {plan.afterCreditLabel}</b> instead of {ONBOARDING_PRICE_LABEL}, and your
+                  discount coupon still applies.
+                </div>
+              }
+              footer={
+                trialExpired ? (
+                  <p className="text-xs text-center text-[var(--walnut)] py-2">Trial already used</p>
+                ) : mockPending && isPending ? (
+                  <button
+                    onClick={simulate}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
+                    style={{ background: '#B8860B', color: '#fff' }}
+                  >
+                    <FlaskConical size={14} /> Simulate trial payment (test mode)
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => startTrial(tier)}
+                    disabled={paying || !!mockPending}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50"
+                    style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
+                  >
+                    {paying && isPending ? 'Opening checkout…' : `Start ${plan.days}-day trial`}
+                  </button>
+                )
+              }
+            />
+          );
+        })}
 
         {/* Onboarding + monthly: ONE purchase (₹50,000 includes the first
             ₹5,000 month), so they share a single card joined by a plus. */}
-        <div className="glass-card p-6 relative">
-          <div className="flex flex-col md:flex-row gap-2 md:gap-0 items-stretch">
-            <div className="flex md:pr-8">
+        {/* flex-col + a flex-1 row so the CTA is pinned to the bottom of the
+            stretched card and lines up with the two trial buttons, instead of
+            sitting mid-card with dead space under it. */}
+        {/* md:col-span-2 — in the 2-column md range a half-width card would
+            squeeze its two halves to ~130px each, so it takes the whole row. */}
+        <div className="glass-card p-6 relative flex flex-col md:col-span-2 lg:col-span-1">
+          <div className="flex flex-1 flex-col md:flex-row gap-2 md:gap-0 items-stretch">
+            <div className="flex flex-1 min-w-0 md:pr-5 lg:pr-6">
               <PlanCard
                 bare
                 icon={Rocket}
                 title="Full Onboarding"
-                price="₹50,000"
-                priceSub="one-time · no GST · includes your first month's subscription"
+                price={ONBOARDING_PRICE_LABEL}
+                wasPrice={ONBOARDING_LIST_LABEL}
+                priceSub="one-time · no GST · includes your first month's subscription · ₹10,000 launch discount applied"
                 points={[
                   ...FEATURES,
                   'Guided setup with the Praecis team',
@@ -373,7 +426,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
               </span>
             </div>
 
-            <div className="flex md:pl-8">
+            <div className="flex flex-1 min-w-0 md:pl-5 lg:pl-6">
               <PlanCard
                 bare
                 icon={CalendarClock}
@@ -381,7 +434,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
                 price="₹5,000"
                 priceSub="per month · no GST · auto-debit on the 1st (UPI Autopay or card)"
                 points={[
-                  'Your first month is already inside the ₹50,000 above',
+                  `Your first month is already inside the ${ONBOARDING_PRICE_LABEL} above`,
                   'Continues automatically from the second month',
                   'Invoice for every debit',
                   'Cancel anytime with the Praecis team',

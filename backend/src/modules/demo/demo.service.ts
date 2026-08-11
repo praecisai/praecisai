@@ -339,8 +339,9 @@ export class DemoService {
         business_name: dto.businessName,
         business_type: dto.businessType,
         city: dto.city,
-        group_name: dto.groupName,
-        reference_by: dto.referenceBy,
+        // Both are optional on the form; the columns are NOT NULL, so store ''
+        group_name: dto.groupName ?? '',
+        reference_by: dto.referenceBy ?? '',
         parties_range: dto.partiesRange,
         outstanding_range: dto.outstandingRange,
       });
@@ -351,8 +352,9 @@ export class DemoService {
         business_name: dto.businessName,
         business_type: dto.businessType,
         city: dto.city,
-        group_name: dto.groupName,
-        reference_by: dto.referenceBy,
+        // Both are optional on the form; the columns are NOT NULL, so store ''
+        group_name: dto.groupName ?? '',
+        reference_by: dto.referenceBy ?? '',
         parties_range: dto.partiesRange,
         outstanding_range: dto.outstandingRange,
       });

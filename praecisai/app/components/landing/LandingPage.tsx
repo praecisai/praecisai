@@ -23,7 +23,8 @@ const CapabilitiesSection = dynamic(() => import('./CapabilitiesSection'));
 const ReportsSection = dynamic(() => import('./ReportsSection'));
 const StatsSection = dynamic(() => import('./StatsSection'));
 const PricingSection = dynamic(() => import('./PricingSection'));
-const TestimonialsSection = dynamic(() => import('./TestimonialsSection'));
+// Testimonials hidden for now — re-enable by uncommenting this and its usage below.
+// const TestimonialsSection = dynamic(() => import('./TestimonialsSection'));
 const FounderSection = dynamic(() => import('./FounderSection'));
 const FaqSection = dynamic(() => import('./FaqSection'));
 const CtaSection = dynamic(() => import('./CtaSection'));
@@ -86,7 +87,7 @@ export default function LandingPage() {
       <CapabilitiesSection />
       <ReportsSection />
       <StatsSection />
-      <TestimonialsSection />
+      {/* <TestimonialsSection /> */}
       <PricingSection />
       <FounderSection />
       <FaqSection />

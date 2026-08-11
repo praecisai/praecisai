@@ -55,18 +55,30 @@ const activityFeed = [
   { icon: IconCheck, text: 'Promise logged: ₹1.2L on Friday', time: '22m ago', color: '#4A7C59' },
 ];
 
+/**
+ * Real figures from the Aeromen Clothing LLP account, snapshotted from the
+ * production dashboard aggregates. Hardcoded on purpose: the homepage is
+ * statically prerendered and a live fetch here would cost the hero its LCP.
+ * Re-snapshot with the queries in the commit message when they go stale.
+ *
+ * Ageing (ACTIVE outstandings, per bucket):
+ *   0-60 Rs.4,29,906 · 61-120 Rs.8,35,804 · 121-180 Rs.23,66,385 · 181+ Rs.25,58,004
+ * Bar widths are each bucket's share of the largest bucket (181+).
+ */
 const agingBars = [
-  { label: '0–60 days', width: '62%', amount: '₹19.8L', opacity: 1 },
-  { label: '61–120 days', width: '44%', amount: '₹13.2L', opacity: 0.8 },
-  { label: '121–180 days', width: '28%', amount: '₹8.5L', opacity: 0.6 },
-  { label: '181+ days', width: '18%', amount: '₹5.7L', opacity: 0.45 },
+  { label: '0–60 days', width: '17%', amount: '₹4.3L', opacity: 0.5 },
+  { label: '61–120 days', width: '33%', amount: '₹8.4L', opacity: 0.68 },
+  { label: '121–180 days', width: '93%', amount: '₹23.7L', opacity: 0.85 },
+  { label: '181+ days', width: '100%', amount: '₹25.6L', opacity: 1 },
 ];
 
 const metrics = [
-  { value: 47.2, suffix: 'L', label: 'Total Outstanding', colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
-  { value: 1247, suffix: '', label: 'Parties tracked', colorClass: 'text-[var(--dark-brown)]', prefix: '' },
-  { value: 68, suffix: '%', label: 'Recovery rate', colorClass: 'text-[var(--rust)]', prefix: '' },
-  { value: 12.4, suffix: 'L', label: 'Recovered this month', colorClass: 'text-[var(--recovery-green)]', prefix: '₹' },
+  // Rs.61,90,099 active dues net of Rs.3,10,598 credit notes = Rs.58,79,501
+  { value: 58.8, suffix: 'L', label: 'Total Outstanding', colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
+  { value: 635, suffix: '', label: 'Parties tracked', colorClass: 'text-[var(--dark-brown)]', prefix: '' },
+  // 2,439 of 2,584 bills settled
+  { value: 94, suffix: '%', label: 'Settlement rate', colorClass: 'text-[var(--rust)]', prefix: '' },
+  { value: 2439, suffix: '', label: 'Bills cleared', colorClass: 'text-[var(--recovery-green)]', prefix: '' },
 ];
 
 function AnimatedCounter({
@@ -105,8 +117,9 @@ function AnimatedCounter({
     return () => observer.disconnect();
   }, [value]);
 
+  // Indian grouping so four-figure counts read as "2,439", not "2439"
   const formatted = value % 1 === 0
-    ? Math.round(display).toString()
+    ? Math.round(display).toLocaleString('en-IN')
     : display.toFixed(1);
 
   return (

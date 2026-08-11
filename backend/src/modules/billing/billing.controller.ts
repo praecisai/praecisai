@@ -6,6 +6,7 @@ import { BusinessId, CurrentUser } from '../../common/decorators/current-user.de
 import { BillingService } from './billing.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BillingNotificationService } from './billing-notification.service';
+import { isTrialTier, DEFAULT_TRIAL_TIER, TRIAL_PLANS } from './billing-math.util';
 
 class CouponDto {
   @IsString()
@@ -102,15 +103,17 @@ export class BillingController {
     return this.billing.quoteOnboarding(dto.code, businessId);
   }
 
-  /** Full-price quote (no coupon): already reflects any ₹10,000 trial credit. */
+  /** Full-price quote (no coupon): already reflects any paid trial credit. */
   @Get('onboarding/quote')
   onboardingQuote(@BusinessId() businessId: string) {
     return this.billing.quoteOnboardingPlain(businessId);
   }
 
+  /** `tier` picks the plan: STARTER (₹5,000 · 15d) or STANDARD (₹10,000 · 10d). */
   @Post('checkout/trial')
-  createTrialCheckout(@BusinessId() businessId: string) {
-    return this.billing.createTrialCheckout(businessId);
+  createTrialCheckout(@BusinessId() businessId: string, @Body() dto: { tier?: string }) {
+    const tier = isTrialTier(dto?.tier) ? dto.tier : DEFAULT_TRIAL_TIER;
+    return this.billing.createTrialCheckout(businessId, tier);
   }
 
   /** Browser-side checkout success: verify signature, activate immediately. */

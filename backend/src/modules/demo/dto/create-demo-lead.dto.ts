@@ -34,11 +34,12 @@ export class CreateDemoLeadDto {
   @IsNotEmpty()
   outstandingRange: string;
 
+  // Optional: many walk-in leads belong to no group and have no referrer
   @IsString()
-  @IsNotEmpty()
-  groupName: string;
+  @IsOptional()
+  groupName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  referenceBy: string;
+  @IsOptional()
+  referenceBy?: string;
 }

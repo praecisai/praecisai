@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { IconBrandWhatsapp, IconArrowRight } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
+import { whatsappLink, WHATSAPP_SALES_NUMBER } from '@/lib/utils/whatsapp';
 
 function scrollToDemo(e: React.MouseEvent) {
   handleAnchorClick(e, 'demo');
@@ -70,7 +71,7 @@ export default function CtaSection() {
             <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
           <a
-            href="https://wa.me/917304862949"
+            href={whatsappLink(WHATSAPP_SALES_NUMBER)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex flex-1 sm:flex-none w-full items-center justify-center gap-1 sm:gap-2 rounded-xl border border-[rgba(221,184,146,0.3)] px-2.5 py-3 sm:px-7 sm:py-4 font-display text-[13px] sm:text-[15px] font-semibold text-[#FDF8F3] transition-all duration-200 hover:border-[var(--caramel)] hover:bg-[#FFFFFF]/5 sm:w-auto"
@@ -88,7 +89,7 @@ export default function CtaSection() {
           variants={itemVariants}
           className="mt-7 font-body text-[12px] tracking-wide text-[var(--walnut)]"
         >
-          ₹5,000 / month · ₹50,000 one-time setup · WhatsApp &amp; calls billed separately
+          ₹5,000 / month · ₹40,000 one-time setup (was ₹50,000) · WhatsApp &amp; calls billed separately
         </motion.p>
       </motion.div>
     </section>

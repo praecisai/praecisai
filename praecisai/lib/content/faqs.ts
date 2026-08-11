@@ -54,7 +54,7 @@ export const coreFaqs: Faq[] = [
   {
     question: 'Is there a contract?',
     answer:
-      'No lock-in. ₹5,000 per month platform fee, cancel anytime, plus a one-time ₹50,000 setup fee.',
+      'No lock-in. ₹5,000 per month platform fee, cancel anytime, plus a one-time ₹40,000 setup fee (launch price, down from ₹50,000).',
   },
 ];
 

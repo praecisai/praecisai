@@ -12,6 +12,14 @@ function scrollToDemo(e: React.MouseEvent) {
   handleAnchorClick(e, 'demo');
 }
 
+// The logo already points at "/" and this navbar only renders on the homepage,
+// so a click would otherwise be a no-op. Send it back to the top instead.
+function scrollToTop(e: React.MouseEvent) {
+  e.preventDefault();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.history.replaceState(null, '', '/');
+}
+
 const navLinks = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Features',     href: '#features'    },
@@ -189,7 +197,7 @@ export default function Navbar() {
             )}
           >
             {/* Logo — left */}
-            <Link href="/" className="flex shrink-0 items-center">
+            <Link href="/" onClick={scrollToTop} aria-label="Back to top" className="flex shrink-0 items-center">
               <Logo />
             </Link>
 
@@ -231,7 +239,13 @@ export default function Navbar() {
           'dark:bg-[rgba(10,6,3,0.88)] dark:border-[rgba(221,184,146,0.15)]',
         )}
       >
-        <Link href="/"><Logo /></Link>
+        <Link
+          href="/"
+          aria-label="Back to top"
+          onClick={(e) => { setMobileOpen(false); scrollToTop(e); }}
+        >
+          <Logo />
+        </Link>
         <button
           type="button"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(221,184,146,0.35)] text-[var(--mahogany)]"

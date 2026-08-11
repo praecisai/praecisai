@@ -136,7 +136,7 @@ export function useValidateCoupon() {
   });
 }
 
-/** Full-price onboarding quote: already reflects any ₹10,000 trial credit. */
+/** Full-price onboarding quote: already reflects any paid trial credit. */
 export function useOnboardingQuote() {
   return useQuery({
     queryKey: ['billing', 'onboarding-quote'],
@@ -207,11 +207,14 @@ export function useBillingAccess() {
   });
 }
 
+/** STARTER = ₹5,000 · 15 days · STANDARD = ₹10,000 · 10 days */
+export type TrialTier = 'STARTER' | 'STANDARD';
+
 export function useCreateTrialCheckout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const res = await api.post('/billing/checkout/trial');
+    mutationFn: async (tier: TrialTier = 'STANDARD') => {
+      const res = await api.post('/billing/checkout/trial', { tier });
       return res.data.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),

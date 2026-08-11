@@ -4,7 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Prisma, BillingPayment } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BillingInvoicePdfService, InvoiceLineItem } from './billing-invoice-pdf.service';
-import { financialYearCode } from './billing-math.util';
+import { financialYearCode, trialDaysForAmount } from './billing-math.util';
 
 const BUCKET = 'billing-invoices';
 
@@ -175,7 +175,7 @@ export class BillingInvoiceService {
         : payment.type === 'TRIAL'
           ? [
               {
-                description: 'PraecisAI 10-day trial: full platform access for 10 days',
+                description: `PraecisAI trial: full platform access for ${trialDaysForAmount(payment.total_amount)} days`,
                 amount: payment.base_amount,
               },
             ]

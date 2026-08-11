@@ -19,8 +19,9 @@ const formSchema = z.object({
   businessType: z.enum(['Textile/Garments', 'Distribution/Wholesale', 'FCMG Distributor', 'Pharma Distributor', 'Hardware and Building', 'Electronics/appliance', 'General MSME', 'Other'], {
     message: 'Please select a business type',
   }),
-  groupName: z.string().min(2, 'Group name is required'),
-  referenceBy: z.string().min(2, 'Reference is required'),
+  // Optional: many walk-in leads have neither a group nor a referrer
+  groupName: z.string().optional(),
+  referenceBy: z.string().optional(),
   partiesRange: z.enum(['<100', '100-500', '500-2000', '2000+'], {
     message: 'Please select number of parties',
   }),
@@ -202,7 +203,7 @@ export default function DemoSignupForm() {
         {/* Group Name */}
         <div className="sm:col-span-2">
           <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
-            Group Name *
+            Group Name <span className="font-normal text-[var(--walnut)]">(optional)</span>
           </label>
           <input
             {...register('groupName')}
@@ -218,7 +219,7 @@ export default function DemoSignupForm() {
         {/* Reference By */}
         <div className="sm:col-span-2">
           <label className="mb-1.5 block font-body text-[13px] font-semibold text-[var(--dark-brown)]">
-            Reference By *
+            Reference By <span className="font-normal text-[var(--walnut)]">(optional)</span>
           </label>
           <input
             {...register('referenceBy')}

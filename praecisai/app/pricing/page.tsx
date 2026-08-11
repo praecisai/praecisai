@@ -6,7 +6,7 @@ import { PageHero, Section, FaqList, CtaBand, RelatedLinks } from '../components
 export const metadata: Metadata = {
   title: { absolute: 'Pricing: AI Collections Agent from ₹5,000/mo' },
   description:
-    'AI collections agent pricing in India. ₹5,000 per month platform fee, ₹50,000 one-time setup, usage-based WhatsApp and calling. No lock-in contracts.',
+    'AI collections agent pricing in India. ₹5,000 per month platform fee, ₹40,000 one-time setup (down from ₹50,000), usage-based WhatsApp and calling. No lock-in contracts.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -31,6 +31,13 @@ const setupIncludes = [
   '7-day post-launch hand-holding support',
 ];
 
+// Paid trials. Amounts mirror TRIAL_PLANS in the backend's billing-math.util.ts;
+// the server is the source of truth for what is actually charged.
+const trialPlans = [
+  { price: '₹5,000', days: 15, note: 'Best value', featured: true },
+  { price: '₹10,000', days: 10, note: 'Shorter run', featured: false },
+];
+
 const addOns = [
   {
     title: 'WhatsApp messaging',
@@ -48,7 +55,7 @@ const faqs = [
   {
     question: 'What does PraecisAI cost?',
     answer:
-      '₹5,000 per month as the platform fee, plus a one-time ₹50,000 setup fee. WhatsApp messaging and AI voice calls are billed on usage, at rates shared during onboarding.',
+      '₹5,000 per month as the platform fee, plus a one-time ₹40,000 setup fee (launch price, down from ₹50,000). WhatsApp messaging and AI voice calls are billed on usage, at rates shared during onboarding.',
   },
   {
     question: 'Is there a contract or lock-in?',
@@ -102,7 +109,7 @@ export default function PricingPage() {
       {
         '@type': 'Offer',
         name: 'One-time setup',
-        price: '50000',
+        price: '40000',
         priceCurrency: 'INR',
         priceValidUntil: '2027-12-31',
         url: `${SITE_URL}/pricing`,
@@ -120,10 +127,52 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="AI Collections Agent Pricing in India"
-        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month for the platform, plus a one-time ₹50,000 setup fee, with WhatsApp messaging and AI voice calls billed on usage. No lock-in, no per-party pricing, no surprises on the invoice."
+        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month for the platform, plus a one-time ₹40,000 setup fee (launch price, down from ₹50,000), with WhatsApp messaging and AI voice calls billed on usage. No lock-in, no per-party pricing, no surprises on the invoice."
       />
 
       <Section tone="cream">
+        {/* Paid trials. Amounts mirror TRIAL_PLANS in the backend's billing-math.util.ts. */}
+        <p className="mb-3 font-body text-[11px] font-semibold uppercase tracking-widest text-[var(--rust)]">
+          Start with a paid trial
+        </p>
+        <div className="mb-6 grid gap-3 sm:gap-4 grid-cols-1 min-[420px]:grid-cols-2">
+          {trialPlans.map((t) => (
+            <div
+              key={t.days}
+              className={`relative flex flex-col items-center rounded-2xl border bg-[var(--surface-warm)] px-4 py-4 sm:px-6 sm:py-5 ${
+                t.featured
+                  ? 'border-[var(--mahogany)] shadow-[0_6px_28px_rgba(127,85,57,0.12)]'
+                  : 'border-[var(--caramel)]/60'
+              }`}
+            >
+              {t.featured && (
+                <span className="absolute -top-2.5 rounded-full bg-[var(--mahogany)] px-2.5 py-0.5 font-body text-[9px] font-bold uppercase tracking-wider text-[var(--cream)] whitespace-nowrap sm:text-[10px]">
+                  {t.note}
+                </span>
+              )}
+              <p className="font-display text-[24px] font-bold leading-none text-[var(--dark-brown)] sm:text-[30px]">
+                {t.price}
+              </p>
+              <p className="mt-1 font-body text-[12px] font-semibold text-[var(--mahogany)] sm:text-[13px]">
+                {t.days} days of full access
+              </p>
+              <p className="mt-1 text-center font-body text-[10.5px] leading-snug text-[var(--walnut)] sm:text-[11.5px]">
+                One-time · adjusted against onboarding if you continue
+              </p>
+              <a
+                href="/signup"
+                className={`mt-3 w-full rounded-xl px-4 py-2.5 text-center font-display text-[13px] font-semibold transition-colors sm:text-[14px] ${
+                  t.featured
+                    ? 'bg-[var(--mahogany)] text-[var(--cream)] hover:bg-[var(--rust)]'
+                    : 'border border-[var(--caramel)] text-[var(--mahogany)] hover:bg-[var(--sand)]'
+                }`}
+              >
+                Start {t.days}-day trial
+              </a>
+            </div>
+          ))}
+        </div>
+
         <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
           <div className="flex flex-col rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] p-6 shadow-[0_8px_40px_rgba(127,85,57,0.1)] sm:p-9">
             <span className="self-start rounded-full bg-[var(--mahogany)] px-3.5 py-1 font-body text-[10px] font-semibold uppercase tracking-widest text-[var(--cream)]">
@@ -159,8 +208,14 @@ export default function PricingPage() {
               One-time setup
             </span>
             <p className="mt-5 font-display text-[38px] font-bold leading-none text-[var(--dark-brown)] sm:text-[48px]">
-              ₹50,000
+              <span className="mr-2 align-middle font-body text-[20px] font-semibold text-[var(--walnut)] line-through sm:text-[26px]">
+                ₹50,000
+              </span>
+              ₹40,000
               <span className="font-body text-[15px] font-normal text-[var(--walnut)]"> one-time</span>
+            </p>
+            <p className="mt-2.5 inline-flex self-start items-center rounded-full bg-[var(--mahogany)] px-3 py-1 font-body text-[11.5px] font-semibold text-[var(--cream)]">
+              Save ₹10,000 · launch offer
             </p>
             <p className="mt-2 font-body text-[12.5px] text-[var(--walnut)]">
               Paid once · Lifetime access to setup

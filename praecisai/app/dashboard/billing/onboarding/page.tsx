@@ -174,14 +174,13 @@ export default function OnboardingPaymentPage() {
             )}
 
             {/* Price card. Every figure comes from the server quote: it
-                already accounts for the ₹10,000 trial credit when the tenant
-                paid for a trial. No GST is charged. */}
+                already accounts for any paid-trial credit. No GST is charged. */}
             <div className="glass-card p-5">
               <h2 className="font-semibold text-[var(--dark-brown)] mb-4">One-time onboarding</h2>
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-[var(--walnut)]">Onboarding fee (includes first month)</span>
-                  <span className="font-medium text-[var(--dark-brown)]">{formatPaise(shownQuote?.baseAmount ?? 5000000)}</span>
+                  <span className="font-medium text-[var(--dark-brown)]">{formatPaise(shownQuote?.baseAmount ?? 4000000)}</span>
                 </div>
                 {quote && (
                   <div className="flex justify-between" style={{ color: '#2E7D32' }}>
@@ -212,7 +211,7 @@ export default function OnboardingPaymentPage() {
                   style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
                 >
                   <span>Total payable now</span>
-                  <span>{formatPaise(shownQuote?.totalAmount ?? 5000000)}</span>
+                  <span>{formatPaise(shownQuote?.totalAmount ?? 4000000)}</span>
                 </div>
                 <p className="text-xs text-[var(--walnut)] pt-1">
                   No GST is added: this is the final amount.
@@ -281,7 +280,7 @@ export default function OnboardingPaymentPage() {
                 {phase === 'paying' ? (
                   <><Loader2 size={16} className="animate-spin" /> Opening checkout…</>
                 ) : (
-                  <><ShieldCheck size={16} /> Pay {formatPaise(shownQuote?.totalAmount ?? 5000000)} securely</>
+                  <><ShieldCheck size={16} /> Pay {formatPaise(shownQuote?.totalAmount ?? 4000000)} securely</>
                 )}
               </button>
             )}

@@ -29,6 +29,13 @@ const platformFeatures = [
   'Dedicated onboarding support',
 ];
 
+// Paid trials. Amounts mirror TRIAL_PLANS in the backend's billing-math.util.ts;
+// the server is the source of truth for what is actually charged.
+const trialPlans = [
+  { price: '₹5,000', days: 15, note: 'Best value', featured: true },
+  { price: '₹10,000', days: 10, note: 'Shorter run', featured: false },
+];
+
 const addOnCards = [
   {
     icon: IconBrandWhatsapp,
@@ -85,10 +92,56 @@ export default function PricingSection() {
           Yes, we show our pricing. No sales calls required to find out what this costs.
         </motion.p>
 
+        {/* ── Paid trials: try the platform before the full onboarding ── */}
+        <motion.div variants={itemVariants} className="mt-8 sm:mt-12">
+          <p className="mb-3 text-center font-body text-[11px] sm:text-[12px] font-semibold uppercase tracking-widest text-[var(--rust)]">
+            Start with a paid trial
+          </p>
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 min-[420px]:grid-cols-2">
+            {trialPlans.map((t) => (
+              <div
+                key={t.days}
+                className={`relative flex flex-col items-center rounded-2xl border bg-[var(--surface-warm)] px-4 py-4 sm:px-6 sm:py-5 ${
+                  t.featured
+                    ? 'border-[var(--mahogany)] shadow-[0_6px_28px_rgba(127,85,57,0.12)]'
+                    : 'border-[var(--caramel)]/60'
+                }`}
+              >
+                {t.featured && (
+                  <span className="absolute -top-2.5 rounded-full bg-[var(--mahogany)] px-2.5 py-0.5 font-body text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[var(--cream)] whitespace-nowrap">
+                    {t.note}
+                  </span>
+                )}
+                <p className="font-display text-[24px] sm:text-[30px] font-bold leading-none text-[var(--dark-brown)]">
+                  {t.price}
+                </p>
+                <p className="mt-1 font-body text-[12px] sm:text-[13px] font-semibold text-[var(--mahogany)]">
+                  {t.days} days of full access
+                </p>
+                <p className="mt-1 text-center font-body text-[10.5px] sm:text-[11.5px] leading-snug text-[var(--walnut)]">
+                  One-time · adjusted against onboarding if you continue
+                </p>
+                {/* Visitors are logged out here: sign-up leads straight to the
+                    plans screen where the trial is actually purchased. */}
+                <Link
+                  href="/signup"
+                  className={`mt-3 w-full rounded-xl px-4 py-2.5 text-center font-display text-[13px] sm:text-[14px] font-semibold transition-colors ${
+                    t.featured
+                      ? 'bg-[var(--mahogany)] text-[var(--cream)] hover:bg-[var(--rust)]'
+                      : 'border border-[var(--caramel)] text-[var(--mahogany)] hover:bg-[var(--sand)]'
+                  }`}
+                >
+                  Start {t.days}-day trial
+                </Link>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         {/* ── Main pricing cards row ── */}
         <motion.div
           variants={itemVariants}
-          className="mt-8 sm:mt-14 grid gap-4 sm:gap-6 md:grid-cols-2"
+          className="mt-6 sm:mt-10 grid gap-4 sm:gap-6 md:grid-cols-2"
         >
           {/* ── Card 1: Monthly ── */}
           <div className="relative flex flex-col overflow-hidden rounded-2xl border-2 border-[var(--mahogany)] bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.12)]">
@@ -165,10 +218,16 @@ export default function PricingSection() {
               {/* Price */}
               <div className="mb-2 text-center">
                 <p className="font-display text-[38px] sm:text-[56px] font-bold leading-none text-[var(--dark-brown)]">
-                  ₹50,000
+                  <span className="mr-2 align-middle font-body text-[20px] sm:text-[28px] font-semibold text-[var(--walnut)] line-through">
+                    ₹50,000
+                  </span>
+                  ₹40,000
                   <span className="font-body text-[14px] sm:text-[18px] font-normal text-[var(--walnut)]">
                     {' '}one-time
                   </span>
+                </p>
+                <p className="mt-1.5 sm:mt-2.5 inline-flex items-center rounded-full bg-[var(--mahogany)] px-3 py-1 font-body text-[11px] sm:text-[12px] font-semibold text-[var(--cream)]">
+                  Save ₹10,000 · launch offer
                 </p>
                 <p className="mt-1 sm:mt-2 font-body text-[12px] sm:text-[13px] text-[var(--walnut)]">
                   Paid once · Lifetime access to setup
@@ -211,6 +270,20 @@ export default function PricingSection() {
                 <IconShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--mahogany)]" stroke={1.75} />
                 <p className="font-body text-[11px] sm:text-[13px] leading-relaxed text-[var(--dark-brown)]/80">
                   Setup fee is a one-time investment. Once paid, you only pay the monthly platform fee going forward.
+                </p>
+              </div>
+
+              {/* CTA, matching the monthly card so both columns end the same way */}
+              <div className="mt-4 sm:mt-5">
+                <Link
+                  href="/signup"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--caramel)] px-5 py-3 font-display text-[13px] font-semibold text-[var(--mahogany)] transition-all duration-200 hover:border-[var(--walnut)] hover:bg-[var(--sand)] sm:px-6 sm:py-4 sm:text-[15px]"
+                >
+                  Get started
+                  <IconArrowRight size={16} stroke={2} />
+                </Link>
+                <p className="mt-2 sm:mt-3 text-center font-body text-[11px] sm:text-[12px] text-[var(--walnut)]">
+                  Create your account · pick a plan after sign-up
                 </p>
               </div>
             </div>

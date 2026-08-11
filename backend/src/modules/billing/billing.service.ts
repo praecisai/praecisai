@@ -22,6 +22,9 @@ import {
   monthlySubscriptionGstPaise,
   SUBSCRIPTION_PLAN_PAISE_INCL_GST,
   TRIAL_DAYS,
+  TrialTier,
+  DEFAULT_TRIAL_TIER,
+  trialDaysForAmount,
 } from './billing-math.util';
 import { Coupon, BillingPayment, OnboardingStatus } from '@prisma/client';
 import { isPlatformOwner } from '../../common/constants/platform-owner';
@@ -71,27 +74,30 @@ export class BillingService {
   }
 
   /**
-   * Has this tenant already paid the ₹10,000 trial? That amount is credited
-   * against onboarding (non-refundable otherwise).
+   * How much has this tenant already paid for a trial (paise, 0 if none)?
+   * Whatever they paid — ₹5,000 or ₹10,000 — is credited against onboarding
+   * (non-refundable otherwise). Returns the largest paid trial so a tenant is
+   * never credited less than they actually spent.
    */
-  private async hasPaidTrial(businessId: string): Promise<boolean> {
+  private async paidTrialAmount(businessId: string): Promise<number> {
     const paidTrial = await this.prisma.billingPayment.findFirst({
       where: { business_id: businessId, type: 'TRIAL', status: 'PAID' },
-      select: { id: true },
+      orderBy: { total_amount: 'desc' },
+      select: { total_amount: true },
     });
-    return !!paidTrial;
+    return paidTrial?.total_amount ?? 0;
   }
 
   /** Preview: coupon + full server-side quote (never trust client math). */
   async quoteOnboarding(code: string, businessId: string) {
     const coupon = await this.validateCoupon(code, businessId);
-    const quote = computeOnboardingQuote(coupon.percent, await this.hasPaidTrial(businessId));
+    const quote = computeOnboardingQuote(coupon.percent, await this.paidTrialAmount(businessId));
     return { coupon: { code: coupon.code, percent: coupon.percent }, quote };
   }
 
   /** Quote with no coupon: used by the onboarding page before a code is typed. */
   async quoteOnboardingPlain(businessId: string) {
-    return computeOnboardingQuote(0, await this.hasPaidTrial(businessId));
+    return computeOnboardingQuote(0, await this.paidTrialAmount(businessId));
   }
 
   // ─── Onboarding checkout ────────────────────────────────────────────────────
@@ -104,8 +110,8 @@ export class BillingService {
     }
 
     // Coupon is optional: no code → full price (0% discount). A paid trial
-    // credits ₹10,000 after the discount.
-    const trialPaid = await this.hasPaidTrial(businessId);
+    // credits whatever that trial cost, after the discount.
+    const trialPaid = await this.paidTrialAmount(businessId);
     let coupon: Coupon | null = null;
     let quote: ReturnType<typeof computeOnboardingQuote>;
     if (couponCode?.trim()) {
@@ -177,9 +183,9 @@ export class BillingService {
     };
   }
 
-  // ─── Trial checkout (₹10,000 · 10 days of full access) ──────────────────────
+  // ─── Trial checkout (₹5,000 · 15 days, or ₹10,000 · 10 days) ────────────────
 
-  async createTrialCheckout(businessId: string) {
+  async createTrialCheckout(businessId: string, tier: TrialTier = DEFAULT_TRIAL_TIER) {
     const business = await this.prisma.business.findUnique({ where: { id: businessId } });
     if (!business) throw new NotFoundException('Business not found');
     if (
@@ -192,11 +198,11 @@ export class BillingService {
       throw new BadRequestException('Your trial is already active');
     }
 
-    const quote = computeTrialQuote();
+    const quote = computeTrialQuote(tier);
     const order = await this.razorpay.createOrder({
       amountPaise: quote.totalAmount,
       receipt: `trial_${businessId.slice(0, 8)}_${Date.now()}`,
-      notes: { praecis_business_id: businessId, praecis_type: 'trial' },
+      notes: { praecis_business_id: businessId, praecis_type: 'trial', praecis_trial_tier: tier },
     });
 
     const payment = await this.prisma.billingPayment.create({
@@ -239,7 +245,10 @@ export class BillingService {
       data: { status: 'PAID', paid_at: new Date(), razorpay_payment_id: opts.razorpayPaymentId },
     });
 
-    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    // Length follows the tier actually paid for, recovered from the amount so
+    // no extra column is needed (legacy ₹10,000 rows still resolve to 10 days).
+    const days = trialDaysForAmount(paid.total_amount);
+    const trialEndsAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
     await this.prisma.business.update({
       where: { id: payment.business_id },
       data: { trial_ends_at: trialEndsAt },
