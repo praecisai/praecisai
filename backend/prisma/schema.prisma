@@ -381,6 +381,13 @@ model WhatsAppLog {
   message         String
   reply           String?
   delivery_status DeliveryStatus @default(SENT)
+  // Why a send failed (AiSensy/Meta rejection text), shown in Activity
+  failure_reason  String?
+  // Retry ladder for scheduled sends: 1 = the scheduled attempt,
+  // 2 = same-day retry (+3.5h), 3 = next-day retry at the original time.
+  attempt         Int            @default(1)
+  // When the next retry will fire; null = no further retry this cycle
+  next_retry_at   DateTime?
   created_at      DateTime       @default(now())
 
   // Relations

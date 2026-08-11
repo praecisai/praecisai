@@ -3,6 +3,36 @@ import { ConfigService } from '@nestjs/config';
 
 const AISENSY_API_URL = 'https://backend.aisensy.com/campaign/t1/api/v2';
 
+/**
+ * The provider (AiSensy/Meta) refused or could not deliver the send.
+ *
+ * Distinct from the BadRequestExceptions raised BEFORE we call the provider
+ * (no phone, no outstanding, No Follow-up segment): those are permanent for
+ * this cycle and must never be retried, while these are the transient
+ * Meta-side failures the retry ladder exists for.
+ */
+export class WhatsappProviderError extends Error {
+  readonly isProviderFailure = true;
+  constructor(
+    message: string,
+    readonly detail: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'WhatsappProviderError';
+  }
+}
+
+export function isProviderFailure(err: unknown): err is WhatsappProviderError {
+  return !!err && (err as WhatsappProviderError).isProviderFailure === true;
+}
+
+/** Short, non-technical reason shown in the dashboard Activity feed. */
+export function describeProviderFailure(err: WhatsappProviderError): string {
+  const detail = (err.detail || '').slice(0, 300);
+  return `Meta/WhatsApp issue: ${detail || err.message}`;
+}
+
 // AiSensy API-campaign names per segment. The live campaigns were created with
 // a _v1 suffix (original names were taken); override via env if they change.
 const CAMPAIGN_BY_SEGMENT: Record<string, { env: string; fallback: string }> = {
@@ -77,7 +107,12 @@ export class AisensyService {
       this.logger.error(
         `AiSensy send failed (${res.status}) campaign=${campaignName} dest=${destination}: ${text}`,
       );
-      throw new BadRequestException(`WhatsApp send failed: ${text || res.statusText}`);
+      // Provider-side failure: eligible for the scheduled-send retry ladder
+      throw new WhatsappProviderError(
+        `WhatsApp send failed: ${text || res.statusText}`,
+        text || res.statusText,
+        res.status,
+      );
     }
 
     this.logger.log(

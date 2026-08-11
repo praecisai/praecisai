@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
-import { AisensyService } from './aisensy.service';
+import { AisensyService, isProviderFailure, describeProviderFailure } from './aisensy.service';
 import { StorageService } from '../storage/storage.service';
 import { TenantKeysService } from '../billing/tenant-keys.service';
 import { BillingNotificationService } from '../billing/billing-notification.service';
@@ -55,7 +55,13 @@ export class WhatsappService {
    * Segment is always recalculated from the invoices via segment.util —
    * never trusted from the caller. Logged to WhatsAppLog either way.
    */
-  async sendStatementToCustomer(businessId: string, customerId: string, overridePhone?: string) {
+  async sendStatementToCustomer(
+    businessId: string,
+    customerId: string,
+    overridePhone?: string,
+    // Which rung of the scheduled-send retry ladder this is (1 = first try)
+    opts?: { attempt?: number },
+  ) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
@@ -171,14 +177,22 @@ export class WhatsappService {
         apiKeyOverride: tenantAisensyKey ?? undefined,
       });
     } catch (err: any) {
-      await this.prisma.whatsAppLog.create({
+      // Record WHY it failed so the dashboard can show it, and hand the log id
+      // back to the caller (the queue worker) so a retry can update this row.
+      const failureReason = isProviderFailure(err)
+        ? describeProviderFailure(err)
+        : (err?.message ?? 'Unknown error');
+      const failedLog = await this.prisma.whatsAppLog.create({
         data: {
           business_id: businessId,
           customer_id: customerId,
           message: logMessage,
           delivery_status: 'FAILED',
+          failure_reason: failureReason,
+          attempt: opts?.attempt ?? 1,
         },
       });
+      (err as any).whatsappLogId = failedLog.id;
       // Balance/plan failures raise an AISENSY_LOW billing alert (deep link
       // to the AiSensy dashboard); ordinary delivery failures are ignored.
       await this.billingNotifications

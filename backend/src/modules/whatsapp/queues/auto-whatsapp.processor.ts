@@ -173,6 +173,9 @@ export class AutoWhatsappProcessor extends WorkerHost {
 
       const batch = fresh.slice(0, budget);
       if (batch.length > 0) {
+        // originalAt anchors the retry ladder: a provider failure retries
+        // +3.5h today, then tomorrow at THIS slot's time.
+        const originalAt = new Date().toISOString();
         await this.statementQueue.addBulk(
           batch.map((o) => ({
             name: 'send-statement',
@@ -180,6 +183,8 @@ export class AutoWhatsappProcessor extends WorkerHost {
               businessId: business.id,
               customerId: o.customer!.id,
               customerName: o.customer!.customer_name,
+              attempt: 1,
+              originalAt,
             },
           })),
         );

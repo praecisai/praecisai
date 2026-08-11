@@ -147,6 +147,12 @@ function ActivityRow({ a }: { a: any }) {
       ? `${a.delivery_status} · ${a.message}`
       : `${a.status} · ${a.records_imported ?? 0} records imported`;
 
+  // A failed WhatsApp send explains itself: why it failed, which retry it was,
+  // and when the next attempt fires (or that the ladder is exhausted).
+  const waFailed = a.kind === 'whatsapp' && a.delivery_status === 'FAILED';
+  const waStage =
+    a.attempt >= 3 ? 'next-day retry' : a.attempt === 2 ? 'same-day retry' : 'scheduled send';
+
   const inner = (
     <div className="flex items-start gap-3 py-3 px-2">
       <div className="p-2 rounded-lg flex-shrink-0 mt-0.5" style={{ background: iconBg }}>{icon}</div>
@@ -159,7 +165,31 @@ function ActivityRow({ a }: { a: any }) {
           </span>
         </div>
         <p className="text-[11px] sm:text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--walnut)' }}>{body}</p>
+        {waFailed && a.failure_reason && (
+          <p className="text-[11px] sm:text-xs mt-1 line-clamp-2" style={{ color: '#C62828' }}>
+            {a.failure_reason}
+          </p>
+        )}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
+          {waFailed && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+              style={{ background: 'rgba(198,40,40,0.10)', color: '#C62828', border: '1px solid rgba(198,40,40,0.30)' }}
+            >
+              Failed on {waStage}
+            </span>
+          )}
+          {waFailed && (
+            a.next_retry_at ? (
+              <span className="text-[11px] font-medium" style={{ color: 'var(--mahogany)' }}>
+                ↻ Retrying {formatDate(a.next_retry_at)}
+              </span>
+            ) : (
+              <span className="text-[11px]" style={{ color: 'var(--walnut)' }}>
+                No retries left: moves to the next scheduled run
+              </span>
+            )
+          )}
           {a.kind === 'call' && a.promise_date && (
             <span className="text-[11px] font-medium" style={{ color: 'var(--recovery-green)' }}>
               🤝 Promised {formatDate(a.promise_date)}

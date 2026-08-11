@@ -121,6 +121,7 @@ export class DashboardService {
         orderBy: { created_at: 'desc' },
         select: {
           id: true, message: true, delivery_status: true, created_at: true,
+          failure_reason: true, attempt: true, next_retry_at: true,
           customer: { select: { id: true, customer_name: true } },
         },
       }),
