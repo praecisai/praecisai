@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import api from '../client';
+import api, { attachRetryInterceptor } from '../client';
 
 // ─── Admin credential client ─────────────────────────────────────────────────
 // The /admin panel authenticates with its own username/password token
@@ -30,16 +30,12 @@ adminApi.interceptors.request.use((config) => {
   return config;
 });
 
-adminApi.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const message =
-      err.response?.data?.error ?? err.response?.data?.message ?? err.message ?? 'An error occurred';
-    const e = new Error(message) as Error & { status?: number };
-    e.status = err.response?.status;
-    return Promise.reject(e);
-  },
-);
+// Same transient-failure retry as the main client; keeps `status` so the admin
+// panel can still detect an expired token (401).
+attachRetryInterceptor(adminApi, (error, err) => {
+  (error as Error & { status?: number }).status = err.response?.status;
+  return error;
+});
 
 // ─── Client billing ───────────────────────────────────────────────────────────
 
