@@ -38,7 +38,11 @@ function AnimatedStat({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-60px 0px' });
-  const [display, setDisplay] = useState('0');
+  // Seeded with the final value so the server-rendered markup never shows
+  // "₹0Cr+ recovered" / "0 days average recovery" to a crawler or a no-JS user.
+  const [display, setDisplay] = useState(
+    Number.isInteger(value) ? String(value) : value.toFixed(1),
+  );
 
   useEffect(() => {
     if (!isInView) return;
@@ -65,7 +69,7 @@ function AnimatedStat({
   return (
     <div ref={ref} className="flex flex-1 flex-col items-center px-3 py-6 sm:px-8 sm:py-12 text-center">
       <span
-        className="whitespace-nowrap font-display font-bold text-[var(--cream)]"
+        className="whitespace-nowrap tabular-nums font-display font-bold text-[var(--cream)]"
         style={{ fontSize: 'clamp(1.3rem, 4vw, 3.25rem)' }}
       >
         {prefix}{display}{suffix}

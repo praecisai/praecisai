@@ -1,7 +1,7 @@
 'use client';
 
 import { IconBrandWhatsapp, IconMail, IconMapPin } from '@tabler/icons-react';
-import { whatsappLink, WHATSAPP_SUPPORT_NUMBER } from '@/lib/utils/whatsapp';
+import { whatsappLink } from '@/lib/utils/whatsapp';
 
 const productLinks = [
   { label: 'How it works', href: '/how-it-works' },
@@ -123,7 +123,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href={whatsappLink(WHATSAPP_SUPPORT_NUMBER)}
+                  href={whatsappLink()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 font-body text-[12px] sm:text-[14px] text-[var(--walnut)] transition-colors hover:text-[#F5EBE0]"

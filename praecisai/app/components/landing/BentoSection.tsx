@@ -65,7 +65,9 @@ function Bar({ value, color = '#7F5539', delay = 0 }: { value: number; color?: s
 
 // ── Animated counter ────────────────────────────────────────────────
 function Counter({ end, prefix = '', suffix = '' }: { end: number; prefix?: string; suffix?: string }) {
-  const [v, setV] = useState(0);
+  // Seeded with the final value so the server-rendered markup never shows 0
+  // (see the same note in HeroSection's AnimatedCounter).
+  const [v, setV] = useState(end);
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -86,7 +88,7 @@ function Counter({ end, prefix = '', suffix = '' }: { end: number; prefix?: stri
     return () => obs.disconnect();
   }, [end]);
   const fmt = end % 1 === 0 ? Math.round(v).toString() : v.toFixed(1);
-  return <span ref={ref}>{prefix}{fmt}{suffix}</span>;
+  return <span ref={ref} className="tabular-nums">{prefix}{fmt}{suffix}</span>;
 }
 
 // ── Timeline ────────────────────────────────────────────────────────

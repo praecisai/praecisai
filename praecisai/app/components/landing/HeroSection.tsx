@@ -91,7 +91,12 @@ function AnimatedCounter({
   prefix: string;
 }) {
   const ref = useRef(null);
-  const [display, setDisplay] = useState(0);
+  // Seeded with the FINAL value, not 0: this is what the server renders, so
+  // crawlers, no-JS visitors and slow connections see the real figure instead
+  // of a dashboard reading "0 Parties tracked / 0% Settlement rate". The rAF
+  // loop below starts from 0 on its first frame, so the count-up still plays;
+  // and if the observer never fires, the real number simply stays put.
+  const [display, setDisplay] = useState(value);
 
   useEffect(() => {
     const el = ref.current;
@@ -123,7 +128,7 @@ function AnimatedCounter({
     : display.toFixed(1);
 
   return (
-    <span ref={ref}>
+    <span ref={ref} className="tabular-nums">
       {prefix}{formatted}{suffix}
     </span>
   );

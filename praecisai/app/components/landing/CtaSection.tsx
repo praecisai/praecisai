@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { IconBrandWhatsapp, IconArrowRight } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
-import { whatsappLink, WHATSAPP_SALES_NUMBER } from '@/lib/utils/whatsapp';
+import { whatsappLink } from '@/lib/utils/whatsapp';
 
 function scrollToDemo(e: React.MouseEvent) {
   handleAnchorClick(e, 'demo');
@@ -71,7 +71,7 @@ export default function CtaSection() {
             <IconArrowRight size={16} stroke={2} className="hidden sm:block transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
           <a
-            href={whatsappLink(WHATSAPP_SALES_NUMBER)}
+            href={whatsappLink()}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex flex-1 sm:flex-none w-full items-center justify-center gap-1 sm:gap-2 rounded-xl border border-[rgba(221,184,146,0.3)] px-2.5 py-3 sm:px-7 sm:py-4 font-display text-[13px] sm:text-[15px] font-semibold text-[#FDF8F3] transition-all duration-200 hover:border-[var(--caramel)] hover:bg-[#FFFFFF]/5 sm:w-auto"

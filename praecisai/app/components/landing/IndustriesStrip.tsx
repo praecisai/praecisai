@@ -79,8 +79,11 @@ export default function IndustriesStrip() {
                 <p className="mt-2.5 flex-1 font-body text-[12px] leading-[1.7] text-[var(--walnut)] sm:text-[14px]">
                   {industry.blurb}
                 </p>
+                {/* Descriptive anchor text: Google reads this as a ranking
+                    signal for the linked page, and "See the details" says
+                    nothing about what is on the other side. */}
                 <span className="mt-5 inline-flex items-center gap-1.5 font-body text-[13px] font-semibold text-[var(--mahogany)]">
-                  See the details
+                  {industry.name} recovery details
                   <IconArrowRight
                     size={14}
                     stroke={2}

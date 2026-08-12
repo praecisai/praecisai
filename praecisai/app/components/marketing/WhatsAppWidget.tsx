@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { IconBrandWhatsapp } from '@tabler/icons-react';
-import { whatsappLink, WHATSAPP_SUPPORT_NUMBER } from '@/lib/utils/whatsapp';
+import { whatsappLink } from '@/lib/utils/whatsapp';
 
-const WHATSAPP_URL = whatsappLink(WHATSAPP_SUPPORT_NUMBER);
+const WHATSAPP_URL = whatsappLink();
 
 /**
  * Floating WhatsApp button.
