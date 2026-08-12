@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils/cn';
 import { toast } from 'sonner';
 import DemoConfirmModal from './DemoConfirmModal';
 import DemoFiltersBar from './DemoFiltersBar';
+import { API_ORIGIN } from '../../../lib/api/base';
 
 function MobileInput({ value, onCommit }: { value: string; onCommit: (val: string) => void }) {
   const [local, setLocal] = useState(value);
@@ -325,7 +326,7 @@ export default function DemoOutstandingTable({
     // if (modalState.type === 'VOICE_CALL' && callsUsed >= callsAllowed) return;
 
     setIsSubmitting(true);
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+    const backendUrl = API_ORIGIN;
 
     try {
       const row = data.find((r) => r.id === modalState.rowId);

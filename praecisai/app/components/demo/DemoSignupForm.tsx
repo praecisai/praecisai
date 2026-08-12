@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight } from 'lucide-react';
 import Loader from '../ui/Loader';
 import { cn } from '@/lib/utils/cn';
+import { API_ORIGIN } from '../../../lib/api/base';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -52,7 +53,7 @@ export default function DemoSignupForm() {
     setGlobalError(null);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+      const backendUrl = API_ORIGIN;
       const res = await fetch(`${backendUrl}/api/v1/demo-leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

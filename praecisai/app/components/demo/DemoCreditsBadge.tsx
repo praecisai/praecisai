@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Coins } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { API_ORIGIN } from '../../../lib/api/base';
 
 type Credits = {
   balanceUsd: number;
@@ -18,7 +19,7 @@ export default function DemoCreditsBadge({ token, refreshKey }: { token: string;
   const [credits, setCredits] = useState<Credits | null>(null);
 
   useEffect(() => {
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+    const backendUrl = API_ORIGIN;
     let cancelled = false;
     fetch(`${backendUrl}/api/v1/demo-leads/${token}/credits`)
       .then((res) => (res.ok ? res.json() : null))

@@ -9,6 +9,7 @@ import DemoExhaustedBanner from '../../components/demo/DemoExhaustedBanner';
 import DemoStatCards from '../../components/demo/DemoStatCards';
 import DemoOutstandingTable from '../../components/demo/DemoOutstandingTable';
 import DemoCreditsBadge from '../../components/demo/DemoCreditsBadge';
+import { API_ORIGIN } from '../../../lib/api/base';
 
 export type DemoLead = {
   id: string;
@@ -33,7 +34,7 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   useEffect(() => {
     const fetchLead = async () => {
       try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+      const backendUrl = API_ORIGIN;
         const res = await fetch(`${backendUrl}/api/v1/demo-leads/validate-token/${token}`);
         if (!res.ok) throw new Error('Invalid token');
         const resData = await res.json();

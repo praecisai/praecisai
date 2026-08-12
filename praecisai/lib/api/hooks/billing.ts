@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import api, { attachRetryInterceptor } from '../client';
+import { API_V1 } from '../base';
 
 // ─── Admin credential client ─────────────────────────────────────────────────
 // The /admin panel authenticates with its own username/password token
@@ -20,7 +21,7 @@ export function setAdminToken(token: string | null) {
 }
 
 const adminApi = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001'}/api/v1`,
+  baseURL: API_V1,
   headers: { 'Content-Type': 'application/json' },
 });
 
