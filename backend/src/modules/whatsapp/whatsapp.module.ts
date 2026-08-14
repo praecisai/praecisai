@@ -8,6 +8,8 @@ import { AisensyService } from './aisensy.service';
 import { StatementProcessor } from './queues/statement.processor';
 import { AutoWhatsappProcessor } from './queues/auto-whatsapp.processor';
 import { AutoWhatsappScheduler } from './auto-whatsapp.scheduler';
+import { PdcReminderProcessor } from './queues/pdc-reminder.processor';
+import { PdcReminderScheduler } from './pdc-reminder.scheduler';
 import { StorageModule } from '../storage/storage.module';
 import { BillingModule } from '../billing/billing.module';
 
@@ -21,6 +23,9 @@ import { BillingModule } from '../billing/billing.module';
     BullModule.registerQueue({
       name: 'auto-whatsapp',
     }),
+    BullModule.registerQueue({
+      name: 'pdc-reminders',
+    }),
   ],
   controllers: [WhatsappController, WhatsappWebhookController],
   providers: [
@@ -30,6 +35,8 @@ import { BillingModule } from '../billing/billing.module';
     StatementProcessor,
     AutoWhatsappProcessor,
     AutoWhatsappScheduler,
+    PdcReminderProcessor,
+    PdcReminderScheduler,
   ],
   exports: [WhatsappService, StatementPdfService, AisensyService],
 })

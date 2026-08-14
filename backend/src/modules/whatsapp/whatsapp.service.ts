@@ -3,7 +3,13 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatementPdfService, StatementInvoice } from './statement-pdf.service';
-import { AisensyService, isProviderFailure, describeProviderFailure } from './aisensy.service';
+import {
+  AisensyService,
+  isProviderFailure,
+  describeProviderFailure,
+  PDC_REMINDER_CAMPAIGN_ENV,
+  PDC_REMINDER_CAMPAIGN_FALLBACK,
+} from './aisensy.service';
 import { StorageService } from '../storage/storage.service';
 import { TenantKeysService } from '../billing/tenant-keys.service';
 import { BillingNotificationService } from '../billing/billing-notification.service';
@@ -236,6 +242,82 @@ export class WhatsappService {
       userName: 'Recovery Agent',
       templateParams: [briefing],
       apiKeyOverride: tenantAisensyKey ?? undefined,
+    });
+  }
+
+  /**
+   * "Your cheque is due in two days" reminder.
+   *
+   * Deliberately NOT a chasing message: the party already gave the cheque, so
+   * this only asks them to keep the account funded before it is banked. That is
+   * why it ignores the segment, the WhatsApp cadence and the PDC cooldown — the
+   * cheque date is a hard date, and a reminder that arrives late is useless.
+   *
+   * Template variables ({{1}}…{{6}}): party, business name, cheque no, cheque
+   * date, amount, presentation date. The order follows the order the variables
+   * appear in the approved body, which Meta requires to be ascending; {{4}} and
+   * {{6}} are both the cheque date because the body names it twice ("dated …",
+   * "presented on date …"). Logged to WhatsAppLog either way, for Activity.
+   */
+  async sendPdcChequeReminder(params: {
+    businessId: string;
+    businessName: string;
+    customerId: string;
+    toPhone: string;
+    partyName: string;
+    chequeNo: string;
+    chequeDate: Date;
+    amount: number;
+  }): Promise<void> {
+    const campaignName =
+      process.env[PDC_REMINDER_CAMPAIGN_ENV] || PDC_REMINDER_CAMPAIGN_FALLBACK;
+    const apiKeyOverride = (await this.tenantKeys.getAisensyKey(params.businessId)) ?? undefined;
+
+    const amountText = params.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    const dateText = formatIndianDate(params.chequeDate);
+    const logMessage =
+      `PDC reminder: cheque ${params.chequeNo} dated ${dateText} for Rs.${amountText} is due in 2 days`;
+
+    try {
+      await this.aisensy.sendText({
+        campaignName,
+        destinationPhone: params.toPhone,
+        userName: params.partyName,
+        templateParams: [
+          params.partyName,
+          params.businessName,
+          params.chequeNo,
+          dateText,
+          amountText,
+          dateText,
+        ],
+        apiKeyOverride,
+      });
+    } catch (err: any) {
+      await this.prisma.whatsAppLog.create({
+        data: {
+          business_id: params.businessId,
+          customer_id: params.customerId,
+          message: logMessage,
+          delivery_status: 'FAILED',
+          failure_reason: isProviderFailure(err)
+            ? describeProviderFailure(err)
+            : (err?.message ?? 'Unknown error'),
+        },
+      });
+      await this.billingNotifications
+        .flagAisensyFailureIfBalance(params.businessId, err?.message || String(err))
+        .catch(() => {});
+      throw err;
+    }
+
+    await this.prisma.whatsAppLog.create({
+      data: {
+        business_id: params.businessId,
+        customer_id: params.customerId,
+        message: logMessage,
+        delivery_status: 'SENT',
+      },
     });
   }
 

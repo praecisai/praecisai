@@ -181,6 +181,16 @@ model Business {
   auto_call_weekdays    Int[]   @default([0, 1, 2, 3, 4, 5, 6])
   auto_whatsapp_hours   Int[]   @default([10])
   auto_whatsapp_weekdays Int[]  @default([0, 1, 2, 3, 4, 5, 6])
+  // Which months of the year the unattended runs are allowed in (1=Jan … 12=Dec).
+  // Default is every month, so the behaviour is unchanged unless a business
+  // deliberately pauses a season (audit month, factory shutdown, festival weeks).
+  auto_call_months      Int[]   @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  auto_whatsapp_months  Int[]   @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  // PDC cheque reminder: a WhatsApp nudge to the party two days before the
+  // cheque date so the account is funded before the cheque is banked. ON by
+  // default because it is a courtesy message the party asked for by giving the
+  // cheque, and it goes only to parties who have a pending cheque on file.
+  pdc_reminder_enabled Boolean  @default(true)
   // Per-segment override for how many days must pass before the same party may
   // receive another automated statement. Null = platform defaults
   // (Soft Reminder 15 days, every other contactable segment 7 days).
@@ -694,6 +704,10 @@ model PdcCheque {
   status          PdcStatus @default(PENDING)
   cleared_date    DateTime?
   notes           String?
+  // When the "your cheque is due in 2 days" WhatsApp went out. Set once and
+  // never cleared: it is what stops a second reminder when the tenant has more
+  // than one WhatsApp slot configured, or when the worker retries.
+  reminder_sent_at DateTime?
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 
@@ -704,6 +718,8 @@ model PdcCheque {
   @@index([business_id])
   @@index([customer_id])
   @@index([status])
+  // The reminder run asks for "pending cheques dated exactly D+2" every hour.
+  @@index([cheque_date])
   @@map("pdc_cheques")
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { PhoneCall, MessageSquare, Loader2 } from 'lucide-react';
+import { PhoneCall, MessageSquare, Loader2, FileSpreadsheet } from 'lucide-react';
 import { useMe, useUpdateBusiness } from '../../lib/api/hooks';
 
 /**
@@ -22,20 +22,44 @@ const WEEKDAYS = [
   { v: 4, label: 'Thu' }, { v: 5, label: 'Fri' }, { v: 6, label: 'Sat' }, { v: 0, label: 'Sun' },
 ];
 
+// Calendar months, 1=Jan … 12=Dec. All twelve are on by default: this exists so
+// a business can pause a season (audit month, shutdown, festival weeks) without
+// switching the whole automation off and forgetting to switch it back on.
+const MONTHS = [
+  { v: 1, label: 'Jan' }, { v: 2, label: 'Feb' }, { v: 3, label: 'Mar' },
+  { v: 4, label: 'Apr' }, { v: 5, label: 'May' }, { v: 6, label: 'Jun' },
+  { v: 7, label: 'Jul' }, { v: 8, label: 'Aug' }, { v: 9, label: 'Sep' },
+  { v: 10, label: 'Oct' }, { v: 11, label: 'Nov' }, { v: 12, label: 'Dec' },
+];
+const ALL_MONTHS = MONTHS.map((m) => m.v);
+
 const arr = (v: unknown, fallback: number[]) =>
   Array.isArray(v) && v.every((x) => typeof x === 'number') ? (v as number[]) : fallback;
 
 function Chips({
-  options, selected, onToggle, label,
+  options, selected, onToggle, label, action,
 }: {
   options: { v: number; label: string }[];
   selected: number[];
   onToggle: (v: number) => void;
   label: string;
+  // Optional right-aligned shortcut, e.g. "Select all months"
+  action?: { label: string; onClick: () => void };
 }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-2">{label}</p>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)]">{label}</p>
+        {action && (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="text-[11px] font-medium text-[var(--mahogany)] hover:underline underline-offset-2"
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {options.map((o) => {
           const on = selected.includes(o.v);
@@ -69,6 +93,9 @@ export function ScheduleSettings() {
   const [callDays, setCallDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [waHours, setWaHours] = useState<number[]>([10]);
   const [waDays, setWaDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [callMonths, setCallMonths] = useState<number[]>(ALL_MONTHS);
+  const [waMonths, setWaMonths] = useState<number[]>(ALL_MONTHS);
+  const [pdcReminder, setPdcReminder] = useState(true);
 
   useEffect(() => {
     if (!b) return;
@@ -76,12 +103,17 @@ export function ScheduleSettings() {
     setCallDays(arr(b.auto_call_weekdays, [0, 1, 2, 3, 4, 5, 6]));
     setWaHours(arr(b.auto_whatsapp_hours, [10]));
     setWaDays(arr(b.auto_whatsapp_weekdays, [0, 1, 2, 3, 4, 5, 6]));
-  }, [b?.auto_call_hours, b?.auto_call_weekdays, b?.auto_whatsapp_hours, b?.auto_whatsapp_weekdays]); // eslint-disable-line
+    setCallMonths(arr(b.auto_call_months, ALL_MONTHS));
+    setWaMonths(arr(b.auto_whatsapp_months, ALL_MONTHS));
+    setPdcReminder(b.pdc_reminder_enabled !== false);
+  }, [b?.auto_call_hours, b?.auto_call_weekdays, b?.auto_whatsapp_hours, b?.auto_whatsapp_weekdays, b?.auto_call_months, b?.auto_whatsapp_months, b?.pdc_reminder_enabled]); // eslint-disable-line
 
   const toggle = (list: number[], set: (v: number[]) => void, v: number) =>
     set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v].sort((a, z) => a - z));
 
-  const valid = callHours.length > 0 && callDays.length > 0 && waHours.length > 0 && waDays.length > 0;
+  const valid =
+    callHours.length > 0 && callDays.length > 0 && callMonths.length > 0 &&
+    waHours.length > 0 && waDays.length > 0 && waMonths.length > 0;
 
   const save = async () => {
     if (!valid) return;
@@ -89,8 +121,11 @@ export function ScheduleSettings() {
       await update.mutateAsync({
         auto_call_hours: callHours,
         auto_call_weekdays: callDays,
+        auto_call_months: callMonths,
         auto_whatsapp_hours: waHours,
         auto_whatsapp_weekdays: waDays,
+        auto_whatsapp_months: waMonths,
+        pdc_reminder_enabled: pdcReminder,
       });
       toast.success('Schedule saved', { description: 'Automatic runs will follow the new times and days.' });
     } catch (e: any) {
@@ -108,7 +143,7 @@ export function ScheduleSettings() {
         <h3 className="font-semibold text-[var(--dark-brown)]">Automatic Run Schedule</h3>
         <p className="text-xs text-[var(--walnut)] mt-1">
           When the automatic calls and WhatsApp go out, once you turn the toggles on (top-right).
-          Times are IST. Pick one or more slots and the weekdays each should run.
+          Times are IST. Pick one or more slots, the weekdays and the months each should run in.
         </p>
       </div>
 
@@ -120,6 +155,13 @@ export function ScheduleSettings() {
         </div>
         <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={callHours} onToggle={(v) => toggle(callHours, setCallHours, v)} />
         <Chips label="On days" options={WEEKDAYS} selected={callDays} onToggle={(v) => toggle(callDays, setCallDays, v)} />
+        <Chips
+          label="In months"
+          options={MONTHS}
+          selected={callMonths}
+          onToggle={(v) => toggle(callMonths, setCallMonths, v)}
+          action={{ label: 'Select all', onClick: () => setCallMonths(ALL_MONTHS) }}
+        />
       </div>
 
       {/* WhatsApp */}
@@ -130,14 +172,43 @@ export function ScheduleSettings() {
         </div>
         <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={waHours} onToggle={(v) => toggle(waHours, setWaHours, v)} />
         <Chips label="On days" options={WEEKDAYS} selected={waDays} onToggle={(v) => toggle(waDays, setWaDays, v)} />
+        <Chips
+          label="In months"
+          options={MONTHS}
+          selected={waMonths}
+          onToggle={(v) => toggle(waMonths, setWaMonths, v)}
+          action={{ label: 'Select all', onClick: () => setWaMonths(ALL_MONTHS) }}
+        />
         <p className="text-[11px] text-[var(--walnut)]">
           The per-segment cadence still applies (Soft Reminder every 15 days, others every 7), so a party
           is never messaged more often than that even if it runs daily.
         </p>
       </div>
 
+      {/* PDC cheque reminder: rides on the WhatsApp slot above, but keeps its
+          own switch because it is a courtesy notice, not a recovery chase. */}
+      <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--caramel)', background: 'var(--surface-warm)' }}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet size={15} className="text-[var(--mahogany)]" />
+            <h4 className="text-sm font-semibold text-[var(--dark-brown)]">Cheque due reminder</h4>
+          </div>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: 'var(--dark-brown)' }}>
+            <input type="checkbox" checked={pdcReminder} onChange={(e) => setPdcReminder(e.target.checked)} />
+            Enabled
+          </label>
+        </div>
+        <p className="text-[11px] text-[var(--walnut)]">
+          Two days before a pending PDC cheque&apos;s date, the party gets a WhatsApp asking them to keep the
+          account funded, at the first WhatsApp slot chosen above
+          {waHours.length > 0 ? ` (${hourLabel(Math.min(...waHours))})` : ''}. It goes out on the cheque date
+          regardless of the days and months above, since a bank date cannot wait. Parties with several cheques
+          on the same date get one message listing all of them; VIPs are never messaged automatically.
+        </p>
+      </div>
+
       {!valid && (
-        <p className="text-xs" style={{ color: '#C62828' }}>Pick at least one time slot and one weekday for each.</p>
+        <p className="text-xs" style={{ color: '#C62828' }}>Pick at least one time slot, one weekday and one month for each.</p>
       )}
 
       <button

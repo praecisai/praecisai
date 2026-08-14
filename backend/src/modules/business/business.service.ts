@@ -121,6 +121,28 @@ export class UpdateBusinessDto {
   @Min(0, { each: true })
   @Max(6, { each: true })
   auto_whatsapp_weekdays?: number[];
+
+  // Months the unattended runs are allowed in, 1=Jan … 12=Dec.
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(12, { each: true })
+  auto_call_months?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(12, { each: true })
+  auto_whatsapp_months?: number[];
+
+  // PDC cheque-due reminder on/off. Strict boolean for the same reason as the
+  // other master switches: a coerced "false" would keep messaging parties.
+  @StrictOptionalBoolean()
+  pdc_reminder_enabled?: unknown;
 }
 
 // Segments the AI can actually speak: the VIP override must map to one of these

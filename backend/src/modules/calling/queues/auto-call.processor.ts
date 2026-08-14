@@ -31,10 +31,11 @@ export class AutoCallProcessor extends WorkerHost {
   }
 
   async process(_job: Job) {
-    // Fires hourly; act only on tenants whose configured hour + weekday match now.
+    // Fires hourly; act only on tenants whose hour + weekday + month match now.
     const nowIst = new Date(Date.now() + 330 * 60000);
     const hour = nowIst.getUTCHours();
     const weekday = nowIst.getUTCDay(); // 0=Sun … 6=Sat
+    const month = nowIst.getUTCMonth() + 1; // 1=Jan … 12=Dec
     const slot = `${String(hour).padStart(2, '0')}:00 IST`;
 
     const businesses = await this.prisma.business.findMany({
@@ -43,7 +44,8 @@ export class AutoCallProcessor extends WorkerHost {
         status: 'ACTIVE',
         auto_call_hours: { has: hour },
         auto_call_weekdays: { has: weekday },
-      },
+        auto_call_months: { has: month },
+      } as any,
       select: { id: true, name: true },
     });
 

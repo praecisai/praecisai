@@ -42,6 +42,13 @@ const CAMPAIGN_BY_SEGMENT: Record<string, { env: string; fallback: string }> = {
   Escalation: { env: 'AISENSY_CAMPAIGN_ESCALATION', fallback: 'escalation_pdf_v1' },
 };
 
+// Cheque-due reminder campaign. Plain text (no PDF), six body variables in the
+// order Meta requires them to appear: {{1}} party, {{2}} business,
+// {{3}} cheque no, {{4}} cheque date, {{5}} amount, {{6}} presentation date
+// (the same cheque date as {{4}}).
+export const PDC_REMINDER_CAMPAIGN_ENV = 'AISENSY_CAMPAIGN_PDC_REMINDER';
+export const PDC_REMINDER_CAMPAIGN_FALLBACK = 'pdc_cheque_reminder_v1';
+
 export interface SendStatementParams {
   segment: string;
   destinationPhone: string; // any format; normalized to 91XXXXXXXXXX

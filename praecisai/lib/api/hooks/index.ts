@@ -396,6 +396,10 @@ export function useUpdateBusiness() {
       auto_call_weekdays?: number[];
       auto_whatsapp_hours?: number[];
       auto_whatsapp_weekdays?: number[];
+      // Months the automatic runs are allowed in, 1=Jan … 12=Dec
+      auto_call_months?: number[];
+      auto_whatsapp_months?: number[];
+      pdc_reminder_enabled?: boolean;
     }) => api.patch('/business/me', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth', 'me'] });
