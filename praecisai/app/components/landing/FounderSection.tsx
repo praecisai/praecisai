@@ -53,15 +53,11 @@ export default function FounderSection() {
           >
             Built to completely eliminate the revenue leak of manual follow-ups.
           </h2>
-          <p className="mt-5 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
-            We observed businesses losing significant capital not because their customers refused to pay, but simply because follow-ups were inconsistent. A manual call gets missed, an agent forgets, and basic text messages lack the professional authority required for escalation.
-          </p>
-          <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
-            PraecisAI was engineered to automate this entire cycle. By blending intelligent AI voice calls with branded statements and WhatsApp campaigns, we ensure you recover your outstanding accounts predictably, without adding headcount to your collections team.
-          </p>
-
-          {/* Founder quote */}
-          <blockquote className="mt-6 border-l-2 border-[var(--mahogany)] pl-5">
+          {/* Founder quote leads. The section used to open in third-person
+              corporate voice and then switch to "I run Aeromen Clothing"
+              mid-way, which made the reader stop and work out who was talking.
+              Same copy, personal voice first, company context after. */}
+          <blockquote className="mt-5 border-l-2 border-[var(--mahogany)] pl-5">
             <p className="font-body text-[14px] sm:text-[16px] italic leading-[1.8] text-[var(--dark-brown)]/85">
               &ldquo;I run Aeromen Clothing. Chasing outstanding payments from my own
               customers, daily calls, endless reminders, promises that still slipped
@@ -72,8 +68,14 @@ export default function FounderSection() {
               Ravi Prajapati, Founder &amp; CEO
             </footer>
           </blockquote>
+          <p className="mt-6 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
+            It is a pattern we kept seeing: businesses lose capital not because customers refuse to pay, but because follow-ups are inconsistent. A manual call gets missed, an agent forgets, and a plain text message lacks the authority an escalation needs.
+          </p>
           <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
-            Designed specifically for distributors, manufacturers, and traders across India. We built a platform that rigorously protects your client relationships while ensuring your cash flow remains uninterrupted.
+            PraecisAI automates that entire cycle. AI voice calls, branded statements and WhatsApp campaigns work together so you recover outstanding accounts predictably, without adding headcount to your collections team.
+          </p>
+          <p className="mt-4 font-body text-[14px] sm:text-[16px] leading-[1.8] text-[var(--walnut)]">
+            It is built for distributors, manufacturers and traders across India: a platform that protects your client relationships while keeping your cash flow uninterrupted.
           </p>
           <div className="mt-7 inline-flex items-center gap-2.5 rounded-full border border-[var(--caramel)] bg-[var(--cream)] px-5 py-2.5">
             <IconMapPin size={20} className="text-[var(--mahogany)]" stroke={1.5} />

@@ -139,7 +139,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[rgba(176,137,104,0.15)] pt-6 sm:flex-row">
           <p className="font-body text-[12px] text-[var(--walnut)]">
-            © 2026 Praecis AI · Built with ❤️ for Indian businesses
+            © 2026 PraecisAI · Built with ❤️ for Indian businesses
           </p>
           <p className="font-body text-[12px] text-[var(--walnut)]">
             All rights reserved

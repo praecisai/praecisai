@@ -80,6 +80,12 @@ export default function LandingPage() {
       <HeroSection />
       <TwoWaysSection />
       <HowItWorks />
+      {/* Founder credibility used to sit at position 12, after pricing. A
+          skeptical MSME owner is far more likely to read "I lived this problem
+          myself" once they understand what the product does, and this slot also
+          keeps the cream / surface-warm / sand band alternation intact.
+          To restore the old flow, move this back below <PricingSection />. */}
+      <FounderSection />
       <IndustriesStrip />
       <DifferentiatorSection />
       <FeaturesSection />
@@ -89,7 +95,6 @@ export default function LandingPage() {
       <StatsSection />
       {/* <TestimonialsSection /> */}
       <PricingSection />
-      <FounderSection />
       <FaqSection />
       <CtaSection />
       <Footer />

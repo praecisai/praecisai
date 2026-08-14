@@ -121,7 +121,7 @@ export default function FaqSection() {
             href="/faq"
             className="font-body text-[14px] font-semibold text-[var(--mahogany)] underline underline-offset-4 hover:text-[var(--rust)]"
           >
-            Read the full FAQ
+            All AI payment recovery FAQs
           </Link>
           <span className="hidden font-body text-[14px] text-[var(--walnut)] sm:inline">·</span>
           <a

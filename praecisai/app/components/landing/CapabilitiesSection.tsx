@@ -215,10 +215,12 @@ function SkeletonTwo() {
 // ── Skeleton 3: Mini recovery dashboard ─────────────────────────────
 const BARS = [42, 58, 71, 65, 83, 91, 100];
 const MONTHS = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+// Deliberately DIFFERENT parties and amounts from the hero's activity feed —
+// reusing the same three examples on one page read like an unfilled template.
 const FEED = [
-  { icon: IconBrandWhatsapp, text: 'WhatsApp sent to 59 COLOURS', time: '2m ago', color: '#4A7C59' },
-  { icon: IconPhone,          text: 'AI call placed · AAKARSHAN', time: '8m ago', color: '#7F5539' },
-  { icon: IconCheck,          text: 'Promise ₹1.2L logged · Fri', time: '14m ago', color: '#4A7C59' },
+  { icon: IconBrandWhatsapp, text: 'WhatsApp sent to RAJ SILK MILLS', time: '3m ago', color: '#4A7C59' },
+  { icon: IconPhone,          text: 'AI call placed · VARDHMAN AGENCY', time: '11m ago', color: '#7F5539' },
+  { icon: IconCheck,          text: 'Promise ₹85K logged · Tue', time: '19m ago', color: '#4A7C59' },
 ];
 
 function SkeletonThree() {
