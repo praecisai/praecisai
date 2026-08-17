@@ -140,9 +140,13 @@ function ActivityRow({ a }: { a: any }) {
   const title =
     a.kind === 'import' ? a.file_name : (a.customer?.customer_name ?? '-');
 
+  // A call that never connected has no summary, so show Bolna's reason instead
+  // ("Recipient was busy") rather than a bare status that explains nothing.
   const body =
     a.kind === 'call'
-      ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? `: ${a.call_summary}` : ''}`
+      ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${
+          a.call_summary ? `: ${a.call_summary}` : a.status_reason ? `: ${a.status_reason}` : ''
+        }`
       : a.kind === 'whatsapp'
       ? `${a.delivery_status} · ${a.message}`
       : `${a.status} · ${a.records_imported ?? 0} records imported`;
@@ -171,6 +175,18 @@ function ActivityRow({ a }: { a: any }) {
           </p>
         )}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
+          {a.kind === 'call' && a.call_source === 'MANUAL' && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+              style={{
+                background: 'rgba(127,85,57,0.10)',
+                color: 'var(--mahogany)',
+                border: '1px solid rgba(127,85,57,0.30)',
+              }}
+            >
+              Called manually
+            </span>
+          )}
           {waFailed && (
             <span
               className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"

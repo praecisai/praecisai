@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException, NotFoundException } from '@nes
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
-import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus } from '@prisma/client';
+import { DemoRunStatus, CallDisposition, CallSentiment, CallLanguage, CallStatus, CallSource } from '@prisma/client';
 import { CallExtractionService } from './call-extraction.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import {
@@ -113,6 +113,13 @@ export class CallingService {
        * The sensitive-situation and PDC cooldowns still apply.
        */
       isScheduledCallback?: boolean;
+      /**
+       * Who initiated this dial. Only the dashboard's per-customer action is
+       * MANUAL; bulk sends, the schedulers, callbacks and number-fallbacks are
+       * all AUTOMATED, so the activity feed can tell a human's click apart from
+       * the overnight runs.
+       */
+      source?: CallSource;
     } = {},
   ) {
     const customer = await this.prisma.customer.findFirst({
@@ -308,6 +315,7 @@ export class CallingService {
         business_id: businessId,
         customer_id: customerId,
         call_status: CallStatus.PENDING,
+        call_source: opts.source ?? CallSource.AUTOMATED,
         dialed_phone: dialPhone,
       },
     });
@@ -582,18 +590,62 @@ export class CallingService {
       }
       await this.handleCallAnalyzed(callId, payload);
 
-    } else if (status === 'failed' || status === 'error') {
+    } else {
+      // Anything that is not "completed" ended without a conversation. Bolna
+      // reports WHY in telephony_data.hangup_reason ("Call recipient was busy",
+      // "Call recipient rejected"); statuses like `busy` and `balance-low` used
+      // to fall through this branch entirely, leaving the row PENDING forever
+      // and making the activity feed look like nothing had happened.
+      const { callStatus, reason } = this.mapUnansweredOutcome(status, payload);
       await this.prisma.demoRun.updateMany({
         where: { retell_call_id: callId },
         data: { status: DemoRunStatus.FAILED },
       });
       await this.prisma.callLog.updateMany({
         where: { retell_call_id: callId },
-        data: { call_status: CallStatus.FAILED },
+        data: { call_status: callStatus, status_reason: reason },
       });
       // Call never connected: try the customer's next number, if any
       await this.tryNextPhone(callId);
     }
+  }
+
+  /**
+   * Turns a non-completed Bolna status into a stored status plus a short line
+   * the dashboard can show beside it. Bolna's own hangup_reason is preferred
+   * because it is more specific than the status ("Call recipient rejected" vs
+   * a bare "failed"); the status is only a fallback when it is absent.
+   */
+  private mapUnansweredOutcome(
+    status: string,
+    payload: any,
+  ): { callStatus: CallStatus; reason: string } {
+    const hangup = String(payload?.telephony_data?.hangup_reason ?? '').toLowerCase();
+    const s = String(status ?? '').toLowerCase();
+
+    if (s === 'busy' || hangup.includes('busy')) {
+      return { callStatus: CallStatus.BUSY, reason: 'Recipient was busy' };
+    }
+    if (hangup.includes('rejected') || hangup.includes('declin')) {
+      return { callStatus: CallStatus.NO_ANSWER, reason: 'Call was rejected' };
+    }
+    if (s.includes('no-answer') || s.includes('no_answer') || hangup.includes('no answer')) {
+      return { callStatus: CallStatus.NO_ANSWER, reason: 'Did not pick up' };
+    }
+    if (payload?.answered_by_voice_mail) {
+      return { callStatus: CallStatus.NO_ANSWER, reason: 'Went to voicemail' };
+    }
+    if (s.includes('balance')) {
+      // Not the customer's doing: the tenant's Bolna wallet ran dry mid-run.
+      return { callStatus: CallStatus.FAILED, reason: 'Bolna balance too low' };
+    }
+    if (s === 'failed' || s === 'error') {
+      return { callStatus: CallStatus.FAILED, reason: 'Call could not connect' };
+    }
+    return {
+      callStatus: CallStatus.NO_ANSWER,
+      reason: payload?.telephony_data?.hangup_reason || `Ended: ${status}`,
+    };
   }
 
   // ─── Fallback dialing ───────────────────────────────────────────────────────

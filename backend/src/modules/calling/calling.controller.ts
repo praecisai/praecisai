@@ -4,6 +4,7 @@ import { CallingService } from './calling.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { EmailAllowlistGuard } from '../../common/guards/email-allowlist.guard';
 import { BusinessId } from '../../common/decorators/current-user.decorator';
+import { CallSource } from '@prisma/client';
 import * as crypto from 'crypto';
 
 @Controller('calling')
@@ -17,7 +18,9 @@ export class CallingController {
     @BusinessId() businessId: string,
     @Param('customerId') customerId: string,
   ) {
-    return this.callingService.queueCustomerCall(businessId, customerId);
+    return this.callingService.queueCustomerCall(businessId, customerId, {
+      source: CallSource.MANUAL,
+    });
   }
 
   // Bulk: queue calls to every eligible customer in a segment

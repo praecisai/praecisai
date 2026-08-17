@@ -82,6 +82,11 @@ enum CallStatus {
   BUSY
 }
 
+enum CallSource {
+  MANUAL
+  AUTOMATED
+}
+
 enum DeliveryStatus {
   SENT
   DELIVERED
@@ -418,6 +423,14 @@ model CallLog {
   transcript       String?
   recording_url    String?
   call_status      CallStatus @default(PENDING)
+  // Short human-readable outcome shown next to the status in the activity feed
+  // ("Recipient was busy", "Did not pick up"). Derived from Bolna's
+  // telephony_data.hangup_reason, which the webhook previously discarded.
+  status_reason    String?
+  // Whether a person clicked "call" or an automated run dialled this. Lets the
+  // activity feed distinguish the two; automated is the default because the
+  // schedulers are the high-volume path.
+  call_source      CallSource  @default(AUTOMATED)
   duration_seconds Int?
   created_at       DateTime   @default(now())
 
