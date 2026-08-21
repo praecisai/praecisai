@@ -207,7 +207,13 @@ export default function DashboardPage() {
                       </div>
                       <p className="text-xs truncate" style={{ color: 'var(--walnut)' }}>
                         {a.kind === 'call'
-                          ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${a.call_summary ? `: ${a.call_summary}` : ''}`
+                          ? `${a.call_status}${a.disposition ? ` · ${a.disposition}` : ''}${
+                              a.call_summary
+                                ? `: ${a.call_summary}`
+                                : a.status_reason
+                                ? `: ${a.status_reason}`
+                                : ''
+                            }`
                           : `${a.delivery_status} · ${a.message}`}
                       </p>
                       {a.kind === 'call' && a.promise_date && (
