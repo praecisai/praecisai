@@ -12,6 +12,7 @@ import { BillingNotificationService, BOLNA_TOPUP_URL, AISENSY_DASHBOARD_URL } fr
 import { BillingInvoiceService } from './billing-invoice.service';
 import { TenantKeysService } from './tenant-keys.service';
 import { BolnaUsageService } from './bolna-usage.service';
+import { SalesSheetService } from './sales-sheet.service';
 import {
   computeOnboardingQuote,
   computeTrialQuote,
@@ -41,6 +42,7 @@ export class BillingService {
     private invoices: BillingInvoiceService,
     private tenantKeys: TenantKeysService,
     private bolnaUsage: BolnaUsageService,
+    private salesSheet: SalesSheetService,
   ) {}
 
   get anchorMode(): BillingAnchorMode {
@@ -258,6 +260,8 @@ export class BillingService {
     this.logger.log(
       `Trial activated for business ${payment.business_id} until ${trialEndsAt.toISOString()}`,
     );
+    // Fire-and-forget: a slow or broken Google Sheet must never fail a payment
+    this.salesSheet.logPayment(paid.id);
     return paid;
   }
 
@@ -416,6 +420,8 @@ export class BillingService {
 
     await this.invoices.createForPayment(paid);
     this.logger.log(`Onboarding payment captured for business ${payment.business_id}`);
+    // Fire-and-forget: a slow or broken Google Sheet must never fail a payment
+    this.salesSheet.logPayment(paid.id);
     return paid;
   }
 
@@ -477,6 +483,8 @@ export class BillingService {
 
     await this.invoices.createForPayment(payment);
     this.logger.log(`Subscription charged for business ${sub.business_id}`);
+    // Fire-and-forget: a slow or broken Google Sheet must never fail a payment
+    this.salesSheet.logPayment(payment.id);
     return payment;
   }
 

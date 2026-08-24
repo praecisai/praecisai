@@ -124,7 +124,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
 }
 
 /** Minimal chrome for locked accounts: logo bar + sign out, no sidebar. */
-function BareChrome({ children }: { children: React.ReactNode }) {
+export function BareChrome({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   async function signOut() {

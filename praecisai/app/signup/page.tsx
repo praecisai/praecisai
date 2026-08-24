@@ -8,23 +8,53 @@ import api from '../../lib/api/client';
 import { Logo } from '../components/landing/Logo';
 import { IconArrowLeft } from '@tabler/icons-react';
 
+/**
+ * Indian mobile, accepted loosely (spaces, dashes, +91, leading 0) and stored
+ * as bare 10 digits. The backend normalizes to E.164 (+91XXXXXXXXXX).
+ */
+function mobileDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
+
+function isValidMobile(raw: string): boolean {
+  return /^[6-9]\d{9}$/.test(mobileDigits(raw));
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+
+    // Checked before any account is created: a Supabase user that fails
+    // onboarding afterwards is a half-made account the owner cannot fix.
+    if (!isValidMobile(phone)) {
+      setError('Enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     const supabase = createClient();
 
-    // 1. Create Supabase auth user
-    const { data, error: authError } = await supabase.auth.signUp({ email, password });
+    // 1. Create Supabase auth user. The mobile rides along in user_metadata so
+    // it survives email confirmation: the backend reads it from there when the
+    // auth guard provisions the tenant before /auth/onboard ever runs.
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { phone: mobileDigits(phone) } },
+    });
     if (authError || !data.user) {
       setError(authError?.message ?? 'Signup failed');
       setLoading(false);
@@ -51,7 +81,7 @@ export default function SignupPage() {
 
     // 2. Onboard: create business + user record
     try {
-      await api.post('/auth/onboard', { businessName });
+      await api.post('/auth/onboard', { businessName, phone: mobileDigits(phone) });
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message ?? 'Failed to create business profile');
@@ -164,6 +194,40 @@ export default function SignupPage() {
                 className="input-dark"
                 placeholder="you@company.com"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--walnut)] mb-1.5 uppercase tracking-wider">
+                Mobile Number
+              </label>
+              {/* The focus ring lives on the wrapper so the +91 prefix and the
+                  field light up as one control. */}
+              <div
+                className="flex items-stretch rounded-[10px] border transition-shadow focus-within:border-[var(--mahogany)] focus-within:shadow-[0_0_0_3px_rgba(127,85,57,0.12)]"
+                style={{ borderColor: 'var(--caramel)', background: 'var(--surface-warm)' }}
+              >
+                <span
+                  className="flex items-center px-3 text-sm font-medium text-[var(--walnut)] border-r flex-shrink-0 rounded-l-[10px]"
+                  style={{ background: 'var(--sand)', borderColor: 'var(--caramel)' }}
+                >
+                  +91
+                </span>
+                <input
+                  id="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="input-dark focus:shadow-none"
+                  style={{ border: 'none', borderRadius: 0, background: 'transparent' }}
+                  placeholder="98765 43210"
+                />
+              </div>
+              <p className="text-[11px] text-[var(--walnut)] mt-1.5">
+                We use this to reach you about your account setup.
+              </p>
             </div>
 
             <div>

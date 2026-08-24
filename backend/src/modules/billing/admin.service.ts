@@ -63,12 +63,13 @@ export class AdminService {
         billing_subscriptions: {
           select: { status: true, next_debit_date: true, mandate_type: true },
         },
-        // Owner email identifies a self-registered account
+        // Owner email identifies a self-registered account; the mobile is what
+        // the team actually calls a new lead on.
         users: {
           where: { role: 'BUSINESS_OWNER' },
           orderBy: { created_at: 'asc' },
           take: 1,
-          select: { email: true },
+          select: { email: true, phone: true },
         },
         // Any captured online payment = they paid through the site themselves
         billing_payments: {
@@ -117,6 +118,7 @@ export class AdminService {
         id: b.id,
         name: b.name,
         owner_email: b.users[0]?.email ?? null,
+        owner_phone: b.users[0]?.phone ?? null,
         paid_online: !!paidOnline,
         paid_online_type: paidOnline?.type ?? null,
         is_new: isNew,
@@ -166,7 +168,7 @@ export class AdminService {
         trial_ends_at: true,
         created_at: true,
         billing_subscriptions: true,
-        users: { select: { email: true, role: true, status: true } },
+        users: { select: { email: true, phone: true, role: true, status: true } },
       },
     });
     if (!business) throw new NotFoundException('Tenant not found');

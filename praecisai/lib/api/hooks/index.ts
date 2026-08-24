@@ -436,7 +436,17 @@ export function useMe() {
 export function useOnboard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { businessName: string }) => api.post('/auth/onboard', data),
+    mutationFn: (data: { businessName: string; phone: string }) =>
+      api.post('/auth/onboard', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'me'] }),
+  });
+}
+
+/** Fills in a missing mobile — the Google sign-up path has no other source. */
+export function useUpdateMyPhone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (phone: string) => api.patch('/auth/me', { phone }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'me'] }),
   });
 }

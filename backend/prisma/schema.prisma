@@ -261,6 +261,11 @@ model User {
   business_id  String
   supabase_uid String     @unique
   email        String
+  // Owner's mobile, collected as a mandatory field on the signup form and
+  // stored E.164 (+91XXXXXXXXXX). Nullable in the DB on purpose: accounts that
+  // predate the field, Google sign-ups, and the guard's auto-provisioned rows
+  // have no number, and back-filling a fake one would be worse than a null.
+  phone        String?
   role         UserRole   @default(RECOVERY_AGENT)
   status       UserStatus @default(ACTIVE)
   created_at   DateTime   @default(now())

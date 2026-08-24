@@ -14,6 +14,7 @@ import { BillingInvoiceService } from './billing-invoice.service';
 import { BillingInvoicePdfService } from './billing-invoice-pdf.service';
 import { BillingGateService } from './billing-gate.service';
 import { BolnaUsageService } from './bolna-usage.service';
+import { SalesSheetService } from './sales-sheet.service';
 import { BolnaUsageProcessor } from './queues/bolna-usage.processor';
 import { TenantKeysModule } from './tenant-keys.module';
 
@@ -36,6 +37,7 @@ const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
     BillingInvoicePdfService,
     BillingGateService,
     BolnaUsageService,
+    SalesSheetService,
     BolnaUsageProcessor,
   ],
   exports: [BillingGateService, BillingNotificationService, TenantKeysModule],

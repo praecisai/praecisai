@@ -84,6 +84,11 @@ export class JwtAuthGuard implements CanActivate {
       supabaseUser.email?.split('@')[0] ||
       'New';
     const businessName = `${name}'s Business`;
+    // Signup writes the mandatory mobile into user_metadata, and this guard can
+    // run before /auth/onboard does, so carry it over here too — otherwise the
+    // number the owner just typed is lost on the row the guard wins the race to
+    // create. Google sign-ups have no number and stay null.
+    const phone = supabaseUser.user_metadata?.phone || supabaseUser.phone || null;
 
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -93,6 +98,7 @@ export class JwtAuthGuard implements CanActivate {
             business_id: business.id,
             supabase_uid: supabaseUser.id,
             email: supabaseUser.email,
+            phone,
             role: 'BUSINESS_OWNER',
           },
         });
