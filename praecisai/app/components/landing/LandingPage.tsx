@@ -21,6 +21,7 @@ const FeaturesSection = dynamic(() => import('./FeaturesSection'));
 const BentoSection = dynamic(() => import('./BentoSection'));
 const CapabilitiesSection = dynamic(() => import('./CapabilitiesSection'));
 const ReportsSection = dynamic(() => import('./ReportsSection'));
+const DemoSection = dynamic(() => import('./DemoSection'));
 const StatsSection = dynamic(() => import('./StatsSection'));
 const PricingSection = dynamic(() => import('./PricingSection'));
 // Testimonials hidden for now — re-enable by uncommenting this and its usage below.
@@ -92,6 +93,7 @@ export default function LandingPage() {
       <BentoSection />
       <CapabilitiesSection />
       <ReportsSection />
+      <DemoSection />
       <StatsSection />
       {/* <TestimonialsSection /> */}
       <PricingSection />

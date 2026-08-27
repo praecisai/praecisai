@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
+import createMDX from '@next/mdx';
+
 const nextConfig: NextConfig = {
+  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   reactStrictMode: true,
   poweredByHeader: false,
   // framer-motion is a large barrel imported by nearly every landing section;
@@ -52,6 +55,10 @@ const nextConfig: NextConfig = {
   },
 };
 
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+})
+
 // VERCEL ENVIRONMENT VARIABLES
 // Region: bom1 (Mumbai) for India-optimized latency.
 //
@@ -72,4 +79,4 @@ const nextConfig: NextConfig = {
 //      Keep an eye on large Excel uploads: Vercel caps proxied request bodies
 //      (~4.5 MB), so option 1 is the better fit for the Import Center.
 
-export default nextConfig;
+export default withMDX(nextConfig);

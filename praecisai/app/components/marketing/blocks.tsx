@@ -232,3 +232,55 @@ export function RelatedLinks({
     </div>
   );
 }
+
+/** Two-column comparison table — AI/automated vs Human/manual. */
+export function CompareTable({
+  colA,
+  colB,
+  rows,
+}: {
+  colA: string;
+  colB: string;
+  rows: { aspect: string; a: string; b: string }[];
+}) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[var(--caramel)]">
+      <table className="w-full min-w-[540px] border-collapse">
+        <thead>
+          <tr className="bg-[var(--mahogany)]">
+            <th className="w-[28%] px-5 py-4 text-left font-display text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--cream)] sm:px-7 sm:text-[13px]">
+              Aspect
+            </th>
+            <th className="w-[36%] px-5 py-4 text-left font-display text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--cream)] sm:px-7 sm:text-[13px]">
+              {colA}
+            </th>
+            <th className="w-[36%] px-5 py-4 text-left font-display text-[12px] font-semibold uppercase tracking-[0.1em] text-[rgba(253,248,243,0.55)] sm:px-7 sm:text-[13px]">
+              {colB}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr
+              key={row.aspect}
+              className={
+                i % 2 === 0 ? 'bg-[var(--cream)]' : 'bg-[var(--surface-warm)]'
+              }
+            >
+              <td className="border-t border-[var(--caramel)] px-5 py-4 font-display text-[13px] font-semibold text-[var(--dark-brown)] sm:px-7 sm:text-[14px]">
+                {row.aspect}
+              </td>
+              <td className="border-t border-[var(--caramel)] px-5 py-4 font-body text-[12.5px] leading-[1.65] text-[var(--walnut)] sm:px-7 sm:text-[13.5px]">
+                {row.a}
+              </td>
+              <td className="border-t border-[var(--caramel)] px-5 py-4 font-body text-[12.5px] leading-[1.65] text-[var(--walnut)]/60 sm:px-7 sm:text-[13.5px]">
+                {row.b}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+

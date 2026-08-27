@@ -235,6 +235,213 @@ export const industries: Industry[] = [
       },
     ],
   },
+  {
+    slug: 'manufacturing',
+    name: 'Manufacturing',
+    metaTitle: 'AI Payment Recovery for Manufacturers | PraecisAI',
+    metaDescription:
+      'AI payment recovery for manufacturing businesses in India. Recover outstanding from dealers and distributors with automated Hindi and English voice calls.',
+    h1: 'AI-Powered Payment Recovery for Manufacturing Businesses',
+    eyebrow: 'Industries · Manufacturing',
+    intro:
+      'Payment recovery for a manufacturing business is a distributor-credit problem at scale. Manufacturers extending credit to dealer networks, OEM buyers and project customers often carry receivables across dozens of cities, with payment tied to dispatch cycles, quality approvals and project billing milestones. PraecisAI is an AI calling agent that automates the entire follow-up cycle — Hindi and English voice calls, WhatsApp reminders and branded ledger statements — so your accounts team can focus on disputes and escalations rather than routine chasing.',
+    painPoints: [
+      {
+        title: 'Dealer credit spread across multiple regions',
+        body: 'A manufacturer with dealers in Gujarat, Maharashtra and Delhi NCR cannot staff a follow-up team in each city. Outstanding ages quietly while nobody has time to call.',
+      },
+      {
+        title: 'Payment tied to dispatch and quality approvals',
+        body: 'Buyers withhold payment citing pending inspection, partial delivery or quality holds. Each excuse needs documentation and follow-up before the ledger moves.',
+      },
+      {
+        title: 'Seasonal production cycles stress working capital',
+        body: 'When a production run requires raw material payment before dealer receivables arrive, the gap between factory outflow and sales inflow becomes a cash crunch.',
+      },
+      {
+        title: 'Long dealer relationships that need careful tone',
+        body: 'A dealer who has moved your product for eight years still needs chasing, but aggressive calls risk the exclusivity arrangement. Tone has to match the relationship.',
+      },
+    ],
+    howItHelps: [
+      {
+        title: 'Every dealer called on schedule, not just the big ones',
+        body: 'PraecisAI works the full dealer outstanding list, calling each account in the time window you set, across every region, without adding headcount.',
+      },
+      {
+        title: 'Escalation ladder matched to your credit terms',
+        body: 'Configure day-ranges for each of the four stages — soft nudge at 30 days, firm reminder at 60, direct escalation at 90 — to match how your factory extends credit.',
+      },
+      {
+        title: 'Disputes transferred live with full context',
+        body: 'When a dealer raises a quality dispute on a call, it transfers live to your accounts manager with an instant WhatsApp briefing, so the conversation starts where the AI left off.',
+      },
+      {
+        title: 'Branded statements the dealer can forward internally',
+        body: 'A PDF ledger statement over WhatsApp gives the dealer\'s accounts team the data they need to process payment, removing the most common reason payments stall.',
+      },
+    ],
+    stats: [
+      { value: 'Multi-region', label: 'Dealer networks covered' },
+      { value: '4 stages', label: 'Configurable escalation ladder' },
+      { value: 'Hindi + English', label: 'AI voice call languages' },
+    ],
+    faqs: [
+      {
+        question: 'Can PraecisAI handle credit terms that differ by dealer?',
+        answer:
+          'Yes. Each account can have its own ageing schedule and grace periods, so a key dealer on 90-day terms is treated differently from a new dealer on 30-day terms.',
+      },
+      {
+        question: 'Does it work with ledgers exported from our ERP?',
+        answer:
+          'Yes. We support Excel and CSV outstanding exports from most ERPs including Tally, SAP Business One and Busy. Direct integration is also available.',
+      },
+      {
+        question: 'Can we exclude dealers under active dispute from automated calls?',
+        answer:
+          'Yes. Any account can be flagged as excluded from automated contact while still appearing in your ageing report.',
+      },
+    ],
+  },
+  {
+    slug: 'distributors',
+    name: 'Distributors',
+    metaTitle: 'AI Collections for Distributors in India | PraecisAI',
+    metaDescription:
+      'AI collections for distributors in India. Recover outstanding from retailers and sub-dealers with automated AI voice calls, WhatsApp reminders and ledger statements.',
+    h1: 'AI Collections for Distributors: Recover Outstanding from Retailers Automatically',
+    eyebrow: 'Industries · Distributors',
+    intro:
+      'AI collections for distributors solves the highest-volume follow-up problem in B2B trade. A distributor with 500 retail accounts cannot call each one every week — so the small accounts never get chased and the outstanding quietly compounds. PraecisAI is an AI calling agent that covers your full retail outstanding list with Hindi and English voice calls, WhatsApp reminders and branded statements, so every retailer gets disciplined follow-up regardless of ticket size.',
+    painPoints: [
+      {
+        title: 'Hundreds of small-ticket retailers that never justify a call',
+        body: 'The long tail of accounts — each owing ₹5,000 to ₹50,000 — collectively holds a large share of your outstanding, but individually never justify the time of your collections team.',
+      },
+      {
+        title: 'Multiple SKUs and credit notes muddy the ledger',
+        body: 'Return credits, scheme deductions and short-delivery claims mean the retailer disputes the number on every call, and payment stalls until someone reconciles the account.',
+      },
+      {
+        title: 'Field team collecting instead of filling orders',
+        body: 'Sales reps doubling as collectors on their beat lose the time they need to build shelf space and push new SKUs. The cost is invisible but it compounds every month.',
+      },
+      {
+        title: 'Peak seasons create simultaneous cash crunches',
+        body: 'A new product launch or festive stocking cycle means large outflows before payment from the previous cycle has arrived, squeezing working capital exactly when you need it most.',
+      },
+    ],
+    howItHelps: [
+      {
+        title: 'The long tail finally gets followed up',
+        body: 'An AI call costs the same whether the account owes ₹5,000 or ₹5 lakh. Every retailer gets the same disciplined follow-up on the schedule you configure.',
+      },
+      {
+        title: 'Credit notes netted before every call',
+        body: 'Returns and scheme deductions are netted against the invoice, so the AI quotes a number the retailer can recognise rather than a gross figure that triggers an argument.',
+      },
+      {
+        title: 'Sales reps go back to selling',
+        body: 'Routine reminders, promise chasing and payment confirmations move off your field team so beat time goes into orders, not collections.',
+      },
+      {
+        title: 'Weekly escalation report to the owner',
+        body: 'Accounts past your value or ageing threshold surface in a weekly report to you and your accountant while recovery is still realistic.',
+      },
+    ],
+    stats: [
+      { value: '500+', label: 'Retail accounts manageable per distributor' },
+      { value: 'Per-bill', label: 'Ageing with credit notes netted' },
+      { value: 'Weekly', label: 'Owner escalation reports' },
+    ],
+    faqs: [
+      {
+        question: 'Can PraecisAI handle a mix of cash-and-carry and credit retailers?',
+        answer:
+          'Yes. Cash retailers can be excluded from automated contact. Only credit accounts with open outstanding get called, on the schedule you set.',
+      },
+      {
+        question: 'What if a retailer disputes the outstanding amount?',
+        answer:
+          'The call transfers live to your accounts team with a WhatsApp briefing on what the retailer said, so the dispute can be resolved on the same call.',
+      },
+      {
+        question: 'Can we set different follow-up cadences for different retailer tiers?',
+        answer:
+          'Yes. Each ageing stage has configurable day-ranges and grace periods, and individual accounts can have their own schedule override.',
+      },
+    ],
+  },
+  {
+    slug: 'wholesalers',
+    name: 'Wholesalers',
+    metaTitle: 'AI Payment Recovery for Wholesalers | PraecisAI',
+    metaDescription:
+      'AI payment recovery for wholesalers in India. Automate credit follow-up across hundreds of trade buyers with AI voice calls and WhatsApp reminders.',
+    h1: 'AI Payment Recovery for Wholesalers: Automate Credit Follow-Up at Scale',
+    eyebrow: 'Industries · Wholesalers',
+    intro:
+      'Payment recovery for a wholesaler is a volume-and-relationship problem simultaneously. Wholesale businesses extending credit to retailers, contractors and institutional buyers often carry large party counts with wide variation in ticket size, relationship depth and payment behaviour. PraecisAI is an AI calling agent that covers your full outstanding list with Hindi and English voice calls, WhatsApp reminders and branded ledger statements — with an escalation tone that can be configured to match your oldest relationships and your newest accounts alike.',
+    painPoints: [
+      {
+        title: 'Wide variation in buyer payment behaviour',
+        body: 'A wholesale ledger can include buyers who pay on day 15 and others who routinely need six follow-up calls. One collection approach cannot cover both without damaging one relationship or failing to recover from the other.',
+      },
+      {
+        title: 'Counter staff are selling, not collecting',
+        body: 'The person who knows the buyer relationship is behind the counter moving stock, not on the phone chasing the outstanding from last month.',
+      },
+      {
+        title: 'Seasonal demand creates large simultaneous exposures',
+        body: 'A post-season or post-festival period can leave a wholesaler with large receivables from many buyers at the same time, exactly when working capital for the next stock cycle is needed.',
+      },
+      {
+        title: 'Buyers use disputes to delay without resolving',
+        body: 'A buyer who disputes one line item on a five-invoice account can hold all five payments while the dispute sits unresolved in your inbox.',
+      },
+    ],
+    howItHelps: [
+      {
+        title: 'Tone configured per ageing stage, not per buyer',
+        body: 'Stage day-ranges set the escalation curve automatically — a soft nudge at 30 days becomes a firm message at 90 — so long-term buyers are not treated like defaulters early.',
+      },
+      {
+        title: 'Whole ledger covered, not just the top accounts',
+        body: 'Every buyer with open outstanding gets called on schedule, whether they owe ₹10,000 or ₹10 lakh, because the cost of an AI call does not scale with ticket size.',
+      },
+      {
+        title: 'Disputes isolated and escalated immediately',
+        body: 'When a buyer raises a dispute on a call, the AI transfers live to your team with a WhatsApp briefing, so the dispute is isolated from the clean invoices on the same account.',
+      },
+      {
+        title: 'Branded statements unblock payment faster',
+        body: 'A PDF ledger statement over WhatsApp gives the buyer\'s accounts person exactly what they need to process payment — the number, the invoices, and the due dates.',
+      },
+    ],
+    stats: [
+      { value: 'All buyers', label: 'Full ledger covered, not just top accounts' },
+      { value: '4 stages', label: 'Configurable tone escalation' },
+      { value: 'Live transfer', label: 'Disputes to human, with context' },
+    ],
+    faqs: [
+      {
+        question: 'Can PraecisAI work with our existing Tally or Excel outstanding data?',
+        answer:
+          'Yes. Tally outstanding exports and Excel ledger dumps map automatically. We can also integrate directly with Tally to sync data without a daily upload.',
+      },
+      {
+        question: 'Can we give certain buyers a longer grace period before calls start?',
+        answer:
+          'Yes. Grace periods are configurable per stage, and specific accounts can be excluded from automated contact entirely while still appearing in your ageing reports.',
+      },
+      {
+        question: 'Will the AI sound different from our usual follow-up calls?',
+        answer:
+          'The AI introduces itself as calling on behalf of your business. The name, language and tone are configured to match your brand, not PraecisAI\'s.',
+      },
+    ],
+  },
 ];
 
 export function getIndustry(slug: string) {

@@ -7,20 +7,26 @@ const productLinks = [
   { label: 'How it works', href: '/how-it-works' },
   { label: 'Features',     href: '/features' },
   { label: 'Pricing',      href: '/pricing' },
+  { label: 'AI Calling Agent', href: '/ai-calling-agent' },
+  { label: 'AI Collections Agent', href: '/ai-collections-agent' },
+  { label: 'Payment Recovery', href: '/payment-recovery-software' },
+  { label: 'AR Automation', href: '/accounts-receivable-automation' },
   { label: 'FAQ',          href: '/faq' },
-  { label: 'Reports',      href: '/#reports' },
 ];
 
 const industryLinks = [
   { label: 'Textile & Garments',   href: '/industries/textile-garments' },
   { label: 'Pharma Distribution',  href: '/industries/pharma-distribution' },
   { label: 'Hardware & Building',  href: '/industries/hardware-building-materials' },
+  { label: 'Manufacturing',        href: '/industries/manufacturing' },
   { label: 'All industries',       href: '/industries' },
 ];
 
 const companyLinks = [
   { label: 'About',          href: '/about' },
+  { label: 'Blog',           href: '/blog' },
   { label: 'Case studies',   href: '/case-studies' },
+  { label: 'Glossary',       href: '/glossary' },
   { label: 'Contact',        href: 'mailto:hello@praecisai.in' },
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms',          href: '/terms' },
