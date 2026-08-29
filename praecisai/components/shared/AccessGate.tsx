@@ -111,6 +111,17 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
 
   if (access?.entitled) return <DashboardShell>{children}</DashboardShell>;
 
+  // Paid (or on trial) but the team is still provisioning the account: show the
+  // "setup in progress" screen everywhere, so the customer always sees a clear
+  // status instead of the plans page or a broken dashboard.
+  if (access?.setup_pending) {
+    return (
+      <BareChrome>
+        <SetupPendingScreen />
+      </BareChrome>
+    );
+  }
+
   // Locked: billing/checkout pages render without the dashboard shell
   if (pathname.startsWith('/dashboard/billing')) {
     return <BareChrome>{children}</BareChrome>;
@@ -120,6 +131,73 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
     <BareChrome>
       <PlansScreen trialExpired={!!access?.trial_expired} />
     </BareChrome>
+  );
+}
+
+/**
+ * Shown after a successful payment while the Praecis team provisions the
+ * tenant's AI agent (Bolna keys + configuration). The gate unlocks itself the
+ * moment `access.provisioned` flips true, so the customer just signs in again.
+ */
+function SetupPendingScreen() {
+  const steps = [
+    { label: 'Payment received', done: true },
+    { label: 'Setting up your AI recovery agent', done: false },
+    { label: 'Connecting calls & WhatsApp to your account', done: false },
+    { label: 'Final checks, then your dashboard opens', done: false },
+  ];
+  return (
+    <div className="mx-auto max-w-xl px-4 py-10 sm:py-16">
+      <div className="glass-card p-6 sm:p-8 text-center">
+        <div
+          className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
+          style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}
+        >
+          <Rocket size={26} className="text-[var(--cream)]" />
+        </div>
+
+        <h1 className="font-display text-xl sm:text-2xl font-bold text-[var(--dark-brown)]">
+          Payment received: we&rsquo;re setting up your account
+        </h1>
+        <p className="mt-3 text-sm sm:text-[15px] leading-relaxed text-[var(--walnut)]">
+          Thank you for choosing PraecisAI. Our team is now configuring your AI recovery
+          agent for your business: connecting your calling and WhatsApp, tuning the
+          scripts, and getting everything ready to go live. This usually takes
+          <b className="text-[var(--dark-brown)]"> 3 to 4 working days</b>.
+        </p>
+
+        <div className="mt-6 rounded-xl border p-4 text-left" style={{ borderColor: 'var(--caramel)', background: 'var(--sand)' }}>
+          <ul className="space-y-2.5">
+            {steps.map((s) => (
+              <li key={s.label} className="flex items-start gap-2.5 text-[13px] sm:text-sm">
+                {s.done ? (
+                  <CheckCircle2 size={17} className="mt-0.5 flex-shrink-0" style={{ color: '#2E7D32' }} />
+                ) : (
+                  <Clock3 size={17} className="mt-0.5 flex-shrink-0 text-[var(--walnut)]" />
+                )}
+                <span className={s.done ? 'font-medium text-[var(--dark-brown)]' : 'text-[var(--walnut)]'}>
+                  {s.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="mt-6 text-[13px] sm:text-sm leading-relaxed text-[var(--walnut)]">
+          You don&rsquo;t need to do anything. The moment your account is ready this screen
+          unlocks automatically: just sign in again and you&rsquo;ll go straight to your
+          dashboard.
+        </p>
+
+        <p className="mt-4 text-xs text-[var(--walnut)]">
+          Questions? WhatsApp us or email{' '}
+          <a href="mailto:hello@praecisai.in" className="font-semibold text-[var(--mahogany)] hover:underline">
+            hello@praecisai.in
+          </a>
+          .
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -266,7 +344,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
             },
             {
               onSuccess: () => {
-                toast.success(`Payment verified: your ${days}-day trial is active`);
+                toast.success(`Payment verified: we're setting up your ${days}-day trial`);
                 qc.invalidateQueries({ queryKey: ['billing'] });
               },
               onError: (err: any) => {
@@ -304,7 +382,7 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Loader2 size={26} className="animate-spin text-[var(--mahogany)]" />
-        <p className="text-sm text-[var(--walnut)]">Verifying payment and opening your dashboard…</p>
+        <p className="text-sm text-[var(--walnut)]">Verifying your payment…</p>
       </div>
     );
   }

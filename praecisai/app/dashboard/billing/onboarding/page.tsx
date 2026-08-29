@@ -158,7 +158,9 @@ export default function OnboardingPaymentPage() {
             <CheckCircle2 size={48} className="mx-auto mb-4" style={{ color: '#2E7D32' }} />
             <h2 className="text-xl font-bold text-[var(--dark-brown)]">Payment successful</h2>
             <p className="text-sm text-[var(--walnut)] mt-2">
-              Your account is being activated. Your monthly auto-debit of ₹5,000 starts on the next 1st.
+              Our team is now setting up your account. This takes up to 3 to 4 working days, and
+              you&rsquo;ll get dashboard access automatically as soon as it&rsquo;s ready. Your monthly
+              auto-debit of ₹5,000 starts on the next 1st.
             </p>
           </div>
         ) : (

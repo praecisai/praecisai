@@ -325,7 +325,14 @@ export class BillingService {
     const [business, allowed] = await Promise.all([
       this.prisma.business.findUnique({
         where: { id: businessId },
-        select: { onboarding_status: true, trial_ends_at: true },
+        select: {
+          onboarding_status: true,
+          trial_ends_at: true,
+          // Presence of the tenant's own Bolna keys is our "the team has
+          // finished provisioning this account" signal (see `provisioned`).
+          bolna_api_key: true,
+          bolna_agent_id: true,
+        },
       }),
       userEmail
         ? this.prisma.allowedEmail.findUnique({ where: { email: userEmail.toLowerCase() } })
@@ -338,19 +345,31 @@ export class BillingService {
       business?.onboarding_status === OnboardingStatus.PAID ||
       business?.onboarding_status === OnboardingStatus.ACTIVE;
 
-    // Platform-owner logins are always entitled — no paywall, ever — so the
-    // team can use the live product once their business has API keys set.
+    // A paid / on-trial account is not usable until the team has set up its
+    // AI calling agent. We treat that as done once the tenant's Bolna API key
+    // and agent id have been added (in /admin). Until then the customer sees a
+    // "setup in progress" screen instead of the dashboard.
+    const provisioned = !!business?.bolna_api_key && !!business?.bolna_agent_id;
+
+    // Platform-owner and allowlisted (manually onboarded) logins never wait on
+    // this gate: the team only adds them once their account is already ready.
     let reason: 'ALLOWLISTED' | 'PAID' | 'TRIAL' | 'OWNER' | null = null;
+    let setupPending = false;
     if (isPlatformOwner(userEmail)) reason = 'OWNER';
     else if (allowed) reason = 'ALLOWLISTED';
-    else if (paid) reason = 'PAID';
-    else if (trialActive) reason = 'TRIAL';
+    else if (paid || trialActive) {
+      if (provisioned) reason = paid ? 'PAID' : 'TRIAL';
+      else setupPending = true; // has paid but the team is still setting up
+    }
 
     const trialExpired = !!business?.trial_ends_at && business.trial_ends_at <= now;
 
     return {
       entitled: reason !== null,
       reason,
+      // Paid/on-trial but the team has not finished provisioning the account.
+      setup_pending: setupPending,
+      provisioned,
       onboarding_status: business?.onboarding_status ?? 'PENDING',
       trial_ends_at: business?.trial_ends_at ?? null,
       trial_active: trialActive,

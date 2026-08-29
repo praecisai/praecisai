@@ -226,7 +226,7 @@ export default function SignupPage() {
                 />
               </div>
               <p className="text-[11px] text-[var(--walnut)] mt-1.5">
-                We use this to reach you about your account setup.
+                Please enter a WhatsApp number so our team can reach you easily during setup.
               </p>
             </div>
 
