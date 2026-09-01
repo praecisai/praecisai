@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       'An AI calling agent that calls your B2B debtors in Hindi and English, sends WhatsApp reminders and transfers disputes live to your team.',
     url: `${SITE_URL}/ai-calling-agent`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

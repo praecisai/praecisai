@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { IconQuote, IconTrendingUp } from '@tabler/icons-react';
-import MarketingPage, { SITE_URL } from '../../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../../components/marketing/MarketingPage';
 import { PageHero, Section, CtaBand, RelatedLinks } from '../../components/marketing/blocks';
 import { caseStudies, getCaseStudy } from '@/lib/content/case-studies';
 
@@ -26,6 +26,7 @@ export async function generateMetadata({
       description: study.metaDescription,
       url: `${SITE_URL}/case-studies/${study.slug}`,
       type: 'article',
+      images: OG_IMAGES,
       publishedTime: study.publishedAt,
     },
   };

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       'Automate the full receivables follow-up cycle — AI voice calls, WhatsApp reminders, branded statements and promise-to-pay tracking.',
     url: `${SITE_URL}/ai-collections-agent`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

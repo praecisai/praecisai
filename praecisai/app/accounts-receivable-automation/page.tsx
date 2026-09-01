@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       'Automate accounts receivable follow-up with AI voice calls, WhatsApp reminders and escalation reports. Built for Indian B2B.',
     url: `${SITE_URL}/accounts-receivable-automation`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

@@ -8,7 +8,7 @@ import { industries } from '@/lib/content/industries';
 export const metadata: Metadata = {
   title: { absolute: 'AI Credit Recovery by Industry | PraecisAI' },
   description:
-    'AI payment and credit recovery built for how your industry sells on credit: textile and garments, pharma distribution, and hardware and building materials.',
+    'AI payment and credit recovery built for how your industry sells on credit: textiles and garments, pharma distribution, hardware and building materials, manufacturing, distributors and wholesalers.',
   alternates: { canonical: '/industries' },
 };
 

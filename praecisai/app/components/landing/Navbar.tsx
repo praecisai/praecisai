@@ -12,21 +12,29 @@ function scrollToDemo(e: React.MouseEvent) {
   handleAnchorClick(e, 'demo');
 }
 
-// The logo already points at "/" and this navbar only renders on the homepage,
-// so a click would otherwise be a no-op. Send it back to the top instead.
+// On the homepage the logo click is a no-op (already at "/"), so smooth-scroll
+// to the top instead. On the marketing pages, where this same navbar now
+// renders, let the "/" link navigate home normally.
 function scrollToTop(e: React.MouseEvent) {
+  if (typeof window !== 'undefined' && window.location.pathname !== '/') return;
   e.preventDefault();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   window.history.replaceState(null, '', '/');
 }
 
+// Absolute (/#...) so this nav works on the standalone marketing pages too:
+// from a subpage they navigate home and scroll to the section; on the homepage
+// handleAnchorClick intercepts and scrolls in place.
 const navLinks = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Features',     href: '#features'    },
-  { label: 'Reports',      href: '#reports'      },
-  { label: 'Pricing',      href: '#pricing'      },
-  { label: 'FAQ',          href: '#faq'          },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Features',     href: '/#features'    },
+  { label: 'Reports',      href: '/#reports'      },
+  { label: 'Pricing',      href: '/#pricing'      },
+  { label: 'FAQ',          href: '/#faq'          },
 ];
+
+// 'how-it-works' from '/#how-it-works'
+const anchorId = (href: string) => href.split('#')[1] ?? '';
 
 // ── Reusable sliding-pill hook ──────────────────────────────────────
 function useSlidingPill<T extends HTMLElement>() {
@@ -81,7 +89,7 @@ function NavTabs() {
             if (el) refs.current.set(link.href, el);
             else refs.current.delete(link.href);
           }}
-          onClick={(e) => handleAnchorClick(e, link.href.slice(1))}
+          onClick={(e) => handleAnchorClick(e, anchorId(link.href))}
           onMouseEnter={() => { setHovered(link.href); measure(link.href); }}
           onMouseLeave={() => setHovered(null)}
           className={cn(
@@ -147,7 +155,7 @@ function ActionLinks({ onScrollDemo }: { onScrollDemo: (e: React.MouseEvent) => 
       </Link>
 
       <a
-        href="#demo"
+        href="/#demo"
         ref={demoRef}
         onClick={onScrollDemo}
         onMouseEnter={() => { setHovered('demo'); measure('demo'); }}
@@ -269,7 +277,7 @@ export default function Navbar() {
             <div className="flex flex-col gap-0.5 p-3">
               {navLinks.map((link) => (
                 <a key={link.href} href={link.href}
-                  onClick={(e) => { setMobileOpen(false); handleAnchorClick(e, link.href.slice(1)); }}
+                  onClick={(e) => { setMobileOpen(false); handleAnchorClick(e, anchorId(link.href)); }}
                   className="rounded-xl px-4 py-2.5 font-body text-sm font-medium text-[var(--mahogany)]/80 transition-colors hover:bg-[rgba(221,184,146,0.1)] hover:text-[var(--mahogany)]">
                   {link.label}
                 </a>
@@ -280,7 +288,7 @@ export default function Navbar() {
                 className="rounded-xl border border-[rgba(221,184,146,0.4)] px-4 py-2.5 text-center font-display text-sm font-semibold text-[var(--mahogany)] hover:bg-[rgba(221,184,146,0.08)]">
                 Login
               </Link>
-              <a href="#demo" onClick={(e) => { setMobileOpen(false); scrollToDemo(e); }}
+              <a href="/#demo" onClick={(e) => { setMobileOpen(false); scrollToDemo(e); }}
                 className="rounded-xl border border-[rgba(221,184,146,0.4)] px-4 py-2.5 text-center font-display text-sm font-semibold text-[var(--mahogany)] hover:bg-[rgba(221,184,146,0.08)]">
                 Try Demo
               </a>

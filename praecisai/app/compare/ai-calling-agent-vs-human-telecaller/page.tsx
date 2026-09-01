@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -20,6 +20,7 @@ export const metadata: Metadata = {
       'Side-by-side comparison of AI calling agents and human telecallers for B2B payment recovery in India.',
     url: `${SITE_URL}/compare/ai-calling-agent-vs-human-telecaller`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

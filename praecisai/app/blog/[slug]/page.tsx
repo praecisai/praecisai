@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { MDXRemote } from 'next-mdx-remote/rsc';
-import MarketingPage, { SITE_URL } from '../../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../../components/marketing/MarketingPage';
 import { getBlogPost, getBlogPosts } from '@/lib/content/blog';
 
 export function generateStaticParams() {
@@ -32,6 +32,7 @@ export async function generateMetadata({
       description: post.description,
       url: `${SITE_URL}/blog/${post.slug}`,
       type: 'article',
+      images: OG_IMAGES,
       publishedTime: post.publishedAt,
       authors: [post.author],
     },

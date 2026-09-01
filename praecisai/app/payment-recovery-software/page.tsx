@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       'Payment recovery software using AI voice calls and WhatsApp to recover B2B outstanding in India.',
     url: `${SITE_URL}/payment-recovery-software`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

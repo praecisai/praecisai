@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import MarketingPage, { SITE_URL } from '../../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -20,6 +20,7 @@ export const metadata: Metadata = {
       'Full comparison of AI-automated and manual payment recovery for B2B collections in India.',
     url: `${SITE_URL}/compare/ai-payment-recovery-vs-manual-followup`,
     type: 'website',
+    images: OG_IMAGES,
   },
 };
 

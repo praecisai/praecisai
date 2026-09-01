@@ -69,8 +69,16 @@ export function scrollToSection(id: string, opts: { updateHash?: boolean } = {})
   window.setTimeout(reaim, RETRY_MS);
 }
 
-/** Click handler for in-page anchors: `onClick={(e) => handleAnchorClick(e, 'demo')}` */
+/**
+ * Click handler for in-page anchors: `onClick={(e) => handleAnchorClick(e, 'demo')}`.
+ *
+ * Only intercepts when the target section is actually on THIS page (the
+ * homepage). On the standalone marketing pages the section does not exist, so
+ * we let the browser follow the link's `/#id` href — navigating home and
+ * jumping to the section — instead of preventing the default and doing nothing.
+ */
 export function handleAnchorClick(e: React.MouseEvent, id: string) {
+  if (typeof document === 'undefined' || !document.getElementById(id)) return;
   e.preventDefault();
   scrollToSection(id);
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { IconQuote, IconStarFilled } from '@tabler/icons-react';
-import MarketingPage, { SITE_URL } from '../../components/marketing/MarketingPage';
+import MarketingPage, { SITE_URL, OG_IMAGES } from '../../components/marketing/MarketingPage';
 import {
   PageHero,
   Section,
@@ -36,6 +36,8 @@ export async function generateMetadata({
       description: industry.metaDescription,
       url: `${SITE_URL}/industries/${industry.slug}`,
       type: 'website',
+
+      images: OG_IMAGES,
     },
   };
 }
