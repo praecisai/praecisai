@@ -51,8 +51,10 @@ export default function MarketingPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <Navbar />
-      {/* Clears the fixed floating navbar (mobile bar 56px, desktop pill ~68px). */}
-      <div className="h-16 lg:h-20" aria-hidden />
+      {/* Clears the fixed floating navbar (mobile bar 56px, desktop pill ~68px).
+          Same surface as the breadcrumb below it so there is no colour band
+          behind the nav. */}
+      <div className="h-16 lg:h-20 bg-[var(--surface-warm)]" aria-hidden />
 
       <nav
         aria-label="Breadcrumb"

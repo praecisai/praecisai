@@ -15,8 +15,10 @@ import { useEffect } from 'react';
  * far into it they had scrolled. Section index survives the placeholder phase,
  * so restoring is accurate no matter what the estimated heights were.
  *
- * Only fires for reloads and back/forward. Arriving at the homepage fresh from
- * another page still starts at the top, as it should.
+ * For fresh navigations that carry a #hash (e.g. clicking "Live Demo" from an
+ * industry guide page links to /#demo), the browser's built-in hash scroll is
+ * suppressed by `history.scrollRestoration = 'manual'`. We re-implement it here
+ * with the same re-aiming loop so lazy-loaded sections don't cause a short-land.
  */
 
 const KEY = 'praecis:landing-scroll';
@@ -35,6 +37,33 @@ function blocks(): HTMLElement[] {
   return Array.from(root.children).filter(
     (el): el is HTMLElement => el instanceof HTMLElement && el.offsetParent !== null,
   );
+}
+
+/** Scroll to a hash anchor with re-aiming until lazy sections have settled. */
+function scrollToHash(id: string) {
+  let cancelled = false;
+  const stop = () => { cancelled = true; };
+  window.addEventListener('wheel', stop, { passive: true, once: true });
+  window.addEventListener('touchstart', stop, { passive: true, once: true });
+
+  const pad = padding();
+  const deadline = Date.now() + GIVE_UP_MS;
+
+  const aim = () => {
+    if (cancelled || Date.now() > deadline) return;
+    const el = document.getElementById(id);
+    if (!el) {
+      // Element not yet in DOM (still loading) — retry shortly.
+      window.setTimeout(aim, SETTLE_MS);
+      return;
+    }
+    const drift = el.getBoundingClientRect().top - pad;
+    if (Math.abs(drift) > TOLERANCE_PX) {
+      window.scrollTo({ top: window.scrollY + drift, behavior: 'instant' as ScrollBehavior });
+      window.setTimeout(aim, SETTLE_MS);
+    }
+  };
+  aim();
 }
 
 export default function ScrollMemory() {
@@ -62,13 +91,18 @@ export default function ScrollMemory() {
       if (!frame) frame = requestAnimationFrame(save);
     };
 
-    // A hash target owns the scroll position: never override it.
     const nav = performance.getEntriesByType('navigation')[0] as
       | PerformanceNavigationTiming
       | undefined;
     const isReplay = nav?.type === 'reload' || nav?.type === 'back_forward';
+    const hash = window.location.hash.slice(1); // strip the '#'
 
-    if (isReplay && !window.location.hash) {
+    if (hash) {
+      // Fresh navigate or reload with a hash: scroll to that anchor.
+      // We own scrollRestoration so the browser won't do it — we must.
+      scrollToHash(hash);
+    } else if (isReplay) {
+      // Reload / back-forward without a hash: restore the saved section position.
       const raw = sessionStorage.getItem(KEY);
       if (raw) {
         try {
@@ -99,6 +133,7 @@ export default function ScrollMemory() {
         }
       }
     }
+    // Fresh navigate without a hash: start at top (browser default, already satisfied).
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
