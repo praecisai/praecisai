@@ -251,7 +251,7 @@ export default function DemoSignupForm() {
                     className={cn(
                       "rounded-full border px-4 py-2 font-body text-[13px] font-medium transition-colors",
                       field.value === option
-                        ? "border-[var(--mahogany)] bg-[var(--mahogany)] text-white"
+                        ? "border-[var(--mahogany)] bg-[var(--mahogany)] text-[var(--cream)]"
                         : "border-[var(--caramel)] bg-[var(--surface-warm)] text-[var(--walnut)] hover:border-[var(--mahogany)]"
                     )}
                   >
@@ -282,7 +282,7 @@ export default function DemoSignupForm() {
                     className={cn(
                       "rounded-full border px-4 py-2 font-body text-[13px] font-medium transition-colors",
                       field.value === option
-                        ? "border-[var(--mahogany)] bg-[var(--mahogany)] text-white"
+                        ? "border-[var(--mahogany)] bg-[var(--mahogany)] text-[var(--cream)]"
                         : "border-[var(--caramel)] bg-[var(--surface-warm)] text-[var(--walnut)] hover:border-[var(--mahogany)]"
                     )}
                   >

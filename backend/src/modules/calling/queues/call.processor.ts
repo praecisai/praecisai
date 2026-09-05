@@ -49,6 +49,13 @@ export class CallProcessor extends WorkerHost {
       if (keys.fromNumber) fromNumber = keys.fromNumber;
     }
 
+    // Bolna's call API occasionally hangs. Without a timeout a single stuck
+    // request wedges the concurrency:1 worker, and every later call just piles
+    // up as "queued" until it clears. Abort after 30s so the slot frees and the
+    // job fails cleanly (then retries per the queue's attempts policy).
+    const abortController = new AbortController();
+    const abortTimer = setTimeout(() => abortController.abort(), 30000);
+
     try {
       const response = await fetch('https://api.bolna.dev/call', {
         method: 'POST',
@@ -100,7 +107,9 @@ export class CallProcessor extends WorkerHost {
           },
           metadata: callLogId ? { call_log_id: callLogId } : { demo_lead_id: demoLeadId },
         }),
+        signal: abortController.signal,
       });
+      clearTimeout(abortTimer);
 
       if (!response.ok) {
         throw new Error(`Bolna API error: ${response.status} ${await response.text()}`);
@@ -135,7 +144,9 @@ export class CallProcessor extends WorkerHost {
       console.log(`Call dispatched: ${callId}`);
       return call;
     } catch (error) {
-      console.error('Failed to dispatch call:', error);
+      clearTimeout(abortTimer);
+      const aborted = (error as Error)?.name === 'AbortError';
+      console.error(`Failed to dispatch call${aborted ? ' (Bolna API timed out after 30s)' : ''}:`, error);
 
       if (callLogId) {
         await this.prisma.callLog.update({
