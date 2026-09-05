@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paiseToRupeeString, trialDaysForAmount } from './billing-math.util';
+import { CreateDemoLeadDto } from '../demo/dto/create-demo-lead.dto';
 
 /**
  * Appends one row per successful payment to a Google Sheet, via an Apps Script
@@ -39,6 +40,58 @@ export class SalesSheetService {
     void this.append(paymentId).catch((err) =>
       this.logger.warn(`Sales sheet append failed for payment ${paymentId}: ${err?.message}`),
     );
+  }
+
+  /**
+   * Fire-and-forget: log a new demo lead signup to the sheet.
+   * Silently no-ops if SALES_SHEET_WEBHOOK_URL is not configured.
+   */
+  logDemoLead(dto: CreateDemoLeadDto): void {
+    void this.appendDemoLead(dto).catch((err) =>
+      this.logger.warn(`Sales sheet demo lead append failed: ${err?.message}`),
+    );
+  }
+
+  private async appendDemoLead(dto: CreateDemoLeadDto): Promise<void> {
+    const url = this.config.get<string>('SALES_SHEET_WEBHOOK_URL');
+    if (!url) return;
+
+    const row = {
+      submitted_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      name: dto.name,
+      phone: dto.phone,
+      email: dto.email,
+      business_name: dto.businessName,
+      business_type: dto.businessType,
+      city: dto.city,
+      parties_range: dto.partiesRange,
+      outstanding_range: dto.outstandingRange,
+      group_name: dto.groupName ?? '',
+      reference_by: dto.referenceBy ?? '',
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SalesSheetService.TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: this.config.get<string>('SALES_SHEET_WEBHOOK_SECRET') ?? '',
+          row,
+          sheet: 'DemoLeads', // Apps Script can route to a named sheet tab
+        }),
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      if (!res.ok) {
+        this.logger.warn(`Sales sheet webhook returned ${res.status} for demo lead ${dto.phone}`);
+        return;
+      }
+      this.logger.log(`Sales sheet row appended for demo lead: ${dto.name} (${dto.phone})`);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async append(paymentId: string): Promise<void> {

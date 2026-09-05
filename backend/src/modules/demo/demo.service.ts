@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import OpenAI from 'openai';
+import { SalesSheetService } from '../billing/sales-sheet.service';
 
 // ─── Hindi number words for multiples of 5 (in thousands): 5 to 95 ──────────
 const THOUSAND_WORDS: Record<number, string> = {
@@ -590,6 +591,7 @@ export class DemoService {
     private readonly statementPdf: StatementPdfService,
     private readonly aisensy: AisensyService,
     private readonly storage: StorageService,
+    private readonly salesSheet: SalesSheetService,
   ) {}
 
   async createLead(dto: CreateDemoLeadDto) {
@@ -626,6 +628,10 @@ export class DemoService {
 
     const payload = { sub: lead.id, type: 'demo_token' };
     const demoToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    // Fire-and-forget: log to Google Sheet. Never throws, never blocks the response.
+    this.salesSheet.logDemoLead(dto);
+
     return { id: lead.id, demoToken };
   }
 

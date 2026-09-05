@@ -40,7 +40,7 @@ const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
     SalesSheetService,
     BolnaUsageProcessor,
   ],
-  exports: [BillingGateService, BillingNotificationService, TenantKeysModule],
+  exports: [BillingGateService, BillingNotificationService, TenantKeysModule, SalesSheetService],
 })
 export class BillingModule implements OnModuleInit {
   private readonly logger = new Logger(BillingModule.name);

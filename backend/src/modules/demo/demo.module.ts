@@ -8,6 +8,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { CallingModule } from '../calling/calling.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { StorageModule } from '../storage/storage.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { StorageModule } from '../storage/storage.module';
     CallingModule,
     WhatsappModule,
     StorageModule,
+    BillingModule,
   ],
   controllers: [DemoController],
   providers: [DemoService, DemoLeadRepository],
