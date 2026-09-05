@@ -261,6 +261,7 @@ const CASE_NOTES = [
 
 export default function DemoOutstandingTable({
   token,
+  selectedAgentId,
   whatsappUsed,
   whatsappAllowed,
   callsUsed,
@@ -270,6 +271,8 @@ export default function DemoOutstandingTable({
   onActionComplete,
 }: {
   token: string;
+  // Voice agent (tone) chosen on the dashboard; sent with each demo call.
+  selectedAgentId?: string | null;
   whatsappUsed: number;
   whatsappAllowed: number;
   callsUsed: number;
@@ -387,6 +390,9 @@ export default function DemoOutstandingTable({
           daysOverdue: row.daysOutstanding,
           billNo: row.billNo,
           segment,
+          // Voice calls only; backend ignores it for WhatsApp and falls back to
+          // the default agent when unset.
+          ...(modalState.type === 'VOICE_CALL' && selectedAgentId ? { demoAgentId: selectedAgentId } : {}),
           previousPaidAmount,
           totalOriginalAmount,
           totalDueForParty: distinctBillCount > 1 ? totalDueForParty : undefined,

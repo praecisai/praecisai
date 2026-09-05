@@ -24,7 +24,7 @@ export class CallProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    const { demoLeadId, callLogId, businessId, phoneNumber, context } = job.data;
+    const { demoLeadId, callLogId, businessId, phoneNumber, context, bolnaAgentId } = job.data;
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
     console.log(
@@ -35,6 +35,9 @@ export class CallProcessor extends WorkerHost {
     // until the key migration runs). Demo calls stay on the platform account.
     let apiKey = process.env.BOLNA_API_KEY;
     let agentId = process.env.BOLNA_AGENT_ID;
+    // Demo calls may pick one of several platform agents (tone/voice). Applies
+    // only to demo jobs; production tenant keys below still take precedence.
+    if (!callLogId && bolnaAgentId) agentId = bolnaAgentId;
     // Outbound caller ID. Omitted, Bolna dials from its own shared pool, so the
     // customer sees a number that rotates, cannot be called back, and carries
     // none of the tenant's Truecaller verification.
@@ -79,6 +82,8 @@ export class CallProcessor extends WorkerHost {
             greeting_time: context.greeting_time || 'Namaskar',
             days_mention: context.days_mention || '',
             dispute_note: context.dispute_note || '',
+            ptp_window_note: context.ptp_window_note || '',
+            ptp_window_note_english: context.ptp_window_note_english || '',
             // English companions: the canvas uses these the moment the
             // customer switches to English, so amounts/scripts are never
             // translated on the fly.

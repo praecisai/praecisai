@@ -2,6 +2,8 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { DemoLeadRepository } from './demo-lead.repository';
 import { CreateDemoLeadDto } from './dto/create-demo-lead.dto';
 import { RunDemoDto } from './dto/run-demo.dto';
+import { DEFAULT_STYLE } from './segment-styles';
+import { buildPtpWindowNote, PTP_WINDOW_MONTHS } from '../../common/utils/call-script.util';
 import { StatementPdfService } from '../whatsapp/statement-pdf.service';
 import { AisensyService } from '../whatsapp/aisensy.service';
 import { StorageService } from '../storage/storage.service';
@@ -280,11 +282,273 @@ ${REFUSAL_GUARD}
 Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
 };
 
+// ─── Script styles (tone variants) ──────────────────────────────────────────
+// Each demo agent maps to one style slug. The CORE canvas and the compliance
+// scaffolding (REFUSAL_GUARD, the mandatory date question, the exact closing
+// lines) are IDENTICAL across styles — only the flavour/persona lines change.
+// This mirrors the customer's own script proposals, which create tone variety
+// purely by rewriting the segment blocks while leaving the safety backbone
+// untouched. 'formal' is the original, production-proven wording (default).
+// The style slugs/labels live in ./segment-styles (shared with the admin panel).
+
+// FRIENDLY (from the customer's v3 "Natural / Colloquial" proposal). Meena,
+// female, warm and human. Identical scaffolding to 'formal' (REFUSAL_GUARD, the
+// mandatory date question last, the exact closing lines) — only the flavour
+// lines are warmer and more conversational.
+const FRIENDLY_SEGMENTS: Record<string, string> = {
+  'Soft Reminder': `
+SEGMENT: Soft Reminder
+
+TONE: like a warm, familiar person gently reminding you, not a company. Friendly and unhurried.
+
+ONLY DO THESE TWO THINGS: NOTHING ELSE:
+1. Warmly remind the customer a small payment, {due_amount_hindi}, is pending.
+2. Ask gently "आप बस बता दीजिए, कब तक हो जाएगा जी?"
+
+Speak warmly and simply, for example: "एक छोटी सी बात याद दिलानी थी जी, आपका {due_amount_hindi} का payment थोड़ा pending है।"
+
+THAT IS ALL. No pressure. No probing. No firmness.
+
+If customer gives ANY answer (date, week, month, anything): say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer: say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
+NEVER ask for a more specific date. NEVER probe further. NEVER add extra sentences.`,
+
+  'Follow-up': `
+SEGMENT: Follow-up
+
+TONE: warm, easy-going second check-in: you had contact before and are just lightly following up. Never firm, never pressuring. It is okay to sound human and relaxed.
+
+DO THESE THINGS:
+1. Warmly remind the customer {due_amount_hindi} is still pending.
+2. Ask warmly for a rough/expected date. Approximate is completely fine.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"पहले भी हमारी थोड़ी बात हुई थी जी, बस उसी का हल्का सा follow-up है।"
+"आप बेफिक्र होकर बता दीजिए, लगभग कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने): say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. Do not probe further.
+If customer gives truly vague answer ("जल्दी", "देखते हैं"): ask once more gently for a rough date.
+If still no date: say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
+
+  'Strong Follow-up': `
+SEGMENT: Strong Follow-up
+
+TONE: a little more personally invested and a little tired, because the accounts team keeps asking you for an update. Still always a warm request, never a demand or threat.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. The accounts team keeps asking you for an update on this payment.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the partial-payment thanks, and the accounts-team update are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"सच बताऊँ जी, Accounts team मुझसे बार बार इसका update माँग रही है।"
+"आप बस एक बार बता दीजिए, लगभग कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months: capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. If truly vague: ask once more for a rough date.
+NEVER mention legal action, threats, seniors, or boss pressure (seniors = Escalation only).`,
+
+  'Escalation': `
+SEGMENT: Escalation
+
+Highest recovery stage. TONE: warm but direct, with a quiet sense of finality: the follow-up is genuinely happening and time is short, but NO threat, NO legal mention, NO rudeness. Keep sentences short. Always remain humble.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. This account has been pending a while; the accounts team and senior team are now asking about it and you must give them an update.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the thanks, and the seniors' follow-up are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"जी, इस payment को अब काफी समय हो गया है।"
+"Senior team भी इसे देख रही है, मुझे एक update देना है।"
+"आप बता दीजिए, कब तक payment clear हो पाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+};
+
+// PROFESSIONAL (from the customer's v2 "4-Segment Redesign"). Meena, female,
+// but with sharper stage differentiation: a distinct internal reason to call at
+// each stage (forgot → checking in → accounts asked me today → management review).
+// Same scaffolding as 'formal'; only the persona framing changes.
+const PROFESSIONAL_SEGMENTS: Record<string, string> = {
+  'Soft Reminder': `
+SEGMENT: Soft Reminder
+
+TONE: first touch, assume they simply forgot. Warmest, caring reminder — zero pressure, zero probing. A courteous nudge, not collections.
+
+ONLY DO THESE TWO THINGS: NOTHING ELSE:
+1. Tell customer that {due_amount_hindi} is pending, as a gentle reminder.
+2. Ask "आप please बताइए, कब तक clear हो सकता है?"
+
+THAT IS ALL. No pressure. No probing. No firmness.
+
+If customer gives ANY answer (date, week, month, anything, however loose): say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer: say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
+NEVER ask for a more specific date. NEVER probe. NEVER mention accounts team, seniors, or "पहले भी बताया".`,
+
+  'Follow-up': `
+SEGMENT: Follow-up
+
+TONE: purposeful second touch — you contacted them before and are checking where it stands. Warm but a little more purposeful than Soft Reminder, never naggy, never firm.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"पिछली बार भी हमने इस payment के बारे में बात की थी।"
+"आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months (एक हफ्ते, कल, दो-तीन दिन, इस महीने): say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. If customer gives a truly vague answer ("जल्दी", "देखते हैं"): ask once more gently for a rough date. If still no date: say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
+
+  'Strong Follow-up': `
+SEGMENT: Strong Follow-up
+
+TONE: businesslike and under visible but polite internal pressure — the accounts team asked YOU directly today for an update, and you must give them one. Still a request, never a demand or threat. No rapport/small-talk lines here.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. The accounts team asked you today for an update on this payment.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+The amount, the thanks, and the accounts-team update are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"Accounts team ने आज मुझसे इस payment का update पूछा है।"
+"मुझे उन्हें एक clear जवाब देना है, please बता दीजिए, लगभग कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months: capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. If truly vague: ask once more for a clear date. NEVER mention legal action, threats, or management (management = Escalation only).`,
+
+  'Escalation': `
+SEGMENT: Escalation
+
+Highest recovery stage. TONE: firm, direct, serious — this account is now under management review. Still humble and respectful, NEVER threatening, NO legal mention, NO rudeness. Drop the soft filler ("कोई pressure नहीं", "बिल्कुल आराम से") — it undercuts the seriousness. Keep sentences short.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. This account is now under management review; you need a clear answer today.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+These are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"यह account अब हमारी management के review में है।"
+"मुझे आज एक clear जवाब देना है, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. NEVER threaten or pressure. Say "management" or "senior team", never "seniors".`,
+};
+
+// HONEST_MALE (from the customer's v4 "Rahul, Male Voice"). Male grammar and
+// name. Its distinctive angle is genuine, HONEST personal stakes in the later
+// stages — the real vendor / raw-material / payment-cycle chain — stated as fact,
+// never as a threat, and NEVER with invented specifics. This is true for the
+// Aeromen demo brand (buys fabric on credit); pair it only with the Rahul canvas.
+const HONEST_MALE_SEGMENTS: Record<string, string> = {
+  'Soft Reminder': `
+SEGMENT: Soft Reminder
+
+TONE: warm, helpful, male voice (Rahul). Just being helpful — no stakes angle here, that belongs to later stages. Zero pressure.
+
+ONLY DO THESE TWO THINGS: NOTHING ELSE:
+1. Warmly tell the customer their payment {due_amount_hindi} is a little due, and offer to WhatsApp the outstanding.
+2. Ask gently "आप बस बता दीजिए, कब तक हो जाएगा sir?"
+
+Speak warmly, for example: "Sir, आपकी payment थोड़ी सी due हो गई है। आप एक बार please देख लीजिए। मैं आपको outstanding WhatsApp पर भी भेज देता हूँ।"
+
+THAT IS ALL. No pressure. No probing.
+
+If customer gives ANY answer: say EXACTLY "ठीक है जी। Thank you so much." then say NOTHING more, no matter what the customer says.
+If customer gives no answer: say EXACTLY "कोई बात नहीं जी, हम समझते हैं। Thank you so much." then say NOTHING more.
+NEVER ask for a more specific date. NEVER probe.`,
+
+  'Follow-up': `
+SEGMENT: Follow-up
+
+TONE: male (Rahul), warm, checking in — you called before and sent the outstanding; nudge them to look at it. Still no stakes angle yet.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"पिछली बार भी हमारी payment के बारे में बात हुई थी sir, मैंने आपको outstanding भी भेजा था।"
+"आप एक बार ज़रूर देख लीजिए sir। आप please बता दीजिए, लगभग कब तक payment हो जाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. If truly vague: ask once more gently for a rough date. If still no date: say EXACTLY: "कोई बात नहीं जी, हम समझते हैं। Thank you so much." Then say NOTHING more.`,
+
+  'Strong Follow-up': `
+SEGMENT: Strong Follow-up
+
+TONE: male (Rahul), a little stretched but never rude. Two commitments already passed. First honest appearance of your own stake — stated plainly as a fact about the business, NOT as a threat or a performance of distress.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. Two commitments have already passed and the delay is affecting your own payment cycle.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+These are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"Sir, हम दो बार commitment ले चुके हैं, फिर भी delay हो रहा है।"
+"हमारा अपना payment cycle भी इसी पर टिका है sir, please बता दीजिए, कब तक हो जाएगी payment?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+IF the customer pushes back or asks why the urgency, answer honestly with ONE short true disclosure (never invent specifics): "Sir, सच बताऊँ तो हमें भी आगे vendors को payment देना होता है, fabric और raw material के लिए। आपकी तरफ से delay होगा तो हमारा भी काम रुक जाता है।"
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal timeframe within two months: capture it, then say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. If truly vague: ask once more for a rough date. NEVER threaten, NEVER mention legal action, NEVER invent vendor names or amounts.`,
+
+  'Escalation': `
+SEGMENT: Escalation
+
+Highest recovery stage. TONE: male (Rahul), genuinely a little worn down after chasing this account, but NEVER rude, NEVER threatening, NO legal mention. The honesty IS the pressure — nothing invented.
+
+MANDATORY ORDER: deliver every step, NEVER stop early:
+1. (If partial payment) thank them for the previous payment.
+2. The delay is now hurting your own business — you also have outstanding to clear ahead.
+3. ASK the payment date: this step is MANDATORY and can NEVER be skipped.
+4. Wait for the customer's answer.
+These are INFORMATIONAL: they never end the conversation. You MUST reach the date question in step 3.
+
+SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand the turn to the customer until the final date question is asked (Devanagari, short 4–7 word sentences, in order: do not improvise):
+"Sir, payment काफी delay हो गया है, please अब देख लीजिए।"
+"हमारे पास भी outstanding pending है जो हमें आगे चुकाना है sir, आप बता दीजिए, कब तक payment हो पाएगी?"
+The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
+
+IF the customer stalls again or mentions their own downstream pressure, answer honestly ONCE (never invent specifics): "Sir, समझ रहा हूँ, सबकी अपनी problem होती है। लेकिन हमें भी आगे चुकाना है, बस इसी वजह से इतनी बार call करना पड़ रहा है, please समझिए।"
+
+${REFUSAL_GUARD}
+Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. NEVER threaten or pressure. Keep every honest line general and true — no fake vendor names, no made-up amounts, no invented deadlines.`,
+};
+
+const SEGMENT_INSTRUCTIONS_BY_STYLE: Record<string, Record<string, string>> = {
+  formal: SEGMENT_INSTRUCTIONS,
+  professional: PROFESSIONAL_SEGMENTS,
+  friendly: FRIENDLY_SEGMENTS,
+  honest_male: HONEST_MALE_SEGMENTS,
+};
+
 // Resolves {business_name} here rather than leaving it for Bolna's template pass —
 // this string becomes the VALUE of {segment_instructions}, so a nested {business_name}
 // inside it is not guaranteed to survive Bolna's substitution on the outer prompt.
-function buildSegmentInstructions(segment: string, businessName: string): string {
-  const template = SEGMENT_INSTRUCTIONS[segment] ?? SEGMENT_INSTRUCTIONS['Soft Reminder'];
+// An unknown style falls back to 'formal'; an unknown segment to 'Soft Reminder'.
+function buildSegmentInstructions(
+  segment: string,
+  businessName: string,
+  style: string = DEFAULT_STYLE,
+): string {
+  const styleMap =
+    SEGMENT_INSTRUCTIONS_BY_STYLE[style] ?? SEGMENT_INSTRUCTIONS_BY_STYLE[DEFAULT_STYLE];
+  const template = styleMap[segment] ?? styleMap['Soft Reminder'];
   return template.replace(/\{business_name\}/g, businessName);
 }
 
@@ -390,6 +654,19 @@ export class DemoService {
   async getRunsForLead(token: string) {
     const payload = this.jwtService.verify(token);
     return this.demoLeadRepo.findRunsByLeadId(payload.sub);
+  }
+
+  // Public list for the dashboard agent picker. Only cosmetic fields — never the
+  // Bolna agent_id or the internal script style.
+  async listAgentsForDashboard() {
+    const agents = await this.demoLeadRepo.listActiveAgents();
+    return agents.map((a) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description,
+      voiceLabel: a.voice_label,
+      isDefault: a.is_default,
+    }));
   }
 
   // ─── Bolna credits for the demo dashboard ──────────────────────────────────
@@ -517,7 +794,14 @@ export class DemoService {
         : [];
 
     const histSummary = buildCallHistorySummary(callHistory, dto.segment);
-    const segmentInstructions = buildSegmentInstructions(dto.segment, lead.business_name);
+
+    // Resolve the selected voice agent (tone + voice). Falls back to the default
+    // active agent, then to the env Bolna agent, so demo calls never break even
+    // before any DemoAgent rows exist. Only calls use an agent; WhatsApp skips it.
+    const agent = isCall ? await this.demoLeadRepo.resolveDemoAgent(dto.demoAgentId) : null;
+    const scriptStyle = agent?.script_style || DEFAULT_STYLE;
+    const bolnaAgentId = agent?.bolna_agent_id || process.env.BOLNA_AGENT_ID || '';
+    const segmentInstructions = buildSegmentInstructions(dto.segment, lead.business_name, scriptStyle);
 
     // Rule 1: Multi-invoice: use total across all bills, not just current bill
     const isMultiInvoice =
@@ -554,6 +838,7 @@ export class DemoService {
 
     const run = await this.demoLeadRepo.createRun({
       demo_lead: { connect: { id: lead.id } },
+      ...(agent ? { demo_agent: { connect: { id: agent.id } } } : {}),
       demo_type: dto.demoType,
       party_name: dto.partyName,
       bill_amount: dto.dueAmount,
@@ -632,11 +917,15 @@ export class DemoService {
       await this.callingQueue.add('outbound-calls', {
         demoLeadId: lead.id,
         phoneNumber: lead.phone,
+        // Which platform Bolna agent (voice/canvas) to dial with. Empty means the
+        // call.processor uses its env default (the original formal agent).
+        bolnaAgentId,
         context: {
           // Hardcoded demo brand, regardless of the prospect's own business name.
-          // This value is spoken by Meena (ElevenLabs TTS) everywhere {business_name}
-          // appears in the canvas.
-          business_name: 'Aeromen Clothing',
+          // This value is spoken by the agent everywhere {business_name} appears in
+          // the canvas. Kept as the neutral platform brand for demo calls so we
+          // never expose a real customer's name to a prospect.
+          business_name: 'Praecis AI',
           business_city: businessCitySpoken,
           customer_name: customerNameSpoken,
           due_amount: effectiveDueAmount.toLocaleString('en-IN'),
@@ -650,6 +939,10 @@ export class DemoService {
           handoff_number: process.env.BOLNA_HANDOFF_NUMBER || '',
           greeting_time: getISTGreeting(),
           days_mention: daysMention,
+          // Lets the canvas judge whether a NAMED date ("15 November") exceeds the
+          // acceptance window — the model can't compute that without today's date.
+          ptp_window_note: buildPtpWindowNote(PTP_WINDOW_MONTHS, 'HINDI'),
+          ptp_window_note_english: buildPtpWindowNote(PTP_WINDOW_MONTHS, 'ENGLISH'),
         },
       });
     }

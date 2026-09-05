@@ -50,6 +50,12 @@ export class RunDemoDto {
   @IsNotEmpty()
   segment: string;
 
+  // Selected demo voice agent (DemoAgent.id). Optional: when absent the backend
+  // uses the default active agent, then the env Bolna agent. Voice calls only.
+  @IsString()
+  @IsOptional()
+  demoAgentId?: string;
+
   // Partial payment: how much was paid before on this bill
   @IsNumber()
   @IsOptional()

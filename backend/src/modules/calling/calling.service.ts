@@ -31,6 +31,8 @@ import {
   toProperCase,
   spokenBusinessName,
   toE164India,
+  buildPtpWindowNote,
+  PTP_WINDOW_MONTHS,
 } from '../../common/utils/call-script.util';
 
 @Injectable()
@@ -345,6 +347,10 @@ export class CallingService {
         greeting_time: getISTGreeting(),
         days_mention: daysMention,
         dispute_note: disputeNote,
+        // Lets the canvas judge whether a NAMED date ("15 November") exceeds the
+        // acceptance window — the model can't compute that without today's date.
+        ptp_window_note: buildPtpWindowNote(PTP_WINDOW_MONTHS, 'HINDI'),
+        ptp_window_note_english: buildPtpWindowNote(PTP_WINDOW_MONTHS, 'ENGLISH'),
         // ── English companions: used only once the customer switches to English
         due_amount_english: amountToSpoken(totalDue, 'ENGLISH'),
         segment_instructions_english: segmentInstructionsEn,

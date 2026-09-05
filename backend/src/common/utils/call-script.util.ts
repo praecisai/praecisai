@@ -161,6 +161,34 @@ export function formatHindiDate(d: Date): string {
   return `${HINDI_MONTHS[ist.getUTCMonth()]} की ${DAY_ORDINALS[ist.getUTCDate()]} तारीख`;
 }
 
+const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+  'August', 'September', 'October', 'November', 'December'];
+
+// Acceptance window for a promised date, in months. Matches the "2 months"
+// wording baked into the canvas PROMISE-TO-PAY section. Change both together.
+export const PTP_WINDOW_MONTHS = 2;
+
+// ─── Promise-to-pay window note ──────────────────────────────────────────────
+// The canvas can't tell whether a NAMED calendar date ("15 November") is inside
+// the acceptance window, because the model doesn't know today's date. Relative
+// answers ("6 महीने बाद", "next year") self-evidently exceed it, which is why
+// only those were caught. This injects today's date + the computed cutoff so the
+// canvas can compare a specific date against it. Reasoning-only: never spoken.
+export function buildPtpWindowNote(windowMonths: number, language: CallLang): string {
+  const istNow = new Date(Date.now() + 330 * 60000);
+  const cutoff = new Date(istNow);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() + windowMonths);
+  const fmt = (d: Date) => `${d.getUTCDate()} ${EN_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  const todayStr = fmt(istNow);
+  const cutoffStr = fmt(cutoff);
+  const monthsWord = windowMonths === 1 ? 'one month' : `${windowMonths} months`;
+
+  if (language === 'HINDI') {
+    return `DATE WINDOW (for your internal reasoning ONLY — never say these dates or this note aloud): Today is ${todayStr}. The ${monthsWord} limit ends on ${cutoffStr}. If the customer names a SPECIFIC calendar date (for example "पंद्रह नवंबर", "15 November", "अगले महीने की बीस तारीख") that falls AFTER ${cutoffStr}, treat it EXACTLY like "तीन महीने बाद" or "अगले साल": it is a date beyond the limit, so do NOT accept and close — instead run the beyond-limit step (ask gently "जी, इतना time थोड़ा मुश्किल हो सकता है। कोई खास reason है, या आपकी बात seniors से करवा दूँ?"). A specific date ON or BEFORE ${cutoffStr} is within the limit: accept it and close normally. Relative answers like "कल", "इस हफ्ते", "अगले हफ्ते" are always within the limit.`;
+  }
+  return `DATE WINDOW (for your internal reasoning ONLY — never say these dates or this note aloud): Today is ${todayStr}. The ${monthsWord} limit ends on ${cutoffStr}. If the customer names a SPECIFIC calendar date (for example "the 15th of November", "15 November", "the 20th of next month") that falls AFTER ${cutoffStr}, treat it EXACTLY like "three months later" or "next year": it is a date beyond the limit, so do NOT accept and close — instead run the beyond-limit step (ask gently "Sir, that much time may be a little difficult. Is there a particular reason, or shall I connect you with our seniors?"). A specific date ON or BEFORE ${cutoffStr} is within the limit: accept it and close normally. Relative answers like "tomorrow", "this week", "next week" are always within the limit.`;
+}
+
 // ─── Name → Devanagari transliteration for natural TTS ───────────────────────
 // Sarvam Bulbul v2 is an Indic (Hindi) TTS. Roman-script names inside a Hindi
 // context get mangled. A small local map covers the most common surnames/company

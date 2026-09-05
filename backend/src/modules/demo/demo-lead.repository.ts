@@ -71,6 +71,35 @@ export class DemoLeadRepository {
     });
   }
 
+  // ─── Demo voice agents (tone/voice selection) ──────────────────────────────
+
+  // Active agents shown in the dashboard selector, most prominent first.
+  async listActiveAgents() {
+    return this.prisma.demoAgent.findMany({
+      where: { active: true },
+      orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
+    });
+  }
+
+  // Resolve the agent for a call: the explicitly selected one (if still active),
+  // else the default active agent, else the first active agent. null if none
+  // exist yet — the caller then falls back to the env Bolna agent.
+  async resolveDemoAgent(id?: string) {
+    if (id) {
+      const chosen = await this.prisma.demoAgent.findFirst({ where: { id, active: true } });
+      if (chosen) return chosen;
+    }
+    const byDefault = await this.prisma.demoAgent.findFirst({
+      where: { active: true, is_default: true },
+      orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
+    });
+    if (byDefault) return byDefault;
+    return this.prisma.demoAgent.findFirst({
+      where: { active: true },
+      orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
+    });
+  }
+
   // Check if a party has an active sensitive cooldown (death/medical emergency)
   async findActiveSensitiveCooldown(leadId: string, partyName: string) {
     return this.prisma.demoRun.findFirst({

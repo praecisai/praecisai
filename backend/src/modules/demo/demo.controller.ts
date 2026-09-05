@@ -12,6 +12,12 @@ export class DemoController {
     return this.demoService.createLead(dto);
   }
 
+  /** Public: voice agents (tones) the prospect can pick on the demo dashboard. */
+  @Get('agents')
+  async listAgents() {
+    return this.demoService.listAgentsForDashboard();
+  }
+
   @Get('validate-token/:token')
   async validateToken(@Param('token') token: string) {
     return this.demoService.validateToken(token);

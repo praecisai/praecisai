@@ -398,6 +398,65 @@ export function useAdminSetCouponActive() {
   });
 }
 
+// ─── Admin: demo voice agents ──────────────────────────────────────────────
+
+export function useAdminDemoAgents() {
+  return useQuery({
+    queryKey: ['admin', 'demo-agents'],
+    queryFn: async () => {
+      const res = await adminApi.get('/admin/demo-agents');
+      return res.data.data;
+    },
+  });
+}
+
+export function useAdminDemoAgentStyles() {
+  return useQuery({
+    queryKey: ['admin', 'demo-agent-styles'],
+    queryFn: async () => {
+      const res = await adminApi.get('/admin/demo-agents/styles');
+      return res.data.data as { slug: string; label: string }[];
+    },
+    staleTime: 10 * 60_000,
+  });
+}
+
+export type DemoAgentInput = {
+  name?: string;
+  description?: string;
+  bolnaAgentId?: string;
+  scriptStyle?: string;
+  voiceLabel?: string;
+  active?: boolean;
+  isDefault?: boolean;
+  sortOrder?: number;
+};
+
+export function useAdminCreateDemoAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: DemoAgentInput) => adminApi.post('/admin/demo-agents', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'demo-agents'] }),
+  });
+}
+
+export function useAdminUpdateDemoAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: DemoAgentInput & { id: string }) =>
+      adminApi.patch(`/admin/demo-agents/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'demo-agents'] }),
+  });
+}
+
+export function useAdminDeleteDemoAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.delete(`/admin/demo-agents/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'demo-agents'] }),
+  });
+}
+
 export function useAdminBilling() {
   return useQuery({
     queryKey: ['admin', 'billing'],

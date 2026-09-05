@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TenantKeysService } from './tenant-keys.service';
 import { isAllowedCouponPercent } from './billing-math.util';
 import { isPlatformOwner } from '../../common/constants/platform-owner';
+import { SEGMENT_STYLES, VALID_STYLE_SLUGS, DEFAULT_STYLE } from '../demo/segment-styles';
 
 export interface UpsertTenantDto {
   name?: string;
@@ -17,6 +18,17 @@ export interface UpsertTenantDto {
   gstin?: string;
   handoffNumber?: string;
   city?: string;
+}
+
+export interface UpsertDemoAgentDto {
+  name?: string;
+  description?: string;
+  bolnaAgentId?: string;
+  scriptStyle?: string;
+  voiceLabel?: string;
+  active?: boolean;
+  isDefault?: boolean;
+  sortOrder?: number;
 }
 
 const TENANT_NOTE_PREFIX = 'tenant:';
@@ -403,6 +415,86 @@ export class AdminService {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
     if (!coupon) throw new NotFoundException('Coupon not found');
     return this.prisma.coupon.update({ where: { id }, data: { active } });
+  }
+
+  // ─── Demo voice agents ───────────────────────────────────────────────────────
+  // Manage the platform Bolna agents (tone/voice) the demo dashboard offers.
+  // Scripts themselves live in code (script_style); admin only maps agent_id →
+  // style + label + default/active.
+
+  /** Valid script-style slugs + labels for the admin form dropdown. */
+  demoAgentStyles() {
+    return SEGMENT_STYLES.map((s) => ({ slug: s.slug, label: s.label }));
+  }
+
+  listDemoAgents() {
+    return this.prisma.demoAgent.findMany({
+      orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
+    });
+  }
+
+  async createDemoAgent(dto: UpsertDemoAgentDto) {
+    if (!dto.name?.trim()) throw new BadRequestException('Agent name is required');
+    if (!dto.bolnaAgentId?.trim()) throw new BadRequestException('Bolna agent ID is required');
+    const style =
+      dto.scriptStyle && VALID_STYLE_SLUGS.includes(dto.scriptStyle) ? dto.scriptStyle : DEFAULT_STYLE;
+    const agent = await this.prisma.demoAgent.create({
+      data: {
+        name: dto.name.trim(),
+        description: dto.description?.trim() || '',
+        bolna_agent_id: dto.bolnaAgentId.trim(),
+        script_style: style,
+        voice_label: dto.voiceLabel?.trim() || '',
+        active: dto.active ?? true,
+        is_default: dto.isDefault ?? false,
+        sort_order: dto.sortOrder ?? 0,
+      },
+    });
+    if (agent.is_default) await this.clearOtherDefaults(agent.id);
+    this.logger.log(`Demo agent created: ${agent.name} (${agent.id})`);
+    return agent;
+  }
+
+  async updateDemoAgent(id: string, dto: UpsertDemoAgentDto) {
+    const existing = await this.prisma.demoAgent.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Demo agent not found');
+    const style =
+      dto.scriptStyle !== undefined
+        ? VALID_STYLE_SLUGS.includes(dto.scriptStyle)
+          ? dto.scriptStyle
+          : DEFAULT_STYLE
+        : undefined;
+    const agent = await this.prisma.demoAgent.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description?.trim() || '' } : {}),
+        ...(dto.bolnaAgentId !== undefined ? { bolna_agent_id: dto.bolnaAgentId.trim() } : {}),
+        ...(style !== undefined ? { script_style: style } : {}),
+        ...(dto.voiceLabel !== undefined ? { voice_label: dto.voiceLabel?.trim() || '' } : {}),
+        ...(dto.active !== undefined ? { active: dto.active } : {}),
+        ...(dto.isDefault !== undefined ? { is_default: dto.isDefault } : {}),
+        ...(dto.sortOrder !== undefined ? { sort_order: dto.sortOrder } : {}),
+      },
+    });
+    if (agent.is_default) await this.clearOtherDefaults(agent.id);
+    return agent;
+  }
+
+  async deleteDemoAgent(id: string) {
+    const existing = await this.prisma.demoAgent.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Demo agent not found');
+    await this.prisma.demoAgent.delete({ where: { id } });
+    this.logger.warn(`Demo agent DELETED: ${existing.name} (${id})`);
+    return { success: true };
+  }
+
+  /** Only one agent may be the dashboard default; unset every other one. */
+  private async clearOtherDefaults(keepId: string) {
+    await this.prisma.demoAgent.updateMany({
+      where: { id: { not: keepId }, is_default: true },
+      data: { is_default: false },
+    });
   }
 
   // ─── Billing overview ───────────────────────────────────────────────────────

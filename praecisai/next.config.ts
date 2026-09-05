@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   reactStrictMode: true,
   poweredByHeader: false,
-  typescript: { ignoreBuildErrors: true },
   // framer-motion is a large barrel imported by nearly every landing section;
   // the icon/chart libs below are already optimized by Next's defaults.
   experimental: {

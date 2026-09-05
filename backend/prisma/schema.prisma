@@ -684,12 +684,46 @@ model DemoRun {
   is_sensitive             Boolean          @default(false)
   sensitive_cooldown_until DateTime?
 
+  // Which demo voice agent (tone/voice) placed this call. Nullable: WhatsApp
+  // runs and pre-feature calls have none. SetNull so deleting an agent keeps
+  // the run history intact.
+  demo_agent_id String?
+
   // Relations
-  demo_lead DemoLead @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
+  demo_lead  DemoLead   @relation(fields: [demo_lead_id], references: [id], onDelete: Cascade)
+  demo_agent DemoAgent? @relation(fields: [demo_agent_id], references: [id], onDelete: SetNull)
 
   @@index([demo_lead_id])
   @@index([disposition])
   @@map("demo_runs")
+}
+
+// A selectable voice agent for the demo dashboard. Each row maps a Bolna agent
+// (its own agent_id, voice and canvas on the PLATFORM account) to a code-defined
+// script_style (the segment-instruction tone the backend injects). The prospect
+// picks one on the demo dashboard; admin manages the list. See SEGMENT_STYLES in
+// demo.service.ts for the valid script_style slugs.
+model DemoAgent {
+  id             String  @id @default(uuid())
+  name           String
+  description    String  @default("")
+  bolna_agent_id String
+  // Slug into the backend's script-style registry (e.g. "formal", "natural").
+  // Unknown slugs fall back to "formal" so a bad value never breaks a call.
+  script_style   String  @default("formal")
+  // Cosmetic label shown to the prospect, e.g. "Female · Warm".
+  voice_label    String  @default("")
+  // Exactly one agent should be the default (auto-selected on the dashboard).
+  is_default     Boolean @default(false)
+  active         Boolean @default(true)
+  sort_order     Int     @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  runs DemoRun[]
+
+  @@map("demo_agents")
 }
 
 // ─── PDC Cheque Models ────────────────────────────────────────────────────────
