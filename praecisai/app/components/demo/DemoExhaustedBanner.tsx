@@ -22,7 +22,7 @@ export default function DemoExhaustedBanner() {
         </div>
         <a 
           href="/#pricing"
-          className="whitespace-nowrap rounded-lg sm:rounded-xl bg-[var(--mahogany)] px-5 py-2.5 sm:px-6 sm:py-3 font-display text-[14px] sm:text-[15px] font-semibold text-white transition-colors hover:bg-[var(--rust)] shadow-md"
+          className="whitespace-nowrap rounded-lg sm:rounded-xl bg-[var(--mahogany)] px-5 py-2.5 sm:px-6 sm:py-3 font-display text-[14px] sm:text-[15px] font-semibold text-[var(--cream)] transition-colors hover:bg-[var(--rust)] shadow-md"
         >
           <span className="flex items-center gap-2">
             Start Your Free Pilot <ArrowRight className="h-4 w-4" />

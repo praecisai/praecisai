@@ -656,7 +656,7 @@ export default function DemoOutstandingTable({
                 className={`rounded p-1.5 transition-colors ${
                   whatsappSent && !waQuotaExhausted
                     ? 'text-green-600 hover:bg-red-50 hover:text-red-500'
-                    : 'text-[var(--walnut)] hover:bg-[var(--rust)] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
+                    : 'text-[var(--walnut)] hover:bg-[var(--rust)] hover:text-[var(--cream)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
                 }`}
                 title={whatsappSent && !waQuotaExhausted ? 'WA Sent — click to reset' : 'Send WhatsApp Demo'}
               >
@@ -668,7 +668,7 @@ export default function DemoOutstandingTable({
                 className={`rounded p-1.5 transition-colors ${
                   voiceSent && !quotaExhausted
                     ? 'text-green-600 hover:bg-red-50 hover:text-red-500'
-                    : 'text-[var(--walnut)] hover:bg-[var(--mahogany)] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
+                    : 'text-[var(--walnut)] hover:bg-[var(--mahogany)] hover:text-[var(--cream)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--walnut)]'
                 }`}
                 title={voiceSent && !quotaExhausted ? 'Call Sent — click to reset' : 'Make AI Call Demo'}
               >

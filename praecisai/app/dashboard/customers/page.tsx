@@ -186,12 +186,12 @@ export default function CustomersPage() {
                     <div className="flex items-center gap-2">
                       <VipToggle customerId={customer.id} isVip={!!customer.is_vip} name={customer.customer_name} />
                       <Link href={`/dashboard/customers/${customer.id}`} className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[var(--cream)] text-xs font-bold"
                           style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
                           {customer.customer_name?.[0]?.toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white hover:text-[var(--mahogany)] transition-colors">
+                          <p className="text-sm font-medium text-[var(--dark-brown)] hover:text-[var(--mahogany)] transition-colors">
                             {customer.customer_name}
                           </p>
                           {customer.is_vip && (

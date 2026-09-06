@@ -155,7 +155,7 @@ function ResultSummary({ result, onReset }: { result: any; onReset: () => void }
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Link href="/dashboard/customers"
-          className="flex-1 py-3 rounded-xl text-center font-semibold text-white"
+          className="flex-1 py-3 rounded-xl text-center font-semibold text-[var(--cream)]"
           style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
           View Customers →
         </Link>

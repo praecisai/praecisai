@@ -114,7 +114,7 @@ export default function DemoDashboardClient({ token }: { token: string }) {
           </p>
           <button
             onClick={() => router.push('/')}
-            className="w-full rounded-xl bg-[var(--mahogany)] px-6 py-3 font-display font-semibold text-white transition-colors hover:bg-[var(--rust)]"
+            className="w-full rounded-xl bg-[var(--mahogany)] px-6 py-3 font-display font-semibold text-[var(--cream)] transition-colors hover:bg-[var(--rust)]"
           >
             Request a new Demo
           </button>
