@@ -162,7 +162,11 @@ export default function AdminTenantsPage() {
         <div className="flex flex-wrap gap-1.5">
           {(['ALL', ...ONBOARDING_STAGES, 'TRIAL'] as StatusFilter[]).map((f) => {
             const on = status === f;
-            const tint = f === 'ALL' || f === 'TRIAL' ? 'var(--mahogany)' : ONBOARDING_COLORS[f];
+            const mahoganyTint = f === 'ALL' || f === 'TRIAL';
+            const tint = mahoganyTint ? 'var(--mahogany)' : ONBOARDING_COLORS[f];
+            // --mahogany goes light in dark mode, so white text washes out on it;
+            // the fixed status colours keep white.
+            const textOn = mahoganyTint ? 'var(--cream)' : '#fff';
             return (
               <button
                 key={f}
@@ -170,7 +174,7 @@ export default function AdminTenantsPage() {
                 className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition-colors"
                 style={{
                   background: on ? tint : 'transparent',
-                  color: on ? '#fff' : 'var(--walnut)',
+                  color: on ? textOn : 'var(--walnut)',
                   borderColor: on ? tint : 'var(--caramel)',
                 }}
               >
