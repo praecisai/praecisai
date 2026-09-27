@@ -206,7 +206,7 @@ export function TenantForm({
 
       <Field
         label="Backup caller IDs"
-        hint="One per line, in the order to use them. Used only when the caller ID above is blocked on Vobiz, or when one customer has ignored it 3 times in a row (that customer then moves to one backup). Each must be on the same Bolna account."
+        hint="One per line, in the order to use them. A number is skipped when Vobiz reports it blocked, or for one customer who ignored it 3 times in a row. After all of this business's numbers, other businesses' numbers on the same Bolna account are borrowed. Each number can belong to one business only."
       >
         <textarea
           value={backupNumbers}

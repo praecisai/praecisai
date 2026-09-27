@@ -141,6 +141,29 @@ export function CallerNumbersPanel({ tenantId }: { tenantId: string }) {
               );
             })}
           </ul>
+          <div className="mt-3 rounded-lg p-2.5 text-[11px] text-[var(--walnut)]" style={{ background: 'var(--sand)' }}>
+            <p className="font-semibold text-[var(--dark-brown)] mb-1">
+              Shared pool ({(data?.shared_pool ?? []).length})
+            </p>
+            {(data?.shared_pool ?? []).length === 0 ? (
+              <p>No other business on this Bolna account has caller numbers to borrow.</p>
+            ) : (
+              <>
+                <p className="mb-1">
+                  Used only after every number above is skipped for a call. Callbacks to these numbers reach
+                  the owning business&apos;s agent, and they show that business&apos;s Truecaller name.
+                </p>
+                <ul className="space-y-0.5">
+                  {data.shared_pool.map((s: any) => (
+                    <li key={s.phone} className="flex justify-between gap-2">
+                      <span className="font-mono">{s.phone}</span>
+                      <span className="truncate">{s.owner}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
           <div className="mt-3">
             <label className="block text-[10px] font-semibold text-[var(--walnut)] uppercase tracking-wider mb-1">
               Ring this phone for test calls

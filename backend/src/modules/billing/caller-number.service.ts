@@ -20,17 +20,18 @@ const BLOCK_STREAK = 3;
 const UNANSWERED = ['NO_ANSWER', 'BUSY'];
 
 /**
- * A business's pool of caller IDs: the primary (bolna_from_number) plus the
- * backups an admin has added, their health, and which one a call should use.
+ * A business's caller IDs: the primary (bolna_from_number) plus the backups an
+ * admin has added, their health, and which one a call should use.
  *
- * Switching rules, deliberately narrow:
- *  - A number Vobiz reports as blocked / not active / voice-disabled is skipped
- *    for everyone until it recovers.
- *  - A number one customer has left unanswered BLOCK_STREAK times in a row is
- *    skipped for that customer only, and that customer is moved to ONE backup,
- *    never cycled through the whole pool: ringing a customer who blocked you
- *    from number after number is exactly what gets CLIs reported.
- *  - Anything unexpected falls back to the primary, i.e. today's behaviour.
+ * Order of preference for each call:
+ *  1. The business's own numbers, in admin order (primary, then backups).
+ *  2. The shared pool: other businesses' numbers on the SAME Bolna account
+ *     (a from_phone_number only works with the key of the account that owns it).
+ * Within that order a number is skipped when:
+ *  - Vobiz reports it blocked / not active / voice-disabled (for everyone), or
+ *  - this customer left its last BLOCK_STREAK calls unanswered (this customer only).
+ * If every candidate is skipped, or anything unexpected happens, the primary is
+ * used, i.e. the behaviour before any of this existed.
  */
 @Injectable()
 export class CallerNumberService {
@@ -106,34 +107,45 @@ export class CallerNumberService {
     fallback: string,
   ): Promise<{ from: string; reason: string | null }> {
     const { all, vobizConnected } = await this.pool(businessId);
-    if (all.length <= 1) return { from: fallback, reason: null };
+    const shared = (await this.sharedPool(businessId))
+      .map((s) => s.phone)
+      .filter((n) => !all.includes(n));
+    if (all.length + shared.length <= 1) return { from: fallback, reason: null };
 
-    let checks = await this.prisma.callerNumberCheck.findMany({ where: { business_id: businessId } });
+    let own = await this.prisma.callerNumberCheck.findMany({ where: { business_id: businessId } });
     const stale = all.some((n) => {
-      const c = checks.find((x) => x.phone === n);
+      const c = own.find((x) => x.phone === n);
       return !c?.vobiz_checked_at || Date.now() - c.vobiz_checked_at.getTime() > VOBIZ_STALE_MS;
     });
     if (vobizConnected && stale) {
       try {
-        checks = await this.refreshVobiz(businessId);
+        own = await this.refreshVobiz(businessId);
       } catch (err: any) {
         // Keep dialing on the last known state; Vobiz being down is not a reason to stop.
         this.logger.warn(`Vobiz status refresh failed for ${businessId}: ${err?.message || err}`);
       }
     }
+    // A shared number's health is whatever its owning business last recorded.
+    const borrowed = shared.length
+      ? await this.prisma.callerNumberCheck.findMany({
+          where: { phone: { in: shared }, business_id: { not: businessId } },
+          orderBy: { updated_at: 'desc' },
+        })
+      : [];
 
-    const byPhone = new Map(checks.map((c) => [c.phone, c]));
-    const healthy = all.filter((n) => this.isUsable(byPhone.get(n)));
-    if (healthy.length === 0) return { from: fallback, reason: null };
+    const byPhone = new Map<string, CallerNumberCheck>();
+    for (const c of [...own, ...borrowed]) if (!byPhone.has(c.phone)) byPhone.set(c.phone, c);
+    const candidates = [...all, ...shared].filter((n) => this.isUsable(byPhone.get(n)));
+    if (candidates.length === 0) return { from: fallback, reason: null };
 
     const history = await this.prisma.callLog.findMany({
       where: {
         customer_id: customerId,
-        from_number: { in: healthy },
+        from_number: { in: candidates },
         call_status: { not: 'PENDING' },
       },
       orderBy: { created_at: 'desc' },
-      take: 30,
+      take: 100,
       select: { from_number: true, call_status: true },
     });
     const looksBlocked = (n: string) => {
@@ -141,18 +153,54 @@ export class CallerNumberService {
       return recent.length === BLOCK_STREAK && recent.every((h) => UNANSWERED.includes(h.call_status));
     };
 
-    const [first, second] = healthy;
-    if (!looksBlocked(first)) {
-      return {
-        from: first,
-        reason: first !== all[0] ? `primary ${all[0]} unusable on Vobiz` : null,
-      };
+    const pick = candidates.find((n) => !looksBlocked(n));
+    // Every usable number looks ignored by this customer: stop switching.
+    if (!pick) return { from: candidates[0], reason: null };
+    if (pick === all[0]) return { from: pick, reason: null };
+
+    const skipped = [...all, ...shared].slice(0, [...all, ...shared].indexOf(pick));
+    const why = skipped
+      .map((n) =>
+        !this.isUsable(byPhone.get(n)) ? `${n} unusable on Vobiz` : `${n} unanswered ${BLOCK_STREAK}x by this customer`,
+      )
+      .join('; ');
+    return {
+      from: pick,
+      reason: `${shared.includes(pick) ? 'shared pool: ' : ''}${why}`,
+    };
+  }
+
+  /**
+   * Other businesses' caller numbers that this business may borrow: only those
+   * on the same Bolna account (same API key, including the platform env key).
+   * Ordered by business age, each business's primary before its backups.
+   */
+  async sharedPool(businessId: string): Promise<Array<{ phone: string; owner: string }>> {
+    const mine = await this.tenantKeys.getBolnaKeys(businessId);
+    if (!mine.apiKey) return [];
+    const others = await this.prisma.business.findMany({
+      where: {
+        id: { not: businessId },
+        status: 'ACTIVE',
+        OR: [{ bolna_from_number: { not: null } }, { backup_from_numbers: { isEmpty: false } }],
+      },
+      orderBy: { created_at: 'asc' },
+      select: { id: true, name: true, bolna_from_number: true, backup_from_numbers: true },
+    });
+    const out: Array<{ phone: string; owner: string }> = [];
+    for (const o of others) {
+      try {
+        const keys = await this.tenantKeys.getBolnaKeys(o.id);
+        if (keys.apiKey !== mine.apiKey) continue;
+      } catch {
+        continue; // an undecryptable key never makes its numbers borrowable
+      }
+      for (const n of [o.bolna_from_number, ...(o.backup_from_numbers ?? [])]) {
+        const e = n ? toE164India(n) : '';
+        if (e && !out.some((x) => x.phone === e)) out.push({ phone: e, owner: o.name });
+      }
     }
-    if (second && !looksBlocked(second)) {
-      return { from: second, reason: `${first} unanswered ${BLOCK_STREAK}x by this customer` };
-    }
-    // Both the usual number and its one backup look ignored: stop switching.
-    return { from: first, reason: null };
+    return out;
   }
 
   /** Reads every number on the tenant's Vobiz account and records each pool number's status. */
@@ -224,8 +272,11 @@ export class CallerNumberService {
   async overview(businessId: string) {
     const { primary, all, vobizConnected } = await this.pool(businessId);
     const checks = await this.prisma.callerNumberCheck.findMany({ where: { business_id: businessId } });
+    const shared = (await this.sharedPool(businessId)).filter((s) => !all.includes(s.phone));
     return {
       vobiz_connected: vobizConnected,
+      // Borrowed only after every own number is skipped for a call
+      shared_pool: shared,
       numbers: all.map((phone) => {
         const c = checks.find((x) => x.phone === phone);
         return {

@@ -207,6 +207,19 @@ async function transliterateNameToDevanagari(name: string): Promise<string> {
 // close instantly as just another timeframe.
 const REFUSAL_GUARD = `FIRST, before closing, check this: if the customer REFUSES to pay ("मैं नहीं दूँगा", "नहीं दे पाऊँगा", "अभी नहीं होगा", "पैसे नहीं हैं"), OR gives a date MORE than two months away ("तीन महीने", "चार महीने बाद", "अगले साल"): do NOT thank, do NOT close yet. Ask gently, humbly, EXACTLY: "कोई खास परेशानी है, या आपकी बात seniors से करवा दूँ?" Never begin this line with an acknowledgement: no "जी बिल्कुल", no "मैं समझ सकती हूँ", no "ठीक है". The first word is "कोई". You may ask this line a MAXIMUM of THREE times in the whole call: if the customer refuses again after the third attempt, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and say NOTHING more. Handle their reply after each attempt: death or medical or tragedy → give condolences and stop (do NOT say Thank you so much); financial or personal reason → "बिल्कुल समझती हूँ जी, कोई pressure नहीं है।" then say "Thank you so much." and stop; wants seniors → "बिल्कुल जी, मैं आपको अभी connect करती हूँ।" and connect; a sooner date (within two months) → "ठीक है जी। Thank you so much." and stop. If their turn also contains questions, answer every question first, then continue this step in the same response.`;
 
+// Escalation is the only stage that does NOT accept the customer's first
+// timeline. It pushes once (firmly but calmly), and if the customer objects it
+// honestly discloses the accounts pressure, then accepts. Shared by every
+// style's Escalation segment. Never threatening, never legal.
+const ESCALATION_DATE_HANDLING = `ESCALATION DATE HANDLING — this segment is FIRMER: the usual "accept any date and close" rule does NOT apply here. You are FORBIDDEN from saying "Thank you so much" on the customer's FIRST date or timeline answer — you MUST push first (step 3). After the customer answers the date question, handle it in THIS order:
+1. Death, medical or tragedy: give condolences and stop (do NOT say Thank you so much). Always first.
+2. Outright refusal ("मैं नहीं दूँगा", "नहीं होगा", "पैसे नहीं हैं") OR a date MORE than two months away: ask gently, humbly, EXACTLY "कोई खास परेशानी है, या आपकी बात senior team से करवा दूँ?" (MAX TWICE per call; after the second time, close warmly with "कोई बात नहीं जी, हम समझते हैं। Thank you so much." and stop). Wants senior team: connect them.
+3. ANY timeline WITHIN two months, even a near or specific one ("करवाता हूँ", "एक हफ्ते में", "एक दो हफ्ते में", "एक महीने में करवाता हूँ", "अगले हफ्ते", कोई भी तारीख): do NOT accept it the first time, do NOT say Thank you. Push ONCE, firmly but calmly and respectfully, then STOP and wait: "सर, अब तो यह करना ही पड़ेगा, बहुत समय से payment pending है। थोड़ा जल्दी हो पाए तो बता दीजिए, कोई pakki date?"
+   If the customer OBJECTS to the tone ("आप ऐसे बात नहीं कर सकते", "ऐसे मत बोलिए"): apologise softly and honestly disclose the pressure, then ask ONCE more and STOP: "माफ़ कीजिए सर, बुरा मत मानिए। सच यह है कि हमें भी आगे जवाब देना होता है, accounts से थोड़ा pressure है। आप बस थोड़ा जल्दी करवा दीजिए, कब तक हो पाएगा?"
+   Whatever the customer commits to AFTER this push (a sooner date, or the same one again): ACCEPT it now, say EXACTLY "ठीक है जी। Thank you so much." and stop.
+   Push AT MOST TWICE in the whole call, never a third time. After the second push, accept whatever they say: "ठीक है जी। Thank you so much."
+NEVER threaten, NEVER mention legal action, NEVER get loud or rude. The firmness is ONLY in the words "करना ही पड़ेगा" and the honest accounts-pressure disclosure, always delivered calmly and with full respect.`;
+
 const SEGMENT_INSTRUCTIONS: Record<string, string> = {
   'Soft Reminder': `
 SEGMENT: Soft Reminder
@@ -279,8 +292,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand
 "अगर possible हो, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
-${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+${ESCALATION_DATE_HANDLING}`,
 };
 
 // ─── Script styles (tone variants) ──────────────────────────────────────────
@@ -372,8 +384,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand
 "आप बता दो ना, कब तक payment clear हो पाएगी?"
 The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
-${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more, no matter what the customer says. NEVER threaten or pressure.`,
+${ESCALATION_DATE_HANDLING}`,
 };
 
 // PROFESSIONAL (from the customer's v2 "4-Segment Redesign"). Meena, female,
@@ -446,8 +457,7 @@ SPEAK ALL LINES CONTINUOUSLY IN ONE TURN: do NOT pause between them, do NOT hand
 "मुझे आज एक clear जवाब देना है, please बता दीजिए, लगभग कब तक payment clear हो जाएगी?"
 The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY after it, never before.
 
-${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. NEVER threaten or pressure. Say "management" or "senior team", never "seniors".`,
+${ESCALATION_DATE_HANDLING}`,
 };
 
 // HONEST_MALE (from the customer's v4 "Rahul, Male Voice"). Male grammar and
@@ -527,8 +537,8 @@ The date question above is ALWAYS the FINAL sentence: wait for the customer ONLY
 
 IF the customer stalls again or mentions their own downstream pressure, answer honestly ONCE (never invent specifics): "Sir, समझ रहा हूँ, सबकी अपनी problem होती है। लेकिन हमें भी आगे चुकाना है, बस इसी वजह से इतनी बार call करना पड़ रहा है, please समझिए।"
 
-${REFUSAL_GUARD}
-Otherwise, if customer gives ANY normal commitment within two months: say EXACTLY: "ठीक है जी। Thank you so much." Then say NOTHING more. NEVER threaten or pressure. Keep every honest line general and true — no fake vendor names, no made-up amounts, no invented deadlines.`,
+${ESCALATION_DATE_HANDLING}
+Keep every honest line general and true: no fake vendor names, no made-up amounts, no invented deadlines.`,
 };
 
 const SEGMENT_INSTRUCTIONS_BY_STYLE: Record<string, Record<string, string>> = {
