@@ -13,10 +13,19 @@ import {
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
 import { dedupeByPhone } from '../../common/utils/contact-cadence.util';
+import {
+  ESCALATION_SEGMENT,
+  escalationSkipReason,
+  istDayStart,
+  parseEscalationCap,
+  parseEscalationGap,
+  withinEscalationWindow,
+} from '../../common/utils/escalation-cadence.util';
 import { isPdcCooldownActive, pdcCooldownMessage } from '../../common/utils/pdc-cooldown.util';
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import { computePromiseDate, promiseBasisLabel, PromiseIntent } from '../../common/utils/promise-date.util';
 import { BillingGateService } from '../billing/billing-gate.service';
+import { CallerNumberService } from '../billing/caller-number.service';
 import {
   amountToSpoken,
   buildSegmentInstructions,
@@ -44,6 +53,7 @@ export class CallingService {
     private readonly extractionService: CallExtractionService,
     private readonly whatsappService: WhatsappService,
     private readonly billingGate: BillingGateService,
+    private readonly callerNumbers: CallerNumberService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
     @InjectQueue('callback-redials') private readonly callbackQueue: Queue,
   ) {}
@@ -379,7 +389,17 @@ export class CallingService {
   // Eligible = ACTIVE outstanding in the segment AND a phone number on file.
   // Per-customer guards (sensitive cooldown, repeat-dial gap) still apply: those
   // customers are reported as skipped, not errors.
-  async queueSegmentCalls(businessId: string, segment: string, vipOnly = false) {
+  async queueSegmentCalls(
+    businessId: string,
+    segment: string,
+    vipOnly = false,
+    /**
+     * followUpOnly: the hourly run's extra Escalation attempts between the
+     * scheduled slots. Only parties already called today are considered, and
+     * only when the business has an Escalation daily limit set.
+     */
+    opts: { followUpOnly?: boolean } = {},
+  ) {
     // The No Follow-up range receives no contact at all
     if (segment === NO_FOLLOWUP_SEGMENT) {
       throw new BadRequestException(
@@ -410,7 +430,18 @@ export class CallingService {
     // routinely share a number (a group accountant, one proprietor with three
     // firms); without this, that single phone rings once per party back to
     // back, which is exactly what gets a CLI reported as spam.
-    const { unique: eligible, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
+    const { unique: deduped, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
+
+    // Escalation daily limit: filtered BEFORE the billing gate so the gate
+    // estimates only the dials that will really happen. Other segments, VIP
+    // sends, and businesses without a limit pass through untouched.
+    const { allowed: eligible, capped } = await this.applyEscalationLimit(
+      businessId,
+      segment,
+      vipOnly,
+      deduped,
+      opts.followUpOnly ?? false,
+    );
 
     // Billing gate: batches are skipped while the subscription mandate is
     // halted or the tenant's Bolna balance can't cover the estimated cost.
@@ -427,6 +458,7 @@ export class CallingService {
       customer: o.customer.customer_name,
       reason: 'Another party in this batch shares the same phone number',
     }));
+    skipped.push(...capped);
 
     for (const o of eligible) {
       try {
@@ -444,8 +476,85 @@ export class CallingService {
       no_phone: noPhone,
       shared_number: duplicates.length,
       skipped,
-      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}`,
+      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}${capped.length ? `; ${capped.length} held back by the Escalation daily limit` : ''}`,
     };
+  }
+
+  /**
+   * Splits a bulk Escalation batch into who may be dialed now and who is held
+   * back by the business's Escalation daily limit (see escalation-cadence.util).
+   * Anything that is not a non-VIP Escalation batch, or a business with the
+   * limit off, is returned unchanged, so every other flow behaves as before.
+   */
+  private async applyEscalationLimit<T extends { customer: { id: string; customer_name: string } }>(
+    businessId: string,
+    segment: string,
+    vipOnly: boolean,
+    batch: T[],
+    followUpOnly: boolean,
+  ): Promise<{ allowed: T[]; capped: Array<{ customer: string; reason: string }> }> {
+    if (segment !== ESCALATION_SEGMENT || vipOnly) {
+      return { allowed: followUpOnly ? [] : batch, capped: [] };
+    }
+
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      select: { escalation_calls_per_day: true, escalation_call_gap_hours: true },
+    });
+    const cap = parseEscalationCap(business?.escalation_calls_per_day);
+    // Follow-up attempts exist only to reach a configured daily count.
+    if (cap === null) return { allowed: followUpOnly ? [] : batch, capped: [] };
+    if (batch.length === 0) return { allowed: [], capped: [] };
+
+    if (!withinEscalationWindow()) {
+      return {
+        allowed: [],
+        capped: followUpOnly
+          ? []
+          : batch.map((o) => ({
+              customer: o.customer.customer_name,
+              reason: 'Escalation daily limit only allows calls between 8 AM and 7 PM',
+            })),
+      };
+    }
+
+    const gapHours = parseEscalationGap(business?.escalation_call_gap_hours);
+    const rows = await this.prisma.callLog.findMany({
+      where: {
+        business_id: businessId,
+        customer_id: { in: batch.map((o) => o.customer.id) },
+        created_at: { gte: istDayStart() },
+      },
+      select: {
+        customer_id: true,
+        created_at: true,
+        call_status: true,
+        disposition: true,
+        next_call_at: true,
+      },
+    });
+    const byCustomer = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const list = byCustomer.get(r.customer_id) ?? [];
+      list.push(r);
+      byCustomer.set(r.customer_id, list);
+    }
+
+    const allowed: T[] = [];
+    const capped: Array<{ customer: string; reason: string }> = [];
+    for (const o of batch) {
+      const reason = escalationSkipReason(byCustomer.get(o.customer.id) ?? [], cap, gapHours, {
+        followUpOnly,
+      });
+      if (!reason) {
+        allowed.push(o);
+      } else if (!(followUpOnly && (byCustomer.get(o.customer.id)?.length ?? 0) === 0)) {
+        // A follow-up run passes over parties not yet called today: that is
+        // the normal case, not a hold, so it is not listed.
+        capped.push({ customer: o.customer.customer_name, reason });
+      }
+    }
+    return { allowed, capped };
   }
 
   /**
@@ -555,6 +664,13 @@ export class CallingService {
       this.logger.warn('Received webhook without call id');
       return;
     }
+
+    // Admin caller-ID test calls have no CallLog: record the outcome on the
+    // number's health row and skip every customer-call step (no extraction).
+    const isCallerTest = await this.callerNumbers
+      .recordTestWebhook(callId, status, payload)
+      .catch(() => false);
+    if (isCallerTest) return;
 
     // Map Bolna statuses to our flow
     if (status === 'initiated' || status === 'ringing') {

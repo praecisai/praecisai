@@ -9,6 +9,9 @@ export interface TenantFormValues {
   bolnaApiKey?: string;
   bolnaAgentId?: string;
   bolnaFromNumber?: string;
+  backupFromNumbers?: string[];
+  vobizAuthId?: string;
+  vobizAuthToken?: string;
   aisensyApiKey?: string;
   lowBalanceThresholdUsd?: number;
   billingEmail?: string;
@@ -20,8 +23,17 @@ interface KeyPreviews {
   bolna_key_last4?: string | null;
   bolna_agent_id?: string | null;
   bolna_from_number?: string | null;
+  backup_from_numbers?: string[];
+  vobiz_auth_id?: string | null;
+  vobiz_token_last4?: string | null;
   aisensy_key_last4?: string | null;
 }
+
+const splitNumbers = (s: string) =>
+  s
+    .split(/[\s,;]+/)
+    .map((n) => n.trim())
+    .filter(Boolean);
 
 const inputCls =
   'w-full px-3 py-2.5 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]';
@@ -108,6 +120,10 @@ export function TenantForm({
   const [bolnaApiKey, setBolnaApiKey] = useState<string | undefined>(undefined);
   const [bolnaAgentId, setBolnaAgentId] = useState(previews?.bolna_agent_id ?? '');
   const [bolnaFromNumber, setBolnaFromNumber] = useState(previews?.bolna_from_number ?? '');
+  const savedBackups = (previews?.backup_from_numbers ?? []).join('\n');
+  const [backupNumbers, setBackupNumbers] = useState(savedBackups);
+  const [vobizAuthId, setVobizAuthId] = useState(previews?.vobiz_auth_id ?? '');
+  const [vobizAuthToken, setVobizAuthToken] = useState<string | undefined>(undefined);
   const [aisensyApiKey, setAisensyApiKey] = useState<string | undefined>(undefined);
   const [threshold, setThreshold] = useState(String(initial?.lowBalanceThresholdUsd ?? 5));
   const [billingEmail, setBillingEmail] = useState(initial?.billingEmail ?? '');
@@ -127,6 +143,11 @@ export function TenantForm({
       ...(bolnaFromNumber !== (previews?.bolna_from_number ?? '')
         ? { bolnaFromNumber: bolnaFromNumber.trim() }
         : {}),
+      ...(backupNumbers.trim() !== savedBackups.trim()
+        ? { backupFromNumbers: splitNumbers(backupNumbers) }
+        : {}),
+      ...(vobizAuthId.trim() !== (previews?.vobiz_auth_id ?? '') ? { vobizAuthId: vobizAuthId.trim() } : {}),
+      ...(vobizAuthToken !== undefined ? { vobizAuthToken } : {}),
       ...(aisensyApiKey !== undefined ? { aisensyApiKey } : {}),
       lowBalanceThresholdUsd: Number(threshold) || 5,
       billingEmail: billingEmail.trim(),
@@ -182,6 +203,38 @@ export function TenantForm({
           placeholder="+918071582906"
         />
       </Field>
+
+      <Field
+        label="Backup caller IDs"
+        hint="One per line, in the order to use them. Used only when the caller ID above is blocked on Vobiz, or when one customer has ignored it 3 times in a row (that customer then moves to one backup). Each must be on the same Bolna account."
+      >
+        <textarea
+          value={backupNumbers}
+          onChange={(e) => setBackupNumbers(e.target.value)}
+          rows={3}
+          className={inputCls}
+          style={inputStyle}
+          placeholder={'+918071579422\n+918065354620'}
+        />
+      </Field>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Vobiz Auth ID" hint="Leave empty to use the shared Vobiz login set on the server. Fill only if this business has its own Vobiz account.">
+          <input
+            value={vobizAuthId}
+            onChange={(e) => setVobizAuthId(e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="MA_XXXXXXXX"
+          />
+        </Field>
+        <SecretField
+          label="Vobiz Auth Token"
+          saved={previews?.vobiz_token_last4}
+          value={vobizAuthToken}
+          onChange={setVobizAuthToken}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SecretField label="AiSensy API key" saved={previews?.aisensy_key_last4} value={aisensyApiKey} onChange={setAisensyApiKey} />

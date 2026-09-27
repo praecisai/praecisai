@@ -12,7 +12,8 @@ import {
   useAdminDeleteTenant,
 } from '../../../../lib/api/hooks';
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
-import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle } from 'lucide-react';
+import { CallerNumbersPanel } from '../../../../components/admin/CallerNumbersPanel';
+import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, MessageCircle } from 'lucide-react';
 
 /** Plan-aware label for the payment row so trial vs full onboarding is clear. */
 function paymentLabel(checklist: any): string {
@@ -26,6 +27,17 @@ function paymentLabel(checklist: any): string {
     return 'Paid · 10-day trial';
   }
   return 'Onboarding payment pending';
+}
+
+/**
+ * wa.me link for the mobile captured on the signup page. Stored as +91XXXXXXXXXX,
+ * but older rows may hold the bare 10 digits, so normalise before linking.
+ */
+function whatsappLink(phone: string | null | undefined): string | null {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (digits.length === 10) return `https://wa.me/91${digits}`;
+  if (digits.length >= 11) return `https://wa.me/${digits}`;
+  return null;
 }
 
 function ChecklistItem({
@@ -76,6 +88,9 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const checklist = tenant.checklist ?? {};
+  // The owner is whoever signed up; their mobile is the WhatsApp contact.
+  const owner = (tenant.users ?? []).find((u: any) => u.role === 'BUSINESS_OWNER') ?? tenant.users?.[0];
+  const ownerWa = whatsappLink(owner?.phone);
 
   return (
     <div className="space-y-4">
@@ -84,6 +99,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           <h1 className="text-lg font-bold text-[var(--dark-brown)]">{tenant.name}</h1>
           <p className="text-xs text-[var(--walnut)]">
             Onboarding: {tenant.onboarding_status} · Created {new Date(tenant.created_at).toLocaleDateString('en-IN')}
+          </p>
+          <p className="text-xs text-[var(--walnut)] mt-1 flex items-center gap-1.5">
+            <MessageCircle size={13} style={{ color: '#25D366' }} />
+            WhatsApp:{' '}
+            {ownerWa ? (
+              <a
+                href={ownerWa}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[var(--mahogany)] underline underline-offset-2"
+              >
+                {owner.phone}
+              </a>
+            ) : (
+              <span>{owner ? 'not given at signup' : 'no user signed up yet'}</span>
+            )}
+            {owner?.email && <span>· {owner.email}</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -184,6 +216,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             />
           </div>
 
+          <CallerNumbersPanel tenantId={id} />
+
           {/* Users */}
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2 flex items-center gap-2">
@@ -191,12 +225,27 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             </h2>
             {tenant.users?.length ? (
               <ul className="space-y-1.5">
-                {tenant.users.map((u: any) => (
-                  <li key={u.email} className="text-xs text-[var(--dark-brown)] flex justify-between gap-2">
-                    <span className="truncate">{u.email}</span>
-                    <span className="text-[var(--walnut)]">{u.role}</span>
-                  </li>
-                ))}
+                {tenant.users.map((u: any) => {
+                  const wa = whatsappLink(u.phone);
+                  return (
+                    <li key={u.email} className="text-xs text-[var(--dark-brown)]">
+                      <div className="flex justify-between gap-2">
+                        <span className="truncate">{u.email}</span>
+                        <span className="text-[var(--walnut)]">{u.role}</span>
+                      </div>
+                      <div className="text-[11px] text-[var(--walnut)]">
+                        WhatsApp:{' '}
+                        {wa ? (
+                          <a href={wa} target="_blank" rel="noreferrer" className="text-[var(--mahogany)] underline underline-offset-2">
+                            {u.phone}
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-xs text-[var(--walnut)]">

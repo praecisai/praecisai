@@ -9,6 +9,7 @@ import {
 } from '../../../lib/api/hooks';
 import { Settings, Shield, Coins, Star, Clock, MessageSquare } from 'lucide-react';
 import { ScheduleSettings } from '../../../components/shared/ScheduleSettings';
+import { EscalationCallLimit } from '../../../components/shared/EscalationCallLimit';
 import { toast } from 'sonner';
 
 // Platform API keys (Bolna/AiSensy) are managed by the Praecis admin panel
@@ -190,7 +191,12 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {activeTab === 'schedule' && <ScheduleSettings />}
+          {activeTab === 'schedule' && (
+            <div className="space-y-5">
+              <ScheduleSettings />
+              <EscalationCallLimit />
+            </div>
+          )}
 
           {activeTab === 'business' && (
             <div className="glass-card p-4 sm:p-6 space-y-5">

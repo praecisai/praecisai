@@ -206,6 +206,14 @@ model Business {
   // that would exceed the cap stops early and resumes at the next slot.
   daily_whatsapp_cap Int        @default(200)
   daily_call_cap     Int        @default(200)
+  // Escalation-only daily call ceiling (bulk + automated runs). Null = off:
+  // Escalation parties are dialed at every scheduled slot exactly as before.
+  // Set (1-3): at most this many attempts per party per IST day, at least
+  // escalation_call_gap_hours apart, only 08:00-19:00 IST, and no more that
+  // day once the party has spoken to the agent. Extra attempts beyond the
+  // scheduled slots are placed by the hourly run (see AutoCallProcessor).
+  escalation_calls_per_day  Int?
+  escalation_call_gap_hours Int     @default(3)
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
 
@@ -220,6 +228,15 @@ model Business {
   // means customers see a rotating Bolna number they cannot call back and the
   // tenant's Truecaller verification never applies. Null = env fallback.
   bolna_from_number         String?
+  // Backup caller IDs (E.164), tried in order. bolna_from_number stays the
+  // primary. A backup is used only when the primary is unusable (Vobiz reports
+  // it blocked or not active) or looks blocked by one particular customer.
+  // Empty = every call uses the primary, exactly as before.
+  backup_from_numbers       String[]         @default([])
+  // Tenant's own Vobiz account (the one connected to Bolna), used only to read
+  // number status. The token is encrypted like the other keys.
+  vobiz_auth_id             String?
+  vobiz_auth_token          String?
   aisensy_api_key           String?
   low_balance_threshold_usd Float            @default(5)
   billing_email             String?
@@ -252,8 +269,38 @@ model Business {
   usage_snapshots       UsageSnapshot[]
   billing_notifications BillingNotification[]
   coupons_used          Coupon[]
+  caller_number_checks  CallerNumberCheck[]
 
   @@map("businesses")
+}
+
+// Last known health of one of a business's caller IDs: what Vobiz reports for
+// it, and the result of the admin's most recent live test call from it.
+model CallerNumberCheck {
+  id                  String    @id @default(uuid())
+  business_id         String
+  phone               String
+  // Vobiz account lookup. Null = never checked (treated as usable).
+  vobiz_found         Boolean?
+  vobiz_status        String?
+  vobiz_blocked       Boolean?
+  vobiz_trial         Boolean?
+  vobiz_voice_enabled Boolean?
+  vobiz_kyc_pending   Boolean?
+  vobiz_checked_at    DateTime?
+  vobiz_error         String?
+  // Admin test call through Bolna from this number
+  test_to             String?
+  test_execution_id   String?   @unique
+  test_status         String?
+  test_detail         String?
+  test_at             DateTime?
+  updated_at          DateTime  @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([business_id, phone])
+  @@map("caller_number_checks")
 }
 
 model User {
@@ -460,6 +507,9 @@ model CallLog {
   // The number actually dialed (primary or an alt_phones fallback) — lets the
   // webhook pick the NEXT number when this one goes unanswered.
   dialed_phone             String?
+  // Caller ID this call went out from. Lets the dialer spot a number one
+  // customer keeps ignoring and switch that customer to a backup number.
+  from_number              String?
   // Per-call Bolna cost in USD, backfilled by the usage poller from
   // /v2/agent/:id/executions. Null until the poller sees the execution.
   bolna_cost_usd           Float?

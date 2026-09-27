@@ -350,6 +350,36 @@ export function useAdminPollBolna(id: string) {
   });
 }
 
+export function useAdminCallerNumbers(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'tenants', id, 'caller-numbers'],
+    queryFn: async () => {
+      const res = await adminApi.get(`/admin/tenants/${id}/caller-numbers`);
+      return res.data.data;
+    },
+    enabled: !!id,
+    // A test call's ring/answer result arrives by webhook a few seconds later
+    refetchInterval: 10_000,
+  });
+}
+
+export function useAdminVerifyCallerNumbers(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminApi.post(`/admin/tenants/${id}/caller-numbers/verify`),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants', id, 'caller-numbers'] }),
+  });
+}
+
+export function useAdminTestCallerNumber(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { phone: string; to: string }) =>
+      adminApi.post(`/admin/tenants/${id}/caller-numbers/test`, data),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants', id, 'caller-numbers'] }),
+  });
+}
+
 export function useAdminNotifications(tenantId?: string) {
   return useQuery({
     queryKey: ['admin', 'notifications', tenantId ?? 'all'],

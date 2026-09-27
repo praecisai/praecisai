@@ -130,6 +130,16 @@ class EnvironmentVariables {
   @IsString()
   BOLNA_API_BASE?: string;
 
+  // Shared Vobiz login, used only to read caller-number status (blocked,
+  // trial, active). A business's own saved login overrides it.
+  @IsOptional()
+  @IsString()
+  VOBIZ_AUTH_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  VOBIZ_AUTH_TOKEN?: string;
+
   // Comma-separated numbers exempt from the same-customer call gap entirely,
   // so a tester can re-dial their own phone. Testing affordance only: leave
   // unset in production.

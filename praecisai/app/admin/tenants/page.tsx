@@ -234,7 +234,7 @@ export default function AdminTenantsPage() {
                     </div>
                     <p className="text-[11px] text-[var(--walnut)]">
                       {t.owner_email ? `${t.owner_email} · ` : ''}
-                      {t.owner_phone ? `${t.owner_phone} · ` : ''}
+                      {t.owner_phone ? `WhatsApp ${t.owner_phone} · ` : ''}
                       {t.customers} customers
                     </p>
                   </td>

@@ -16,6 +16,7 @@ import { AdminService, UpsertTenantDto, UpsertDemoAgentDto } from './admin.servi
 import { BillingNotificationService } from './billing-notification.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BolnaUsageService } from './bolna-usage.service';
+import { CallerNumberService } from './caller-number.service';
 import { BillingNotificationKind } from '@prisma/client';
 
 class AdminLoginDto {
@@ -52,6 +53,7 @@ export class AdminController {
     private notifications: BillingNotificationService,
     private invoices: BillingInvoiceService,
     private bolnaUsage: BolnaUsageService,
+    private callerNumbers: CallerNumberService,
   ) {}
 
   /** Frontend gate probe: reaching here at all means the token is valid. */
@@ -113,6 +115,26 @@ export class AdminController {
   async pollBolna(@Param('id') id: string) {
     await this.bolnaUsage.pollTenant(id);
     return { success: true };
+  }
+
+  // ─── Caller numbers ─────────────────────────────────────────────────────────
+
+  @Get('tenants/:id/caller-numbers')
+  listCallerNumbers(@Param('id') id: string) {
+    return this.callerNumbers.overview(id);
+  }
+
+  /** Re-read every caller number's status from the tenant's Vobiz account. */
+  @Post('tenants/:id/caller-numbers/verify')
+  async verifyCallerNumbers(@Param('id') id: string) {
+    await this.callerNumbers.refreshVobiz(id);
+    return this.callerNumbers.overview(id);
+  }
+
+  /** Places one real test call from a caller number to the admin's mobile. */
+  @Post('tenants/:id/caller-numbers/test')
+  testCallerNumber(@Param('id') id: string, @Body() body: { phone: string; to: string }) {
+    return this.callerNumbers.testCall(id, body?.phone ?? '', body?.to ?? '');
   }
 
   // ─── Notifications ──────────────────────────────────────────────────────────

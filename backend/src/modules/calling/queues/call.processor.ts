@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DemoRunStatus, CallStatus } from '@prisma/client';
 import { TenantKeysService } from '../../billing/tenant-keys.service';
+import { CallerNumberService } from '../../billing/caller-number.service';
 
 // Pacing: one dial every 5s (~12/min, ~720/hr). Indian operators flag a CLI
 // that emits a dense burst of short, unanswered calls, and a flagged CLI is
@@ -19,6 +20,7 @@ export class CallProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantKeys: TenantKeysService,
+    private readonly callerNumbers: CallerNumberService,
   ) {
     super();
   }
@@ -47,6 +49,25 @@ export class CallProcessor extends WorkerHost {
       if (keys.apiKey) apiKey = keys.apiKey;
       if (keys.agentId) agentId = keys.agentId;
       if (keys.fromNumber) fromNumber = keys.fromNumber;
+
+      // Backup caller IDs: a number Vobiz reports unusable, or one this
+      // customer keeps ignoring, is swapped for a backup. With no backups
+      // configured, or on any error, the number above is used unchanged.
+      try {
+        const log = await this.prisma.callLog.findUnique({
+          where: { id: callLogId },
+          select: { customer_id: true },
+        });
+        if (log && fromNumber) {
+          const pick = await this.callerNumbers.pickFromNumber(businessId, log.customer_id, fromNumber);
+          if (pick.from !== fromNumber) {
+            console.log(`Caller ID ${fromNumber} -> ${pick.from} for callLog ${callLogId}: ${pick.reason}`);
+          }
+          fromNumber = pick.from;
+        }
+      } catch (err) {
+        console.warn(`Caller ID selection failed for callLog ${callLogId}, using ${fromNumber}:`, err);
+      }
     }
 
     // Bolna's call API occasionally hangs. Without a timeout a single stuck
@@ -125,7 +146,7 @@ export class CallProcessor extends WorkerHost {
         // Production customer call: link Bolna execution to the CallLog
         await this.prisma.callLog.update({
           where: { id: callLogId },
-          data: { retell_call_id: callId },
+          data: { retell_call_id: callId, from_number: fromNumber || null },
         });
       } else {
         const run = await this.prisma.demoRun.findFirst({

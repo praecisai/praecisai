@@ -4,6 +4,11 @@ import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CallingService } from '../calling.service';
 import { NO_FOLLOWUP_SEGMENT } from '../../../common/utils/segment.util';
+import {
+  ESCALATION_SEGMENT,
+  ESCALATION_WINDOW_START_HOUR,
+  ESCALATION_WINDOW_LAST_HOUR,
+} from '../../../common/utils/escalation-cadence.util';
 
 // Segments the unattended runs dial, gentlest first. "No Follow-up", "Cleared"
 // and "Credit Note" are never contacted, and VIPs are excluded inside
@@ -49,12 +54,31 @@ export class AutoCallProcessor extends WorkerHost {
       select: { id: true, name: true },
     });
 
+    // Extra Escalation attempts between scheduled slots, for businesses whose
+    // Escalation daily limit allows more than one call a day. Only parties the
+    // scheduled run already called today are considered (see queueSegmentCalls).
+    const followUps =
+      hour >= ESCALATION_WINDOW_START_HOUR && hour <= ESCALATION_WINDOW_LAST_HOUR
+        ? await this.prisma.business.findMany({
+            where: {
+              auto_calls_enabled: true,
+              status: 'ACTIVE',
+              escalation_calls_per_day: { gt: 1 },
+              NOT: { auto_call_hours: { has: hour } },
+              auto_call_weekdays: { has: weekday },
+              auto_call_months: { has: month },
+            } as any,
+            select: { id: true, name: true },
+          })
+        : [];
+    const followUpQueued = await this.runEscalationFollowUps(followUps, slot);
+
     if (businesses.length === 0) {
       this.logger.log(`Auto-call ${slot}: no business scheduled to call this hour`);
-      return { slot, businesses: 0, queued: 0 };
+      return { slot, businesses: 0, queued: followUpQueued };
     }
 
-    let totalQueued = 0;
+    let totalQueued = followUpQueued;
     for (const business of businesses) {
       for (const segment of AUTO_CALL_SEGMENTS) {
         if (segment === NO_FOLLOWUP_SEGMENT) continue; // defensive
@@ -80,6 +104,34 @@ export class AutoCallProcessor extends WorkerHost {
       `Auto-call ${slot} finished: ${totalQueued} call(s) queued across ${businesses.length} business(es)`,
     );
     return { slot, businesses: businesses.length, queued: totalQueued };
+  }
+
+  private async runEscalationFollowUps(
+    businesses: Array<{ id: string; name: string }>,
+    slot: string,
+  ): Promise<number> {
+    let queued = 0;
+    for (const business of businesses) {
+      try {
+        const res = await this.callingService.queueSegmentCalls(
+          business.id,
+          ESCALATION_SEGMENT,
+          false,
+          { followUpOnly: true },
+        );
+        queued += res.queued;
+        if (res.queued > 0) {
+          this.logger.log(
+            `Auto-call ${slot}: ${business.name} / ${ESCALATION_SEGMENT} follow-up queued ${res.queued}`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Auto-call ${slot}: ${business.name} / ${ESCALATION_SEGMENT} follow-up skipped: ${err?.message || err}`,
+        );
+      }
+    }
+    return queued;
   }
 
   @OnWorkerEvent('failed')

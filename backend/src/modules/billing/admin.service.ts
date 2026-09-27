@@ -13,6 +13,10 @@ export interface UpsertTenantDto {
   bolnaAgentId?: string;
   bolnaFromNumber?: string;
   aisensyApiKey?: string;
+  // Backup caller IDs, in order; the primary stays bolnaFromNumber
+  backupFromNumbers?: string[];
+  vobizAuthId?: string;
+  vobizAuthToken?: string;
   lowBalanceThresholdUsd?: number;
   billingEmail?: string;
   gstin?: string;
@@ -246,12 +250,23 @@ export class AdminService {
       },
     });
 
-    if (dto.bolnaApiKey || dto.bolnaAgentId || dto.bolnaFromNumber || dto.aisensyApiKey) {
+    if (
+      dto.bolnaApiKey ||
+      dto.bolnaAgentId ||
+      dto.bolnaFromNumber ||
+      dto.aisensyApiKey ||
+      dto.backupFromNumbers?.length ||
+      dto.vobizAuthId ||
+      dto.vobizAuthToken
+    ) {
       await this.tenantKeys.setKeys(business.id, {
         bolnaApiKey: dto.bolnaApiKey,
         bolnaAgentId: dto.bolnaAgentId,
         bolnaFromNumber: dto.bolnaFromNumber,
         aisensyApiKey: dto.aisensyApiKey,
+        backupFromNumbers: dto.backupFromNumbers,
+        vobizAuthId: dto.vobizAuthId,
+        vobizAuthToken: dto.vobizAuthToken,
       });
     }
 
@@ -287,13 +302,19 @@ export class AdminService {
       dto.bolnaApiKey !== undefined ||
       dto.bolnaAgentId !== undefined ||
       dto.bolnaFromNumber !== undefined ||
-      dto.aisensyApiKey !== undefined
+      dto.aisensyApiKey !== undefined ||
+      dto.backupFromNumbers !== undefined ||
+      dto.vobizAuthId !== undefined ||
+      dto.vobizAuthToken !== undefined
     ) {
       await this.tenantKeys.setKeys(id, {
         bolnaApiKey: dto.bolnaApiKey,
         bolnaAgentId: dto.bolnaAgentId,
         bolnaFromNumber: dto.bolnaFromNumber,
         aisensyApiKey: dto.aisensyApiKey,
+        backupFromNumbers: dto.backupFromNumbers,
+        vobizAuthId: dto.vobizAuthId,
+        vobizAuthToken: dto.vobizAuthToken,
       });
     }
 

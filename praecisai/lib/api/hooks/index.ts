@@ -392,6 +392,9 @@ export function useUpdateBusiness() {
       whatsapp_cadence_days?: Record<string, number> | null;
       daily_whatsapp_cap?: number;
       daily_call_cap?: number;
+      // Escalation-only daily call limit (1-3); null turns it off
+      escalation_calls_per_day?: number | null;
+      escalation_call_gap_hours?: number;
       auto_call_hours?: number[];
       auto_call_weekdays?: number[];
       auto_whatsapp_hours?: number[];

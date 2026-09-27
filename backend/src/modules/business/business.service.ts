@@ -3,6 +3,11 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutstandingService } from '../outstanding/outstanding.service';
 import { parseSegmentRules, DEFAULT_SEGMENT_RULES } from '../../common/utils/segment.util';
+import {
+  ESCALATION_MAX_CALLS_PER_DAY,
+  ESCALATION_MIN_GAP_HOURS,
+  ESCALATION_MAX_GAP_HOURS,
+} from '../../common/utils/escalation-cadence.util';
 import { IsString, IsOptional, IsEnum, IsArray, MinLength, Matches, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StrictOptionalBoolean } from '../../common/decorators/strict-boolean.decorator';
@@ -87,6 +92,21 @@ export class UpdateBusinessDto {
   @Min(1)
   @Max(5000)
   daily_call_cap?: number;
+
+  // Escalation-only daily call limit; null turns it off. Typed as a union so
+  // the ValidationPipe's implicit conversion leaves null alone instead of
+  // casting it to 0. Hard bounds live in escalation-cadence.util.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(ESCALATION_MAX_CALLS_PER_DAY)
+  escalation_calls_per_day?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(ESCALATION_MIN_GAP_HOURS)
+  @Max(ESCALATION_MAX_GAP_HOURS)
+  escalation_call_gap_hours?: number;
 
   // When the unattended runs fire, per business. Hours are IST 0-23; weekdays
   // 0=Sun … 6=Sat. Persisted as Int[] straight through to Prisma.
