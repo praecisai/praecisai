@@ -36,7 +36,7 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * Mirrors TRIAL_PLANS / ONBOARDING_BASE_PAISE in the backend's
+ * Mirrors TRIAL_PLANS / SUBSCRIPTION_*_PAISE in the backend's
  * billing-math.util.ts. The server is the source of truth for what is actually
  * charged; these are display strings only.
  */
@@ -50,9 +50,10 @@ const TRIAL_TIERS: Record<
   STANDARD: { days: 10, priceLabel: '₹10,000', afterCreditLabel: '₹30,000' },
 };
 
-/** Launch price actually charged for onboarding, and the struck-through list price. */
-const ONBOARDING_PRICE_LABEL = '₹40,000';
-const ONBOARDING_LIST_LABEL = '₹50,000';
+/** Yearly plan price and its struck-through list price (12 × ₹5,000). No setup fee. */
+const YEARLY_PRICE_LABEL = '₹40,000';
+const YEARLY_LIST_LABEL = '₹60,000';
+const MONTHLY_PRICE_LABEL = '₹5,000';
 
 const FEATURES = [
   'AI recovery calls in Hindi + English',
@@ -248,7 +249,7 @@ function PlanCard({
   icon: React.ElementType;
   title: string;
   price: string;
-  /** Struck-through "was" price, e.g. ₹50,000 beside the ₹40,000 launch price */
+  /** Struck-through "was" price, e.g. ₹60,000 beside the ₹40,000 yearly price */
   wasPrice?: string;
   priceSub: string;
   points: string[];
@@ -399,13 +400,12 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
             className="inline-flex items-center gap-2 text-xs font-semibold mt-3 px-3 py-1.5 rounded-full"
             style={{ background: '#C6282815', color: '#C62828', border: '1px solid #C6282840' }}
           >
-            <Clock3 size={13} /> Your trial has ended. Continue with onboarding to keep going.
+            <Clock3 size={13} /> Your trial has ended. Pick a monthly or yearly plan to keep going.
           </p>
         )}
       </div>
 
-      {/* Two trials side by side on top; the combined onboarding + monthly
-          card spans the full width underneath them. */}
+      {/* Two trials side by side on top; the monthly and yearly plans below them. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
         {/* Two paid trial tiers, side by side */}
         {(Object.keys(TRIAL_TIERS) as TrialTier[]).map((tier) => {
@@ -427,9 +427,9 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
                   style={{ background: 'var(--sand)', color: 'var(--walnut)' }}
                 >
                   Once the trial starts this {plan.priceLabel} is <b>not refundable</b>, whether or
-                  not you continue. If you do continue, it is adjusted against onboarding: you pay
-                  <b> {plan.afterCreditLabel}</b> instead of {ONBOARDING_PRICE_LABEL}, and your
-                  discount coupon still applies.
+                  not you continue. If you continue on the yearly plan, it is adjusted: you pay
+                  <b> {plan.afterCreditLabel}</b> instead of {YEARLY_PRICE_LABEL} for the first year,
+                  and your discount coupon still applies.
                 </div>
               }
               footer={
@@ -458,90 +458,67 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
           );
         })}
 
-        {/* Onboarding + monthly: ONE purchase (₹50,000 includes the first
-            ₹5,000 month), so they share a single card joined by a plus. */}
-        {/* flex-col + a flex-1 row so the CTA is pinned to the bottom of the
-            stretched card and lines up with the two trial buttons, instead of
-            sitting mid-card with dead space under it. */}
-        {/* Spans both columns so it sits on its own row under the two trials */}
-        <div className="glass-card p-6 relative flex flex-col md:col-span-2">
-          <div className="flex flex-1 flex-col md:flex-row gap-2 md:gap-0 items-stretch">
-            <div className="flex flex-1 min-w-0 md:pr-5 lg:pr-6">
-              <PlanCard
-                bare
-                icon={Rocket}
-                title="Full Onboarding"
-                price={ONBOARDING_PRICE_LABEL}
-                wasPrice={ONBOARDING_LIST_LABEL}
-                priceSub="one-time · no GST · includes your first month's subscription · ₹10,000 launch discount applied"
-                points={[
-                  ...FEATURES,
-                  'Guided setup with the Praecis team',
-                  'Discount coupon applied at checkout',
-                ]}
-                // The CTA belongs to the pair, so it sits below both columns
-                footer={null}
-              />
-            </div>
-
-            {/* Plus joint: a big filled badge centred between the two halves,
-                so the pair reads as ONE price (₹50,000 + ₹5,000/month). */}
-            <div className="relative flex md:flex-col items-center justify-center py-2 md:py-0">
-              <span
-                className="relative z-10 flex items-center justify-center rounded-full font-bold leading-none md:my-auto"
-                style={{
-                  width: 56,
-                  height: 56,
-                  fontSize: 32,
-                  background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))',
-                  color: 'var(--cream)',
-                  boxShadow: '0 6px 18px rgba(127,85,57,0.35), 0 0 0 6px var(--surface-warm)',
-                }}
-                aria-hidden="true"
-              >
-                +
-              </span>
-            </div>
-
-            <div className="flex flex-1 min-w-0 md:pl-5 lg:pl-6">
-              <PlanCard
-                bare
-                icon={CalendarClock}
-                title="Monthly Subscription"
-                price="₹5,000"
-                priceSub="per month · no GST · auto-debit on the 1st (UPI Autopay or card)"
-                points={[
-                  `Your first month is already inside the ${ONBOARDING_PRICE_LABEL} above`,
-                  'Continues automatically from the second month',
-                  'Invoice for every debit',
-                  'Cancel anytime with the Praecis team',
-                ]}
-                // Sits directly under its own bullets, not pinned to the
-                // bottom of the card (`note` renders before the flexible gap)
-                note={
-                  <p className="text-xs text-[var(--walnut)]">
-                    Set up automatically with Full Onboarding.
-                  </p>
-                }
-                footer={null}
-              />
-            </div>
-          </div>
-
-          {/* One CTA for the combined purchase */}
-          <Link
-            href="/dashboard/billing/onboarding"
-            className="mt-6 w-full py-3 rounded-lg text-sm font-bold text-center block"
-            style={{ background: 'var(--dark-brown)', color: 'var(--cream)' }}
-          >
-            Get started
-          </Link>
-        </div>
+        {/* The two real plans, side by side under the trials. No setup fee on
+            either: the first payment is just the first month or year. */}
+        <PlanCard
+          icon={CalendarClock}
+          title="Monthly Plan"
+          price={MONTHLY_PRICE_LABEL}
+          priceSub="per month · ₹0 setup cost · no GST · auto-debit on the 1st (UPI Autopay or card)"
+          points={[
+            ...FEATURES,
+            'Guided setup with the Praecis team, free',
+            'Cancel anytime with the Praecis team',
+          ]}
+          note={
+            <p className="text-xs text-[var(--walnut)] mb-4">
+              Pay {MONTHLY_PRICE_LABEL} now for your first month. It then renews automatically every month.
+            </p>
+          }
+          footer={
+            <Link
+              href="/dashboard/billing/onboarding?plan=MONTHLY"
+              className="w-full py-2.5 rounded-lg text-sm font-bold text-center block border"
+              style={{ borderColor: 'var(--mahogany)', color: 'var(--mahogany)' }}
+            >
+              Choose monthly
+            </Link>
+          }
+        />
+        <PlanCard
+          highlight
+          badge="Save ₹20,000"
+          icon={Rocket}
+          title="Yearly Plan"
+          price={YEARLY_PRICE_LABEL}
+          wasPrice={YEARLY_LIST_LABEL}
+          priceSub="per year · ₹0 setup cost · no GST · works out to about ₹3,333 a month"
+          points={[
+            ...FEATURES,
+            'Guided setup with the Praecis team, free',
+            '12 months for the price of 8',
+          ]}
+          note={
+            <p className="text-xs text-[var(--walnut)] mb-4">
+              Pay {YEARLY_PRICE_LABEL} now for 12 months. It renews automatically once a year.
+            </p>
+          }
+          footer={
+            <Link
+              href="/dashboard/billing/onboarding?plan=YEARLY"
+              className="w-full py-2.5 rounded-lg text-sm font-bold text-center block"
+              style={{ background: 'var(--dark-brown)', color: 'var(--cream)' }}
+            >
+              Choose yearly
+            </Link>
+          }
+        />
       </div>
 
       <p className="text-[11px] text-[var(--walnut)] text-center mt-6">
-        All prices are final: no GST is added. Bolna calling credits and AiSensy WhatsApp plans are
-        paid directly to those platforms and are not part of these prices.
+        All prices are final: no GST is added and there is no setup fee. AI calls and WhatsApp
+        messages are pay as you go: Bolna calling credits and AiSensy WhatsApp plans are paid
+        directly to those platforms and are not part of these prices.
       </p>
     </div>
   );

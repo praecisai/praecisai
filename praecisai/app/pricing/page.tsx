@@ -6,7 +6,7 @@ import { PageHero, Section, FaqList, CtaBand, RelatedLinks } from '../components
 export const metadata: Metadata = {
   title: { absolute: 'Pricing: AI Collections Agent from ₹5,000/mo' },
   description:
-    'AI collections agent pricing in India. ₹5,000 per month platform fee, ₹40,000 one-time setup (down from ₹50,000), usage-based WhatsApp and calling. No lock-in contracts.',
+    'AI collections agent pricing in India. ₹5,000 per month or ₹40,000 per year (save ₹20,000), zero setup cost, pay-as-you-go WhatsApp and calling. No lock-in contracts.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -24,7 +24,6 @@ const platformFeatures = [
 const setupIncludes = [
   'Full platform setup and configuration',
   'Data migration and Excel import setup',
-  'Custom workflow and stage configuration',
   'Team training and onboarding sessions',
   'WhatsApp Business API integration',
   'AI voice call system setup',
@@ -40,14 +39,14 @@ const trialPlans = [
 
 const addOns = [
   {
-    title: 'WhatsApp messaging',
-    subtitle: 'Per message or campaign',
-    body: 'Automated reminders, payment links and PDF statements delivered to your parties. You pay only for what actually goes out.',
+    title: 'AI voice calls',
+    subtitle: 'Charged per call',
+    body: 'Hindi and English AI calls that follow up on dues for you, only in the time slots you allow. You pay only for the calls that actually go out: no minimum, no prepaid pack.',
   },
   {
-    title: 'AI voice calls',
-    subtitle: 'Per call or minute',
-    body: 'Hindi and English AI voice calls that follow up on outstanding dues. Human-sounding, fully automated, running only in the windows you allow.',
+    title: 'WhatsApp messages',
+    subtitle: 'Charged per message',
+    body: 'Reminders and PDF statements delivered to your parties on WhatsApp. You pay only for the messages that are sent, so a quiet month costs you less.',
   },
 ];
 
@@ -55,7 +54,7 @@ const faqs = [
   {
     question: 'What does PraecisAI cost?',
     answer:
-      '₹5,000 per month as the platform fee, plus a one-time ₹40,000 setup fee (launch price, down from ₹50,000). WhatsApp messaging and AI voice calls are billed on usage, at rates shared during onboarding.',
+      '₹5,000 per month, or ₹40,000 for a full year (instead of ₹60,000, so you save ₹20,000). There is no setup cost on either plan. AI calls and WhatsApp messages are charged separately, pay as you go, at per-call and per-message rates shared before you start.',
   },
   {
     question: 'Is there a contract or lock-in?',
@@ -63,9 +62,14 @@ const faqs = [
       'No lock-in. The platform fee is billed monthly and you can cancel anytime from your dashboard.',
   },
   {
-    question: 'Why is there a one-time setup fee?',
+    question: 'Is there a setup fee?',
     answer:
-      'Setup covers configuration, data migration, workflow and stage setup, WhatsApp Business API integration, AI call system setup, team training and a week of post-launch support. It is paid once, after which only the monthly platform fee applies.',
+      'No. Setup is free on both plans. It covers configuration, data migration, WhatsApp Business API integration, AI call system setup, team training and a week of post-launch support.',
+  },
+  {
+    question: 'How are calls and WhatsApp messages charged?',
+    answer:
+      'Pay as you go. Each AI call and each WhatsApp message is charged separately, only when it is actually made or sent. There is no minimum and no prepaid pack, and every call with its duration and cost is listed in your Billing & Usage page.',
   },
   {
     question: 'Does the price change with the number of parties?',
@@ -108,7 +112,7 @@ export default function PricingPage() {
       },
       {
         '@type': 'Offer',
-        name: 'One-time setup',
+        name: 'Yearly platform',
         price: '40000',
         priceCurrency: 'INR',
         priceValidUntil: '2027-12-31',
@@ -127,7 +131,7 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="AI Collections Agent Pricing in India"
-        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month for the platform, plus a one-time ₹40,000 setup fee (launch price, down from ₹50,000), with WhatsApp messaging and AI voice calls billed on usage. No lock-in, no per-party pricing, no surprises on the invoice."
+        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month, or ₹40,000 for a full year, with zero setup cost. AI calls and WhatsApp messages are pay as you go: charged separately, only for what you use. No lock-in, no per-party pricing, no surprises on the invoice."
       />
 
       <Section tone="cream">
@@ -157,7 +161,7 @@ export default function PricingPage() {
                 {t.days} days of full access
               </p>
               <p className="mt-1 text-center font-body text-[10.5px] leading-snug text-[var(--walnut)] sm:text-[11.5px]">
-                One-time · adjusted against onboarding if you continue
+                One-time · adjusted against the yearly plan if you continue
               </p>
               <a
                 href="/signup"
@@ -182,6 +186,9 @@ export default function PricingPage() {
               ₹5,000
               <span className="font-body text-[15px] font-normal text-[var(--walnut)]"> / month</span>
             </p>
+            <p className="mt-2.5 inline-flex self-start items-center rounded-full bg-[var(--sand)] px-3 py-1 font-body text-[11.5px] font-semibold text-[var(--mahogany)]">
+              ₹0 setup cost
+            </p>
             <p className="mt-2 font-body text-[12.5px] text-[var(--walnut)]">
               Billed monthly · Cancel anytime
             </p>
@@ -205,24 +212,24 @@ export default function PricingPage() {
 
           <div className="flex flex-col rounded-2xl border border-[var(--caramel)] bg-[var(--surface-warm)] p-6 sm:p-9">
             <span className="self-start rounded-full bg-[var(--caramel)] px-3.5 py-1 font-body text-[10px] font-semibold uppercase tracking-widest text-[var(--dark-brown)]">
-              One-time setup
+              Yearly · Best value
             </span>
             <p className="mt-5 font-display text-[38px] font-bold leading-none text-[var(--dark-brown)] sm:text-[48px]">
               <span className="mr-2 align-middle font-body text-[20px] font-semibold text-[var(--walnut)] line-through sm:text-[26px]">
-                ₹50,000
+                ₹60,000
               </span>
               ₹40,000
-              <span className="font-body text-[15px] font-normal text-[var(--walnut)]"> one-time</span>
+              <span className="font-body text-[15px] font-normal text-[var(--walnut)]"> / year</span>
             </p>
             <p className="mt-2.5 inline-flex self-start items-center rounded-full bg-[var(--mahogany)] px-3 py-1 font-body text-[11.5px] font-semibold text-[var(--cream)]">
-              Save ₹10,000 · launch offer
+              Save ₹20,000 · ₹0 setup cost
             </p>
             <p className="mt-2 font-body text-[12.5px] text-[var(--walnut)]">
-              Paid once · Lifetime access to setup
+              Billed once a year · Works out to about ₹3,333 / month
             </p>
             <div className="my-6 h-px bg-[var(--caramel)]/40" />
             <p className="mb-3 font-body text-[11px] font-semibold uppercase tracking-wider text-[var(--rust)]">
-              What&rsquo;s included
+              Everything in Monthly, plus free setup
             </p>
             <ul className="flex flex-col gap-2.5">
               {setupIncludes.map((item) => (
@@ -244,7 +251,7 @@ export default function PricingPage() {
                 stroke={1.75}
               />
               <p className="font-body text-[12.5px] leading-relaxed text-[var(--dark-brown)]/80">
-                Once the setup fee is paid, only the monthly platform fee applies going forward.
+                No setup fee on any plan. Pay once for the year and get 12 months of the full platform for the price of 8.
               </p>
             </div>
           </div>
@@ -257,8 +264,8 @@ export default function PricingPage() {
 
       <Section
         tone="warm"
-        title="Usage-based add-ons"
-        intro="Messaging and calling are billed on what you actually send, so a quiet month costs less than a heavy one."
+        title="Pay as you go: calls and WhatsApp"
+        intro="Calls and WhatsApp messages are not part of the platform fee. They are charged separately, only for what you actually use, so a quiet month costs less than a heavy one."
       >
         <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
           {addOns.map((addOn) => (
@@ -276,7 +283,7 @@ export default function PricingPage() {
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--sand)] px-3.5 py-2.5">
                 <IconInfoCircle size={13} className="shrink-0 text-[var(--mahogany)]" stroke={2} />
                 <p className="font-body text-[12px] text-[var(--dark-brown)]/75">
-                  Rates shared during onboarding
+                  Exact rates shared before you start · every charge visible in Billing &amp; Usage
                 </p>
               </div>
             </div>

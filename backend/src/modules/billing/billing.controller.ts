@@ -1,17 +1,26 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
-import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { BusinessId, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BillingService } from './billing.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BillingNotificationService } from './billing-notification.service';
-import { isTrialTier, DEFAULT_TRIAL_TIER, TRIAL_PLANS } from './billing-math.util';
+import { isTrialTier, DEFAULT_TRIAL_TIER, TRIAL_PLANS, BillingPlan, isBillingPlan } from './billing-math.util';
+
+/** MONTHLY or YEARLY; anything else falls back to YEARLY. */
+function planOf(v: unknown): BillingPlan {
+  return isBillingPlan(v) ? v : 'YEARLY';
+}
 
 class CouponDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @IsOptional()
+  @IsIn(['MONTHLY', 'YEARLY'])
+  plan?: BillingPlan;
 }
 
 /** Coupon is optional at onboarding checkout: omit or send empty for full price. */
@@ -19,6 +28,11 @@ class OnboardingCheckoutDto {
   @IsOptional()
   @IsString()
   code?: string;
+
+  /** MONTHLY (Rs.5,000/month) or YEARLY (Rs.40,000/year). Defaults to YEARLY. */
+  @IsOptional()
+  @IsIn(['MONTHLY', 'YEARLY'])
+  plan?: BillingPlan;
 }
 
 class UsageQueryDto {
@@ -100,13 +114,13 @@ export class BillingController {
 
   @Post('coupon/validate')
   validateCoupon(@BusinessId() businessId: string, @Body() dto: CouponDto) {
-    return this.billing.quoteOnboarding(dto.code, businessId);
+    return this.billing.quoteOnboarding(dto.code, businessId, planOf(dto.plan));
   }
 
-  /** Full-price quote (no coupon): already reflects any paid trial credit. */
+  /** Full-price quote (no coupon) for ?plan=MONTHLY|YEARLY: already reflects any paid trial credit. */
   @Get('onboarding/quote')
-  onboardingQuote(@BusinessId() businessId: string) {
-    return this.billing.quoteOnboardingPlain(businessId);
+  onboardingQuote(@BusinessId() businessId: string, @Query('plan') plan?: string) {
+    return this.billing.quoteOnboardingPlain(businessId, planOf(plan));
   }
 
   /** `tier` picks the plan: STARTER (₹5,000 · 15d) or STANDARD (₹10,000 · 10d). */
@@ -129,7 +143,7 @@ export class BillingController {
 
   @Post('checkout/onboarding')
   createOnboardingCheckout(@BusinessId() businessId: string, @Body() dto: OnboardingCheckoutDto) {
-    return this.billing.createOnboardingCheckout(businessId, dto.code);
+    return this.billing.createOnboardingCheckout(businessId, dto.code, planOf(dto.plan));
   }
 
   @Get('summary')

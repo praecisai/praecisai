@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const DESTINATIONS = [
   { href: '/', label: 'Homepage', blurb: 'What PraecisAI does and how it recovers your dues' },
   { href: '/how-it-works', label: 'How it works', blurb: 'The four steps from Excel upload to recovered cash' },
-  { href: '/pricing', label: 'Pricing', blurb: 'Plans, trials and the one-time onboarding fee' },
+  { href: '/pricing', label: 'Pricing', blurb: 'Monthly and yearly plans, trials, zero setup cost' },
   { href: '/industries', label: 'Industries', blurb: 'Textile, pharma and hardware credit cycles' },
   { href: '/faq', label: 'FAQ', blurb: 'Data security, disputes and how customers react' },
   { href: '/case-studies', label: 'Case studies', blurb: 'Real recovery outcomes from Indian businesses' },

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { paiseToRupeeString, trialDaysForAmount } from './billing-math.util';
+import { paiseToRupeeString, planFromAmount, trialDaysForAmount } from './billing-math.util';
 import { CreateDemoLeadDto } from '../demo/dto/create-demo-lead.dto';
 
 /**
@@ -25,10 +25,11 @@ export class SalesSheetService {
   ) {}
 
   /** Human label for what was bought, from the payment type + amount paid. */
-  private planLabel(type: string, totalPaise: number): string {
+  private planLabel(type: string, totalPaise: number, basePaise?: number): string {
     if (type === 'TRIAL') return `${trialDaysForAmount(totalPaise)}-day trial`;
-    if (type === 'ONBOARDING') return 'Full onboarding (includes first month)';
-    if (type === 'SUBSCRIPTION') return 'Monthly subscription';
+    const yearly = planFromAmount(basePaise ?? totalPaise) === 'YEARLY';
+    if (type === 'ONBOARDING') return yearly ? 'Yearly plan (first year)' : 'Monthly plan (first month)';
+    if (type === 'SUBSCRIPTION') return yearly ? 'Yearly subscription' : 'Monthly subscription';
     return type;
   }
 
@@ -104,6 +105,7 @@ export class SalesSheetService {
         id: true,
         type: true,
         total_amount: true,
+        base_amount: true,
         paid_at: true,
         razorpay_payment_id: true,
         business: {
@@ -134,7 +136,7 @@ export class SalesSheetService {
       // The owner login is the buyer; billing_email is only a billing contact
       email: owner?.email ?? payment.business.billing_email ?? '',
       phone: owner?.phone ?? '',
-      plan: this.planLabel(payment.type, payment.total_amount),
+      plan: this.planLabel(payment.type, payment.total_amount, payment.base_amount),
       // Rupees, not paise: the sheet is read by humans
       amount: paiseToRupeeString(payment.total_amount),
       amount_paise: payment.total_amount,

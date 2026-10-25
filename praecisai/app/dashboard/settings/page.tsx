@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { Select } from '../../../components/ui/Select';
 import {
-  useMe, useUpdateBusiness, useBolnaCredits,
+  useMe, useUpdateBusiness,
   useBillingAccess,
 } from '../../../lib/api/hooks';
-import { Settings, Shield, Coins, Star, Clock, MessageSquare } from 'lucide-react';
+import { Settings, Shield, Star, Clock, MessageSquare } from 'lucide-react';
 import { ScheduleSettings } from '../../../components/shared/ScheduleSettings';
 import { EscalationCallLimit } from '../../../components/shared/EscalationCallLimit';
 import { toast } from 'sonner';
@@ -19,7 +19,6 @@ const TABS = [
   { id: 'business', label: 'Business', icon: Settings },
   { id: 'schedule', label: 'Schedule', icon: Clock },
   { id: 'segments', label: 'Segment Rules', icon: Shield },
-  { id: 'credits', label: 'Credit Status', icon: Coins },
 ];
 
 const SEGMENT_META = [
@@ -78,7 +77,9 @@ export default function SettingsPage() {
   const planLabel = access?.reason === 'OWNER'
     ? 'Platform Owner'
     : paid
-    ? 'Full Plan · ₹5,000/month'
+    ? access?.plan === 'YEARLY'
+      ? 'Yearly Plan · ₹40,000/year'
+      : 'Monthly Plan · ₹5,000/month'
     : access?.trial_active
       ? `Trial · ${access.trial_days_left} day${access.trial_days_left === 1 ? '' : 's'} left`
       : access?.reason === 'ALLOWLISTED'
@@ -431,80 +432,7 @@ export default function SettingsPage() {
               </button>
             </div>
           )}
-
-          {activeTab === 'credits' && <CreditStatus />}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function CreditStatus() {
-  const { data: credits, isLoading } = useBolnaCredits();
-
-  return (
-    <div className="glass-card p-4 sm:p-6 space-y-4">
-      <h3 className="font-semibold text-[var(--dark-brown)] mb-2">Credit Status</h3>
-      <p className="text-sm text-[var(--walnut)] mb-4">
-        Your remaining balance for telephony, transcription, and platform fees.
-      </p>
-      
-      <div className="space-y-3">
-        {/* Calls Balance Row */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--caramel)] bg-[var(--sand)] shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[var(--cream)] flex items-center justify-center text-[var(--mahogany)]">
-              <Coins className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm text-[var(--dark-brown)]">Call Credits</p>
-              <p className="text-xs text-[var(--walnut)]">Telephony & AI platform</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="font-semibold text-sm text-[var(--mahogany)]">
-              {isLoading ? 'Loading...' : credits ? `${credits.balanceUsd < 0 ? '-' : ''}$${Math.abs(credits.balanceUsd).toFixed(2)}` : 'Unavailable'}
-            </p>
-            {credits?.estCallsLeft !== null && credits?.estCallsLeft !== undefined && (
-              <p className="text-xs opacity-75 text-[var(--mahogany)]">≈{credits.estCallsLeft} calls left</p>
-            )}
-          </div>
-        </div>
-
-        {/* Deepgram Row (if present) */}
-        {typeof credits?.deepgramUsd === 'number' && (
-          <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--caramel)] bg-[var(--sand)] shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--cream)] flex items-center justify-center text-[var(--mahogany)]">
-                <Coins className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm text-[var(--dark-brown)]">Transcription Credits</p>
-                <p className="text-xs text-[var(--walnut)]">Deepgram STT usage</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-sm text-[var(--mahogany)]">
-                ${credits.deepgramUsd.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="pt-4 border-t border-[rgba(221,184,146,0.35)] mt-6">
-        <p className="text-xs text-[var(--walnut)]">
-          Balances come from your own Bolna account. Top up any time on{' '}
-          <a
-            href="https://platform.bolna.ai"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-[var(--mahogany)] underline underline-offset-2"
-          >
-            platform.bolna.ai
-          </a>
-          {' '}: it reflects here within a minute. Not connected yet? Contact the PraecisAI team to link your account.
-        </p>
       </div>
     </div>
   );

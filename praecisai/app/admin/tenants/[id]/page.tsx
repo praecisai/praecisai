@@ -18,7 +18,11 @@ import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, 
 /** Plan-aware label for the payment row so trial vs full onboarding is clear. */
 function paymentLabel(checklist: any): string {
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN');
-  if (checklist.plan_paid === 'ONBOARDING') return 'Onboarding payment done · Full plan';
+  if (checklist.plan_paid === 'ONBOARDING') {
+    if (checklist.paid_plan === 'YEARLY') return 'Paid · Yearly plan (₹40,000/year)';
+    if (checklist.paid_plan === 'MONTHLY') return 'Paid · Monthly plan (₹5,000/month)';
+    return 'Onboarding payment done · Full plan';
+  }
   if (checklist.plan_paid === 'TRIAL') {
     if (checklist.trial_active && checklist.trial_ends_at) {
       return `Paid · 10-day trial (till ${fmt(checklist.trial_ends_at)})`;
@@ -191,7 +195,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                       style={{ background: '#2E7D3218', color: '#2E7D32', border: '1px solid #2E7D3240' }}
                     >
-                      Full plan
+                      {checklist.paid_plan === 'YEARLY' ? 'Yearly' : checklist.paid_plan === 'MONTHLY' ? 'Monthly' : 'Full plan'}
                     </span>
                   ) : null
                 }

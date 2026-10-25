@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantKeysService } from './tenant-keys.service';
-import { isAllowedCouponPercent } from './billing-math.util';
+import { isAllowedCouponPercent, planFromAmount } from './billing-math.util';
 import { isPlatformOwner } from '../../common/constants/platform-owner';
 import { SEGMENT_STYLES, VALID_STYLE_SLUGS, DEFAULT_STYLE } from '../demo/segment-styles';
 
@@ -230,6 +230,13 @@ export class AdminService {
           : trialPayment || trialActive
             ? 'TRIAL'
             : null,
+        // MONTHLY / YEARLY for new first payments; LEGACY for the old
+        // onboarding-with-setup-fee payments
+        paid_plan: onboardingPayment
+          ? onboardingPayment.setup_component > 0
+            ? 'LEGACY'
+            : planFromAmount(onboardingPayment.base_amount)
+          : null,
         test_call_passed: business.test_call_passed,
       },
     };

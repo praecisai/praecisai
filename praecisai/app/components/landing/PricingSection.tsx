@@ -36,22 +36,32 @@ const trialPlans = [
   { price: '₹10,000', days: 10, note: 'Shorter run', featured: false },
 ];
 
+// Included free on both plans (there is no setup fee any more).
+const setupIncluded = [
+  'Full platform setup & configuration',
+  'Data migration & Excel import setup',
+  'WhatsApp Business API integration',
+  'AI voice call system setup',
+  'Team training & onboarding sessions',
+  '7-day post-launch hand-holding support',
+];
+
 const addOnCards = [
-  {
-    icon: IconBrandWhatsapp,
-    title: 'WhatsApp Messaging',
-    subtitle: 'Per message / campaign',
-    description:
-      'Automated WhatsApp reminders, payment links, and PDF statements sent directly to your debtors. Pay only for what you send.',
-    note: 'Pricing shared during onboarding',
-  },
   {
     icon: IconPhone,
     title: 'AI Voice Calls',
-    subtitle: 'Per call / minute',
+    subtitle: 'Charged per call',
     description:
-      'AI-powered Hindi voice calls that follow up on outstanding dues: human-sounding, fully automated, 24 × 7.',
-    note: 'Pricing shared during onboarding',
+      'Human-sounding Hindi and English calls that follow up on dues for you. You pay only for the calls that actually go out: no minimum, no prepaid pack.',
+    note: 'Every call, its duration and cost is listed in your Billing & Usage page',
+  },
+  {
+    icon: IconBrandWhatsapp,
+    title: 'WhatsApp Messages',
+    subtitle: 'Charged per message',
+    description:
+      'Reminders and PDF statements sent straight to your parties on WhatsApp. You pay only for the messages that are sent: nothing when it is quiet.',
+    note: 'Exact per-call and per-message rates are shared before you start',
   },
 ];
 
@@ -83,7 +93,7 @@ export default function PricingSection() {
           variants={itemVariants}
           className="mx-auto mt-3 sm:mt-5 max-w-lg text-center font-body text-[13px] sm:text-[15px] leading-relaxed text-[var(--walnut)]"
         >
-          One platform fee. Usage-based messaging and calling on top. No surprises.
+          One simple platform fee, zero setup cost. Calls and WhatsApp messages are pay as you go.
         </motion.p>
         <motion.p
           variants={itemVariants}
@@ -119,7 +129,7 @@ export default function PricingSection() {
                   {t.days} days of full access
                 </p>
                 <p className="mt-1 text-center font-body text-[10.5px] sm:text-[11.5px] leading-snug text-[var(--walnut)]">
-                  One-time · adjusted against onboarding if you continue
+                  One-time · adjusted against the yearly plan if you continue
                 </p>
                 {/* Visitors are logged out here: sign-up leads straight to the
                     plans screen where the trial is actually purchased. */}
@@ -160,6 +170,9 @@ export default function PricingSection() {
                   <span className="font-body text-[14px] sm:text-[18px] font-normal text-[var(--walnut)]">
                     {' '}/ month
                   </span>
+                </p>
+                <p className="mt-1.5 sm:mt-2.5 inline-flex items-center rounded-full bg-[var(--sand)] px-3 py-1 font-body text-[11px] sm:text-[12px] font-semibold text-[var(--mahogany)]">
+                  ₹0 setup cost
                 </p>
                 <p className="mt-1 sm:mt-2 font-body text-[12px] sm:text-[13px] text-[var(--walnut)]">
                   Billed monthly · Cancel anytime
@@ -205,12 +218,12 @@ export default function PricingSection() {
             </div>
           </div>
 
-          {/* ── Card 2: One-time Setup ── */}
+          {/* ── Card 2: Yearly ── */}
           <div className="relative flex flex-col overflow-hidden rounded-2xl border border-[var(--caramel)]/60 bg-[var(--surface-warm)] shadow-[0_8px_40px_rgba(127,85,57,0.07)]">
             {/* Badge */}
             <div className="absolute inset-x-0 top-0 flex justify-center">
               <span className="rounded-b-xl bg-[var(--caramel)] px-4 py-1 font-body text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest text-[var(--dark-brown)]">
-                One-time Setup
+                Yearly · Best value
               </span>
             </div>
 
@@ -219,18 +232,18 @@ export default function PricingSection() {
               <div className="mb-2 text-center">
                 <p className="font-display text-[38px] sm:text-[56px] font-bold leading-none text-[var(--dark-brown)]">
                   <span className="mr-2 align-middle font-body text-[20px] sm:text-[28px] font-semibold text-[var(--walnut)] line-through">
-                    ₹50,000
+                    ₹60,000
                   </span>
                   ₹40,000
                   <span className="font-body text-[14px] sm:text-[18px] font-normal text-[var(--walnut)]">
-                    {' '}one-time
+                    {' '}/ year
                   </span>
                 </p>
                 <p className="mt-1.5 sm:mt-2.5 inline-flex items-center rounded-full bg-[var(--mahogany)] px-3 py-1 font-body text-[11px] sm:text-[12px] font-semibold text-[var(--cream)]">
-                  Save ₹10,000 · launch offer
+                  Save ₹20,000 · ₹0 setup cost
                 </p>
                 <p className="mt-1 sm:mt-2 font-body text-[12px] sm:text-[13px] text-[var(--walnut)]">
-                  Paid once · Lifetime access to setup
+                  Billed once a year · Works out to about ₹3,333 / month
                 </p>
               </div>
 
@@ -239,18 +252,10 @@ export default function PricingSection() {
 
               {/* What's included */}
               <p className="mb-3 text-left font-body text-[11px] sm:text-[12px] font-semibold uppercase tracking-wider text-[var(--rust)]">
-                What's included
+                Everything in Monthly, plus free setup
               </p>
               <ul className="flex flex-col gap-2 sm:gap-3">
-                {[
-                  'Full platform setup & configuration',
-                  'Data migration & Excel import setup',
-                  'Custom workflow configuration',
-                  'Team training & onboarding sessions',
-                  'WhatsApp Business API integration',
-                  'AI voice call system setup',
-                  '7-day post-launch hand-holding support',
-                ].map((item) => (
+                {setupIncluded.map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--caramel)] bg-[var(--sand)]">
                       <IconCheck size={9} className="text-[var(--mahogany)]" stroke={3} />
@@ -269,7 +274,7 @@ export default function PricingSection() {
               <div className="mt-6 sm:mt-8 flex items-start gap-2.5 rounded-xl bg-[var(--sand)] px-4 py-3 sm:px-5 sm:py-4">
                 <IconShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--mahogany)]" stroke={1.75} />
                 <p className="font-body text-[11px] sm:text-[13px] leading-relaxed text-[var(--dark-brown)]/80">
-                  Setup fee is a one-time investment. Once paid, you only pay the monthly platform fee going forward.
+                  No setup fee on any plan. Pay once for the year and get 12 months of the full platform for the price of 8.
                 </p>
               </div>
 
@@ -293,7 +298,11 @@ export default function PricingSection() {
         {/* ── Add-ons: WhatsApp + Calling ── */}
         <motion.div variants={itemVariants} className="mt-5 sm:mt-8">
           <p className="mb-4 text-center font-body text-[11px] sm:text-[12px] font-semibold uppercase tracking-widest text-[var(--rust)]">
-            Usage-based add-ons
+            Pay as you go: calls &amp; WhatsApp
+          </p>
+          <p className="mx-auto mb-5 max-w-xl text-center font-body text-[12px] sm:text-[13.5px] leading-relaxed text-[var(--walnut)]">
+            Calls and WhatsApp messages are not part of the platform fee. They are charged separately,
+            only for what you actually use, so a quiet month costs you less.
           </p>
           <div className="grid gap-4 sm:gap-5 sm:grid-cols-2">
             {addOnCards.map(({ icon: Icon, title, subtitle, description, note }) => (

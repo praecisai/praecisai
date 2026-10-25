@@ -2,21 +2,48 @@
  * Pure billing math. All amounts are integer PAISE.
  * Server-side only: client math is never trusted.
  *
- * Pricing model (NO GST: the listed price is exactly what is charged):
- * - One-time onboarding: base ₹40,000 (launch price, down from ₹50,000) which
- *   INCLUDES the first month's ₹5,000 subscription. An OPTIONAL 5/10/15/20
- *   percent coupon applies to that total (no coupon = full price). After the
- *   discount the ₹5,000 subscription component is fixed; the remainder is the
- *   setup component.
+ * Pricing model (NO GST: the listed price is exactly what is charged).
+ * There is NO setup fee. The customer picks one of two plans:
+ * - MONTHLY: ₹5,000 now for the first month, then ₹5,000 auto-debited on the
+ *   1st of every month.
+ * - YEARLY: ₹40,000 now for 12 months (instead of 12 × ₹5,000 = ₹60,000),
+ *   then ₹40,000 auto-debited once a year.
+ * The first payment is still recorded as the ONBOARDING payment (that is what
+ * unlocks the account); its whole amount is the subscription component.
+ * - An OPTIONAL coupon percent applies to the first payment only.
  * - Trial credit: a customer who already paid for a trial gets THAT amount
- *   (₹5,000 or ₹10,000, whichever tier they bought) deducted AFTER the coupon.
- * - Recurring: ₹5,000 per month, debited on the 1st.
+ *   deducted AFTER the coupon, but at least one month (₹5,000) is always
+ *   collected, so in practice the credit only applies to the yearly plan.
  */
 
-/** Struck-through "was" price shown on the pricing pages. */
-export const ONBOARDING_LIST_PAISE = 50000 * 100; // ₹50,000
-export const ONBOARDING_BASE_PAISE = 40000 * 100; // ₹40,000 (launch price)
+export type BillingPlan = 'MONTHLY' | 'YEARLY';
+export const BILLING_PLANS: BillingPlan[] = ['MONTHLY', 'YEARLY'];
+export function isBillingPlan(v: unknown): v is BillingPlan {
+  return v === 'MONTHLY' || v === 'YEARLY';
+}
+
 export const SUBSCRIPTION_MONTHLY_PAISE = 5000 * 100; // ₹5,000
+export const SUBSCRIPTION_YEARLY_PAISE = 40000 * 100; // ₹40,000
+/** Struck-through "was" price for the yearly plan: 12 × ₹5,000. */
+export const SUBSCRIPTION_YEARLY_LIST_PAISE = 12 * SUBSCRIPTION_MONTHLY_PAISE; // ₹60,000
+
+export function planAmountPaise(plan: BillingPlan): number {
+  return plan === 'YEARLY' ? SUBSCRIPTION_YEARLY_PAISE : SUBSCRIPTION_MONTHLY_PAISE;
+}
+
+/**
+ * Which plan a stored subscription is on. Recovered from its plan_amount so no
+ * new column is needed: ₹40,000 is yearly, anything else (₹5,000, and the
+ * legacy onboarding-era subscriptions) is monthly.
+ */
+export function planFromAmount(planAmountPaise: number | null | undefined): BillingPlan {
+  return planAmountPaise === SUBSCRIPTION_YEARLY_PAISE ? 'YEARLY' : 'MONTHLY';
+}
+
+// Legacy names kept so older imports keep compiling: the onboarding base is
+// now simply the yearly plan price, shown against its ₹60,000 list price.
+export const ONBOARDING_LIST_PAISE = SUBSCRIPTION_YEARLY_LIST_PAISE;
+export const ONBOARDING_BASE_PAISE = SUBSCRIPTION_YEARLY_PAISE;
 // Kept for the Razorpay plan amount: no GST is added, so this is the plain
 // monthly price. (Name retained to avoid churn in the Razorpay plan wiring.)
 export const SUBSCRIPTION_PLAN_PAISE_INCL_GST = SUBSCRIPTION_MONTHLY_PAISE;
@@ -77,7 +104,10 @@ export const ALLOWED_COUPON_PERCENTS = [0, 5, 10, 15, 20, 25, 30] as const;
 export type CouponPercent = (typeof ALLOWED_COUPON_PERCENTS)[number];
 
 export interface OnboardingQuote {
-  /** ₹50,000 in paise */
+  plan: BillingPlan;
+  /** Struck-through list price: ₹60,000 for yearly, ₹5,000 for monthly */
+  listAmount: number;
+  /** Plan price for the first period (₹5,000 or ₹40,000) in paise */
   baseAmount: number;
   couponPercent: number;
   /** discount on the base, paise */
@@ -86,10 +116,12 @@ export interface OnboardingQuote {
   trialCreditAmount: number;
   /** base - discount - trialCredit, paise */
   payableExGst: number;
-  /** always ₹5,000 (first month), paise */
+  /** the whole payable amount: the first month or year of the plan, paise */
   subscriptionComponent: number;
-  /** payableExGst - subscriptionComponent, paise */
+  /** always 0: there is no setup fee (field kept so stored records stay valid) */
   setupComponent: number;
+  /** what is auto-debited after the first period, paise */
+  recurringAmount: number;
   /** always 0: no GST is charged (field kept so stored records stay valid) */
   gstAmount: number;
   /** what the customer pays now, paise */
@@ -101,7 +133,7 @@ export function isAllowedCouponPercent(p: number): p is CouponPercent {
 }
 
 /**
- * @param couponPercent optional discount on the ₹40,000 base (0 = full price)
+ * @param couponPercent optional discount on the first payment (0 = full price)
  * @param trialAlreadyPaid the trial amount in paise already paid by this tenant
  *        (credited AFTER the discount). `true` is accepted for back-compat and
  *        means the ₹10,000 standard trial; `false`/`0` means no trial.
@@ -109,13 +141,14 @@ export function isAllowedCouponPercent(p: number): p is CouponPercent {
 export function computeOnboardingQuote(
   couponPercent: number,
   trialAlreadyPaid: boolean | number = false,
+  plan: BillingPlan = 'YEARLY',
 ): OnboardingQuote {
   if (!isAllowedCouponPercent(couponPercent)) {
     throw new Error(
       `Invalid coupon percent: ${couponPercent}. Allowed: ${ALLOWED_COUPON_PERCENTS.join(', ')}`,
     );
   }
-  const baseAmount = ONBOARDING_BASE_PAISE;
+  const baseAmount = planAmountPaise(plan);
   const discountAmount = Math.round((baseAmount * couponPercent) / 100);
   const afterDiscount = baseAmount - discountAmount;
   // `true` keeps the old boolean call sites working as the ₹10,000 tier.
@@ -131,16 +164,17 @@ export function computeOnboardingQuote(
     ? Math.min(trialPaid, Math.max(0, afterDiscount - SUBSCRIPTION_MONTHLY_PAISE))
     : 0;
   const payableExGst = afterDiscount - trialCreditAmount;
-  const subscriptionComponent = SUBSCRIPTION_MONTHLY_PAISE;
-  const setupComponent = payableExGst - subscriptionComponent;
   return {
+    plan,
+    listAmount: plan === 'YEARLY' ? SUBSCRIPTION_YEARLY_LIST_PAISE : SUBSCRIPTION_MONTHLY_PAISE,
     baseAmount,
     couponPercent,
     discountAmount,
     trialCreditAmount,
     payableExGst,
-    subscriptionComponent,
-    setupComponent,
+    subscriptionComponent: payableExGst,
+    setupComponent: 0,
+    recurringAmount: baseAmount,
     gstAmount: 0,
     totalAmount: payableExGst,
   };
@@ -200,6 +234,19 @@ export function firstDebitDate(signup: Date, mode: BillingAnchorMode): Date {
 
   // Midnight IST on the 1st, expressed as a UTC instant
   return new Date(Date.UTC(year, month, 1) - IST_OFFSET_MS);
+}
+
+/**
+ * Yearly plan: the first auto-debit is the same calendar day one year after
+ * signup (29 Feb clamps to 28 Feb). Returns 00:00 IST on that day.
+ */
+export function firstYearlyDebitDate(signup: Date): Date {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(signup.getTime() + IST_OFFSET_MS);
+  const y = ist.getUTCFullYear() + 1;
+  const m = ist.getUTCMonth();
+  const daysInTarget = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(ist.getUTCDate(), daysInTarget)) - IST_OFFSET_MS);
 }
 
 /** Indian financial year prefix for invoice numbers: July 2026 → "26-27". */

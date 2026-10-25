@@ -128,21 +128,24 @@ export function useMarkBillingNotificationRead() {
   });
 }
 
+/** MONTHLY = ₹5,000/month · YEARLY = ₹40,000/year. No setup fee on either. */
+export type BillingPlan = 'MONTHLY' | 'YEARLY';
+
 export function useValidateCoupon() {
   return useMutation({
-    mutationFn: async (code: string) => {
-      const res = await api.post('/billing/coupon/validate', { code });
+    mutationFn: async ({ code, plan }: { code: string; plan: BillingPlan }) => {
+      const res = await api.post('/billing/coupon/validate', { code, plan });
       return res.data.data;
     },
   });
 }
 
-/** Full-price onboarding quote: already reflects any paid trial credit. */
-export function useOnboardingQuote() {
+/** Full-price first-payment quote for a plan: already reflects any paid trial credit. */
+export function useOnboardingQuote(plan: BillingPlan) {
   return useQuery({
-    queryKey: ['billing', 'onboarding-quote'],
+    queryKey: ['billing', 'onboarding-quote', plan],
     queryFn: async () => {
-      const res = await api.get('/billing/onboarding/quote');
+      const res = await api.get('/billing/onboarding/quote', { params: { plan } });
       return res.data.data;
     },
   });
@@ -151,8 +154,8 @@ export function useOnboardingQuote() {
 export function useCreateOnboardingCheckout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (code?: string) => {
-      const res = await api.post('/billing/checkout/onboarding', { code: code ?? '' });
+    mutationFn: async ({ code, plan }: { code?: string; plan: BillingPlan }) => {
+      const res = await api.post('/billing/checkout/onboarding', { code: code ?? '', plan });
       return res.data.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),

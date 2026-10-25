@@ -16,7 +16,7 @@ import {
 } from '../../../lib/api/hooks';
 import {
   CreditCard, PhoneCall, MessageCircle, Wallet, Download,
-  ExternalLink, CalendarClock, BadgeCheck, AlertTriangle, FlaskConical,
+  ExternalLink, CalendarClock, BadgeCheck, AlertTriangle, FlaskConical, PlayCircle, Search,
 } from 'lucide-react';
 
 function fmtDate(d: string | Date | null | undefined) {
@@ -51,6 +51,16 @@ export default function BillingPage() {
   const { data: platforms } = useBillingPlatforms();
   const pdf = useInvoicePdf();
   const simulateCharge = useSimulateMonthlyCharge();
+  // Per-call table filters (client-side, over the month's calls)
+  const [callSearch, setCallSearch] = useState('');
+  const [onlyRecorded, setOnlyRecorded] = useState(false);
+  const perCall: any[] = usage?.platforms?.bolna?.per_call ?? [];
+  const recordedCount = perCall.filter((c) => c.recording_url).length;
+  const visibleCalls = perCall.filter(
+    (c) =>
+      (!onlyRecorded || c.recording_url) &&
+      (!callSearch.trim() || String(c.customer).toLowerCase().includes(callSearch.trim().toLowerCase())),
+  );
 
   const sub = summary?.subscription;
   const onboarding = summary?.onboarding_payment;
@@ -78,9 +88,9 @@ export default function BillingPage() {
             style={{ borderLeft: '4px solid var(--mahogany)' }}
           >
             <div>
-              <p className="font-semibold text-[var(--dark-brown)]">Complete your onboarding payment</p>
+              <p className="font-semibold text-[var(--dark-brown)]">Choose your plan</p>
               <p className="text-sm text-[var(--walnut)] mt-1">
-                One-time setup of ₹50,000, no GST (includes your first month). Apply a discount coupon if you have one.
+                ₹5,000 per month, or ₹40,000 per year (save ₹20,000). No setup fee, no GST. Apply a discount coupon if you have one.
               </p>
             </div>
             <Link
@@ -88,7 +98,7 @@ export default function BillingPage() {
               className="btn-primary px-5 py-2.5 rounded-lg text-sm font-semibold text-center"
               style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
             >
-              Pay onboarding fee
+              Pick a plan
             </Link>
           </div>
         )}
@@ -107,7 +117,9 @@ export default function BillingPage() {
                 <CalendarClock size={16} className="text-[var(--mahogany)]" />
                 {sub?.next_debit_date ? fmtDate(sub.next_debit_date) : '-'}
               </p>
-              <p className="text-xs text-[var(--walnut)] mt-1">₹5,000 per month, no GST</p>
+              <p className="text-xs text-[var(--walnut)] mt-1">
+                {sub?.plan === 'YEARLY' ? '₹40,000 per year, no GST' : '₹5,000 per month, no GST'}
+              </p>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">Mandate status</p>
@@ -128,7 +140,7 @@ export default function BillingPage() {
               </p>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">Onboarding payment</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">First payment</p>
               {onboarding ? (
                 <>
                   <p className="text-lg font-bold text-[var(--dark-brown)] mt-1 flex items-center gap-2">
@@ -136,7 +148,11 @@ export default function BillingPage() {
                     {formatPaise(onboarding.total_amount)}
                   </p>
                   <p className="text-xs text-[var(--walnut)] mt-1">
-                    Setup {formatPaise(onboarding.setup_component)} · First month {formatPaise(onboarding.subscription_component)}
+                    {onboarding.setup_component > 0
+                      ? `Setup ${formatPaise(onboarding.setup_component)} · First month ${formatPaise(onboarding.subscription_component)}`
+                      : sub?.plan === 'YEARLY'
+                        ? 'Yearly plan · first 12 months · no setup fee'
+                        : 'Monthly plan · first month · no setup fee'}
                     {onboarding.gst_amount > 0 ? ` · GST ${formatPaise(onboarding.gst_amount)}` : ''}
                     {onboarding.trial_credit_amount > 0 ? ` · Trial adjusted -${formatPaise(onboarding.trial_credit_amount)}` : ''}
                     {onboarding.coupon ? ` · Coupon ${onboarding.coupon.code} (${onboarding.coupon.percent}%)` : ''}
@@ -169,7 +185,7 @@ export default function BillingPage() {
                         <td className="text-sm font-medium text-[var(--dark-brown)]">{inv.invoice_number}</td>
                         <td className="text-xs text-[var(--walnut)]">
                           {inv.payment?.type === 'ONBOARDING'
-                            ? 'Onboarding'
+                            ? 'First payment'
                             : inv.payment?.type === 'TRIAL'
                               ? 'Trial (10 days)'
                               : 'Subscription'}
@@ -233,13 +249,32 @@ export default function BillingPage() {
             Praecis fees this month: {formatPaise(usage?.praecis?.total_paise ?? 0)} · Bolna and AiSensy spend is billed to you directly by those platforms, not by Praecis.
           </p>
 
-          {usage?.platforms?.bolna?.per_call?.length > 0 && (
-            <details className="mt-3">
+          {perCall.length > 0 && (
+            <details className="mt-3" open>
               <summary className="text-sm font-medium text-[var(--mahogany)] cursor-pointer">
-                Per-call detail ({usage.platforms.bolna.per_call.length} calls)
+                Per-call detail ({perCall.length} calls · {recordedCount} with recording)
               </summary>
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--walnut)]" />
+                  <input
+                    value={callSearch}
+                    onChange={(e) => setCallSearch(e.target.value)}
+                    placeholder="Search customer"
+                    className="pl-8 pr-3 py-1.5 rounded-lg border text-xs bg-transparent text-[var(--dark-brown)]"
+                    style={{ borderColor: 'var(--caramel)' }}
+                  />
+                </div>
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none text-[var(--dark-brown)]">
+                  <input type="checkbox" checked={onlyRecorded} onChange={(e) => setOnlyRecorded(e.target.checked)} />
+                  Only calls with a recording
+                </label>
+                {visibleCalls.length !== perCall.length && (
+                  <span className="text-xs text-[var(--walnut)]">Showing {visibleCalls.length} of {perCall.length}</span>
+                )}
+              </div>
               <div className="overflow-x-auto mt-2">
-                <table className="data-table w-full min-w-[560px]">
+                <table className="data-table w-full min-w-[680px]">
                   <thead>
                     <tr>
                       <th className="text-left">Date</th>
@@ -247,10 +282,11 @@ export default function BillingPage() {
                       <th className="text-left">Status</th>
                       <th className="text-right">Duration</th>
                       <th className="text-right">Bolna cost</th>
+                      <th className="text-right">Recording</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {usage.platforms.bolna.per_call.map((c: any) => (
+                    {visibleCalls.map((c: any) => (
                       <tr key={c.id}>
                         <td className="text-xs text-[var(--walnut)]">{fmtDate(c.at)}</td>
                         <td className="text-sm text-[var(--dark-brown)]">{c.customer}</td>
@@ -260,6 +296,20 @@ export default function BillingPage() {
                         </td>
                         <td className="text-right text-xs text-[var(--walnut)]">
                           {c.cost_usd != null ? `$${c.cost_usd.toFixed(3)}` : '-'}
+                        </td>
+                        <td className="text-right text-xs">
+                          {c.recording_url ? (
+                            <a
+                              href={c.recording_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 font-medium text-[var(--mahogany)] hover:underline underline-offset-2"
+                            >
+                              <PlayCircle size={13} /> Listen
+                            </a>
+                          ) : (
+                            <span className="text-[var(--walnut)]">-</span>
+                          )}
                         </td>
                       </tr>
                     ))}

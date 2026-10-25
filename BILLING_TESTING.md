@@ -26,8 +26,9 @@ In `backend/.env` (placeholders are already there, commented):
 RAZORPAY_KEY_ID=rzp_test_xxxxx        # from Razorpay Dashboard → API Keys (Test mode first)
 RAZORPAY_KEY_SECRET=xxxxx
 RAZORPAY_WEBHOOK_SECRET=xxxxx         # set when creating the webhook in Razorpay Dashboard
-RAZORPAY_PLAN_ID=plan_xxxxx           # optional: otherwise the app creates the ₹5,900 plan once and logs the id
-BILLING_ANCHOR_MODE=IMMEDIATE_NEXT_FIRST   # or FIRST_AFTER_FULL_MONTH
+RAZORPAY_PLAN_ID=plan_xxxxx           # optional: ₹5,000/month plan; otherwise the app creates it once and logs the id
+RAZORPAY_YEARLY_PLAN_ID=plan_yyyyy    # optional: ₹40,000/year plan; otherwise the app creates it once and logs the id
+# BILLING_ANCHOR_MODE is no longer used: monthly plans always start auto-debit on the 1st after a full month, yearly plans one year after signup
 ```
 
 The moment BOTH key id and secret exist, mock mode turns off automatically

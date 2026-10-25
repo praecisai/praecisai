@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { TopHeader } from '../../../../components/layout/Sidebar';
@@ -13,6 +13,7 @@ import {
   useOnboardingQuote,
   formatPaise,
 } from '../../../../lib/api/hooks';
+import type { BillingPlan } from '../../../../lib/api/hooks/billing';
 import { TicketPercent, ShieldCheck, CheckCircle2, XCircle, FlaskConical, Loader2 } from 'lucide-react';
 
 declare global {
@@ -34,6 +35,33 @@ function loadRazorpayScript(): Promise<boolean> {
 
 type Phase = 'idle' | 'paying' | 'success' | 'failed';
 
+// Display copy only: the server quote decides what is actually charged.
+const PLAN_COPY: Record<
+  BillingPlan,
+  { name: string; price: string; per: string; sub: string; firstLine: string; renew: string; fallback: number }
+> = {
+  MONTHLY: {
+    name: 'Monthly plan',
+    price: '₹5,000',
+    per: '/ month',
+    sub: '₹0 setup · cancel anytime',
+    firstLine: 'First month',
+    renew:
+      'Paying also sets up a ₹5,000/month auto-debit (UPI Autopay or card). Your first payment covers a full month; the auto-debit then runs on the 1st of every month.',
+    fallback: 500000,
+  },
+  YEARLY: {
+    name: 'Yearly plan',
+    price: '₹40,000',
+    per: '/ year',
+    sub: '₹60,000 value · ₹0 setup',
+    firstLine: 'First 12 months',
+    renew:
+      'Paying also sets up a ₹40,000/year auto-debit (UPI Autopay or card), charged once a year on the same date.',
+    fallback: 4000000,
+  },
+};
+
 export default function OnboardingPaymentPage() {
   const router = useRouter();
   const { data: summary } = useBillingSummary();
@@ -42,6 +70,14 @@ export default function OnboardingPaymentPage() {
   const simulate = useSimulateOnboardingPaid();
   const verify = useVerifyOnboardingCheckout();
 
+  // ?plan=MONTHLY|YEARLY from the plans screen; yearly is the default
+  const [plan, setPlan] = useState<BillingPlan>('YEARLY');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('plan');
+    if (q === 'MONTHLY' || q === 'YEARLY') setPlan(q); // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
+  const copy = PLAN_COPY[plan];
+
   const [code, setCode] = useState('');
   const [applied, setApplied] = useState<any>(null); // { coupon, quote }
   const [phase, setPhase] = useState<Phase>('idle');
@@ -49,10 +85,18 @@ export default function OnboardingPaymentPage() {
 
   const alreadyPaid = summary && ['PAID', 'ACTIVE'].includes(summary.onboarding_status);
   const quote = applied?.quote;
-  // Server quote without a coupon (already includes any ₹10,000 trial credit).
+  // Server quote without a coupon (already includes any paid trial credit).
   // A coupon quote replaces it once applied.
-  const { data: plainQuote } = useOnboardingQuote();
+  const { data: plainQuote } = useOnboardingQuote(plan);
   const shownQuote = quote ?? plainQuote;
+
+  function choosePlan(next: BillingPlan) {
+    if (next === plan) return;
+    setPlan(next);
+    // A coupon quote and a pending mock checkout are plan-specific
+    setApplied(null);
+    setMockCheckout(null);
+  }
 
   async function applyCoupon() {
     if (!code.trim()) {
@@ -60,7 +104,7 @@ export default function OnboardingPaymentPage() {
       return;
     }
     try {
-      const data = await validate.mutateAsync(code.trim());
+      const data = await validate.mutateAsync({ code: code.trim(), plan });
       setApplied(data);
       toast.success(`Coupon ${data.coupon.code} applied: ${data.coupon.percent}% off`);
     } catch (err: any) {
@@ -73,7 +117,7 @@ export default function OnboardingPaymentPage() {
     setPhase('paying');
     try {
       // Pass coupon code if one was applied, otherwise empty string (backend handles full price)
-      const data = await checkout.mutateAsync(applied?.coupon.code ?? '');
+      const data = await checkout.mutateAsync({ code: applied?.coupon.code ?? '', plan });
 
       if (data.mock) {
         // No Razorpay keys configured yet: offer the local simulator instead
@@ -89,7 +133,7 @@ export default function OnboardingPaymentPage() {
         key: data.razorpay_key_id,
         subscription_id: data.subscription_id,
         name: 'PraecisAI',
-        description: 'Onboarding (setup + first month)',
+        description: plan === 'YEARLY' ? 'Yearly plan (first 12 months)' : 'Monthly plan (first month)',
         theme: { color: '#7F5539' },
         handler: (response: any) => {
           // Verify the signature server-side and activate immediately: works
@@ -138,13 +182,13 @@ export default function OnboardingPaymentPage() {
 
   return (
     <>
-      <TopHeader title="Onboarding Payment" subtitle="One-time setup fee · includes your first month" />
+      <TopHeader title="Choose your plan" subtitle="No setup fee · pay monthly or yearly" />
       <div className="flex-1 flex items-start justify-center p-4 sm:p-8 pt-8">
       <div className="w-full max-w-lg">
         {alreadyPaid ? (
           <div className="glass-card p-6 text-center">
             <CheckCircle2 size={40} className="mx-auto mb-3" style={{ color: '#2E7D32' }} />
-            <p className="font-semibold text-[var(--dark-brown)]">Onboarding payment already completed</p>
+            <p className="font-semibold text-[var(--dark-brown)]">Your plan is already active</p>
             <button
               onClick={() => router.push('/dashboard/billing')}
               className="mt-4 px-5 py-2.5 rounded-lg text-sm font-semibold"
@@ -159,8 +203,10 @@ export default function OnboardingPaymentPage() {
             <h2 className="text-xl font-bold text-[var(--dark-brown)]">Payment successful</h2>
             <p className="text-sm text-[var(--walnut)] mt-2">
               Our team is now setting up your account. This takes up to 3 to 4 working days, and
-              you&rsquo;ll get dashboard access automatically as soon as it&rsquo;s ready. Your monthly
-              auto-debit of ₹5,000 starts on the next 1st.
+              you&rsquo;ll get dashboard access automatically as soon as it&rsquo;s ready.{' '}
+              {plan === 'YEARLY'
+                ? 'Your plan renews automatically at ₹40,000 a year from today.'
+                : 'Your ₹5,000 monthly auto-debit starts after your first month.'}
             </p>
           </div>
         ) : (
@@ -175,14 +221,50 @@ export default function OnboardingPaymentPage() {
               </div>
             )}
 
+            {/* Plan switch */}
+            <div className="grid grid-cols-2 gap-3">
+              {(['MONTHLY', 'YEARLY'] as BillingPlan[]).map((p) => {
+                const on = p === plan;
+                const c = PLAN_COPY[p];
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => choosePlan(p)}
+                    className="glass-card p-4 text-left relative transition-colors"
+                    style={{ border: on ? '2px solid var(--mahogany)' : '2px solid transparent' }}
+                  >
+                    {p === 'YEARLY' && (
+                      <span
+                        className="absolute -top-2.5 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                        style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
+                      >
+                        Save ₹20,000
+                      </span>
+                    )}
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--walnut)]">{c.name}</p>
+                    <p className="mt-1 text-xl font-bold text-[var(--dark-brown)]">
+                      {c.price}
+                      <span className="text-xs font-normal text-[var(--walnut)]"> {c.per}</span>
+                    </p>
+                    <p className="text-[11px] text-[var(--walnut)] mt-0.5">{c.sub}</p>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Price card. Every figure comes from the server quote: it
                 already accounts for any paid-trial credit. No GST is charged. */}
             <div className="glass-card p-5">
-              <h2 className="font-semibold text-[var(--dark-brown)] mb-4">One-time onboarding</h2>
+              <h2 className="font-semibold text-[var(--dark-brown)] mb-4">{copy.name}</h2>
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-[var(--walnut)]">Onboarding fee (includes first month)</span>
-                  <span className="font-medium text-[var(--dark-brown)]">{formatPaise(shownQuote?.baseAmount ?? 4000000)}</span>
+                  <span className="text-[var(--walnut)]">{copy.firstLine}</span>
+                  <span className="font-medium text-[var(--dark-brown)]">{formatPaise(shownQuote?.baseAmount ?? copy.fallback)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--walnut)]">Setup fee</span>
+                  <span className="font-medium" style={{ color: '#2E7D32' }}>₹0</span>
                 </div>
                 {quote && (
                   <div className="flex justify-between" style={{ color: '#2E7D32' }}>
@@ -196,28 +278,20 @@ export default function OnboardingPaymentPage() {
                     <span className="font-medium">- {formatPaise(shownQuote.trialCreditAmount)}</span>
                   </div>
                 )}
-                {shownQuote && (
-                  <div className="border-t pt-2.5 space-y-1.5" style={{ borderColor: 'var(--caramel)' }}>
-                    <div className="flex justify-between text-xs text-[var(--walnut)]">
-                      <span>· Setup component</span>
-                      <span>{formatPaise(shownQuote.setupComponent)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-[var(--walnut)]">
-                      <span>· First month subscription</span>
-                      <span>{formatPaise(shownQuote.subscriptionComponent)}</span>
-                    </div>
-                  </div>
-                )}
                 <div
                   className="flex justify-between text-base font-bold pt-2.5 border-t"
                   style={{ borderColor: 'var(--caramel)', color: 'var(--mahogany)' }}
                 >
                   <span>Total payable now</span>
-                  <span>{formatPaise(shownQuote?.totalAmount ?? 4000000)}</span>
+                  <span>{formatPaise(shownQuote?.totalAmount ?? copy.fallback)}</span>
                 </div>
                 <p className="text-xs text-[var(--walnut)] pt-1">
                   No GST is added: this is the final amount.
-                  {!quote && ' Have a discount coupon? Apply it below to reduce it further.'}
+                  {plan === 'MONTHLY' && ' A paid trial is adjusted only against the yearly plan.'}
+                  {!quote && ' Have a discount coupon? Apply it below.'}
+                </p>
+                <p className="text-xs text-[var(--walnut)]">
+                  AI calls and WhatsApp messages are pay as you go, paid directly to Bolna and AiSensy.
                 </p>
               </div>
             </div>
@@ -249,7 +323,7 @@ export default function OnboardingPaymentPage() {
                 </button>
               </div>
               <p className="text-[11px] text-[var(--walnut)] mt-2">
-                Don&apos;t have a coupon? Skip this and pay the full amount directly.
+                Don&apos;t have a coupon? Skip this and pay the full amount directly. A coupon applies to your first payment.
               </p>
             </div>
 
@@ -282,14 +356,12 @@ export default function OnboardingPaymentPage() {
                 {phase === 'paying' ? (
                   <><Loader2 size={16} className="animate-spin" /> Opening checkout…</>
                 ) : (
-                  <><ShieldCheck size={16} /> Pay {formatPaise(shownQuote?.totalAmount ?? 4000000)} securely</>
+                  <><ShieldCheck size={16} /> Pay {formatPaise(shownQuote?.totalAmount ?? copy.fallback)} securely</>
                 )}
               </button>
             )}
 
-            <p className="text-[11px] text-[var(--walnut)] text-center">
-              Paying also sets up your ₹5,000/month auto-debit mandate (UPI Autopay or card), charged on the 1st of every month starting next month.
-            </p>
+            <p className="text-[11px] text-[var(--walnut)] text-center">{copy.renew}</p>
           </div>
         )}
       </div>

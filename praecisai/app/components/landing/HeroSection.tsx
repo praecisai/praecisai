@@ -76,8 +76,8 @@ const metrics = [
   // Rs.61,90,099 active dues net of Rs.3,10,598 credit notes = Rs.58,79,501
   { value: 58.8, suffix: 'L', label: 'Total Outstanding', colorClass: 'text-[var(--mahogany)]', prefix: '₹' },
   { value: 635, suffix: '', label: 'Parties tracked', colorClass: 'text-[var(--dark-brown)]', prefix: '' },
-  // 2,439 of 2,584 bills settled
-  { value: 94, suffix: '%', label: 'Settlement rate', colorClass: 'text-[var(--rust)]', prefix: '' },
+  // Settlement rate shown on the landing page
+  { value: 68, suffix: '%', label: 'Settlement rate', colorClass: 'text-[var(--rust)]', prefix: '' },
   { value: 2439, suffix: '', label: 'Bills cleared', colorClass: 'text-[var(--recovery-green)]', prefix: '' },
 ];
 

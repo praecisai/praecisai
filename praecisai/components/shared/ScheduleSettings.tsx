@@ -15,6 +15,8 @@ import { useMe, useUpdateBusiness } from '../../lib/api/hooks';
 // Selectable slots, matching the scheduler window (08:00–20:00 IST).
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+// At most this many run slots per day, for calls and for WhatsApp each.
+const MAX_SLOTS = 3;
 
 // Mon-first for readability; values are JS weekdays (0=Sun … 6=Sat).
 const WEEKDAYS = [
@@ -37,7 +39,7 @@ const arr = (v: unknown, fallback: number[]) =>
   Array.isArray(v) && v.every((x) => typeof x === 'number') ? (v as number[]) : fallback;
 
 function Chips({
-  options, selected, onToggle, label, action,
+  options, selected, onToggle, label, action, max,
 }: {
   options: { v: number; label: string }[];
   selected: number[];
@@ -45,11 +47,21 @@ function Chips({
   label: string;
   // Optional right-aligned shortcut, e.g. "Select all months"
   action?: { label: string; onClick: () => void };
+  // Optional cap: once reached, the unselected chips are disabled
+  max?: number;
 }) {
+  const full = max !== undefined && selected.length >= max;
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-2">
-        <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)]">{label}</p>
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)]">
+          {label}
+          {max !== undefined && (
+            <span className="ml-2 normal-case tracking-normal font-medium" style={{ color: selected.length > max ? '#C62828' : undefined }}>
+              {selected.length}/{max} selected
+            </span>
+          )}
+        </p>
         {action && (
           <button
             type="button"
@@ -63,12 +75,15 @@ function Chips({
       <div className="flex flex-wrap gap-1.5">
         {options.map((o) => {
           const on = selected.includes(o.v);
+          const locked = full && !on;
           return (
             <button
               key={o.v}
               type="button"
               onClick={() => onToggle(o.v)}
-              className="rounded-full px-3 py-1.5 text-xs font-medium border transition-colors"
+              disabled={locked}
+              title={locked ? `You can pick up to ${max}. Unselect one to choose another.` : undefined}
+              className="rounded-full px-3 py-1.5 text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               style={
                 on
                   ? { background: 'var(--mahogany)', color: 'var(--cream)', borderColor: 'var(--mahogany)' }
@@ -111,9 +126,11 @@ export function ScheduleSettings() {
   const toggle = (list: number[], set: (v: number[]) => void, v: number) =>
     set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v].sort((a, z) => a - z));
 
+  const tooManySlots = callHours.length > MAX_SLOTS || waHours.length > MAX_SLOTS;
   const valid =
     callHours.length > 0 && callDays.length > 0 && callMonths.length > 0 &&
-    waHours.length > 0 && waDays.length > 0 && waMonths.length > 0;
+    waHours.length > 0 && waDays.length > 0 && waMonths.length > 0 &&
+    !tooManySlots;
 
   const save = async () => {
     if (!valid) return;
@@ -143,7 +160,7 @@ export function ScheduleSettings() {
         <h3 className="font-semibold text-[var(--dark-brown)]">Automatic Run Schedule</h3>
         <p className="text-xs text-[var(--walnut)] mt-1">
           When the automatic calls and WhatsApp go out, once you turn the toggles on (top-right).
-          Times are IST. Pick one or more slots, the weekdays and the months each should run in.
+          Times are IST. Pick up to {MAX_SLOTS} time slots, the weekdays and the months each should run in.
         </p>
       </div>
 
@@ -153,7 +170,7 @@ export function ScheduleSettings() {
           <PhoneCall size={15} className="text-[var(--mahogany)]" />
           <h4 className="text-sm font-semibold text-[var(--dark-brown)]">Automatic AI calls</h4>
         </div>
-        <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={callHours} onToggle={(v) => toggle(callHours, setCallHours, v)} />
+        <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={callHours} max={MAX_SLOTS} onToggle={(v) => toggle(callHours, setCallHours, v)} />
         <Chips label="On days" options={WEEKDAYS} selected={callDays} onToggle={(v) => toggle(callDays, setCallDays, v)} />
         <Chips
           label="In months"
@@ -170,7 +187,7 @@ export function ScheduleSettings() {
           <MessageSquare size={15} className="text-[var(--mahogany)]" />
           <h4 className="text-sm font-semibold text-[var(--dark-brown)]">Automatic WhatsApp statements</h4>
         </div>
-        <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={waHours} onToggle={(v) => toggle(waHours, setWaHours, v)} />
+        <Chips label="Run at" options={HOURS.map((h) => ({ v: h, label: hourLabel(h) }))} selected={waHours} max={MAX_SLOTS} onToggle={(v) => toggle(waHours, setWaHours, v)} />
         <Chips label="On days" options={WEEKDAYS} selected={waDays} onToggle={(v) => toggle(waDays, setWaDays, v)} />
         <Chips
           label="In months"
@@ -208,7 +225,11 @@ export function ScheduleSettings() {
       </div>
 
       {!valid && (
-        <p className="text-xs" style={{ color: '#C62828' }}>Pick at least one time slot, one weekday and one month for each.</p>
+        <p className="text-xs" style={{ color: '#C62828' }}>
+          {tooManySlots
+            ? `Pick at most ${MAX_SLOTS} time slots for each. Unselect the extra ones to save.`
+            : 'Pick at least one time slot, one weekday and one month for each.'}
+        </p>
       )}
 
       <button

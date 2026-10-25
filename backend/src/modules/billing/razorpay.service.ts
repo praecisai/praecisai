@@ -1,7 +1,7 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { SUBSCRIPTION_PLAN_PAISE_INCL_GST } from './billing-math.util';
+import { BillingPlan, SUBSCRIPTION_PLAN_PAISE_INCL_GST, SUBSCRIPTION_YEARLY_PAISE } from './billing-math.util';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 
@@ -17,7 +17,7 @@ const RAZORPAY_API = 'https://api.razorpay.com/v1';
 @Injectable()
 export class RazorpayService {
   private readonly logger = new Logger(RazorpayService.name);
-  private cachedPlanId: string | null = null;
+  private cachedPlanIds: Partial<Record<BillingPlan, string>> = {};
 
   constructor(private config: ConfigService) {}
 
@@ -73,41 +73,47 @@ export class RazorpayService {
   }
 
   /**
-   * The ₹5,000/month plan (no GST). Uses RAZORPAY_PLAN_ID when set; otherwise
-   * creates the plan once and caches the id for this process.
+   * The Razorpay plan for a billing plan (no GST):
+   * - MONTHLY: ₹5,000 every month. Uses RAZORPAY_PLAN_ID when set.
+   * - YEARLY: ₹40,000 every year. Uses RAZORPAY_YEARLY_PLAN_ID when set.
+   * Otherwise the plan is created once and its id cached for this process.
    *
    * IMPORTANT: a Razorpay plan's amount is fixed at creation and cannot be
-   * edited. RAZORPAY_PLAN_ID must therefore point at a ₹5,000 plan: an older
-   * ₹5,900 (GST-inclusive) plan id would keep debiting ₹5,900 forever.
+   * edited. RAZORPAY_PLAN_ID must therefore point at a ₹5,000 monthly plan and
+   * RAZORPAY_YEARLY_PLAN_ID at a ₹40,000 yearly plan.
    */
-  async ensurePlanId(): Promise<string> {
-    const fromEnv = this.config.get<string>('RAZORPAY_PLAN_ID');
+  async ensurePlanId(billingPlan: BillingPlan = 'MONTHLY'): Promise<string> {
+    const yearly = billingPlan === 'YEARLY';
+    const fromEnv = this.config.get<string>(yearly ? 'RAZORPAY_YEARLY_PLAN_ID' : 'RAZORPAY_PLAN_ID');
     if (fromEnv) return fromEnv;
-    if (this.cachedPlanId) return this.cachedPlanId;
+    const cached = this.cachedPlanIds[billingPlan];
+    if (cached) return cached;
     if (this.isMock) {
-      this.cachedPlanId = 'plan_mock_praecis_5000';
-      return this.cachedPlanId;
+      const id = yearly ? 'plan_mock_praecis_40000_yearly' : 'plan_mock_praecis_5000';
+      this.cachedPlanIds[billingPlan] = id;
+      return id;
     }
     const plan = await this.request<{ id: string }>('POST', '/plans', {
-      period: 'monthly',
+      period: yearly ? 'yearly' : 'monthly',
       interval: 1,
       item: {
-        name: 'PraecisAI Monthly Subscription',
-        amount: SUBSCRIPTION_PLAN_PAISE_INCL_GST,
+        name: yearly ? 'PraecisAI Yearly Subscription' : 'PraecisAI Monthly Subscription',
+        amount: yearly ? SUBSCRIPTION_YEARLY_PAISE : SUBSCRIPTION_PLAN_PAISE_INCL_GST,
         currency: 'INR',
-        description: 'Rs.5,000 per month',
+        description: yearly ? 'Rs.40,000 per year' : 'Rs.5,000 per month',
       },
     });
-    this.cachedPlanId = plan.id;
+    this.cachedPlanIds[billingPlan] = plan.id;
+    const envName = yearly ? 'RAZORPAY_YEARLY_PLAN_ID' : 'RAZORPAY_PLAN_ID';
     this.logger.warn(
-      `Created Razorpay plan ${plan.id}: add RAZORPAY_PLAN_ID=${plan.id} to .env to avoid re-creating`,
+      `Created Razorpay plan ${plan.id}: add ${envName}=${plan.id} to .env to avoid re-creating`,
     );
     return plan.id;
   }
 
   /**
-   * Subscription anchored to the 1st with the onboarding amount charged
-   * upfront as an addon on the authorization payment.
+   * Subscription whose first period is charged upfront as an addon on the
+   * authorization payment; recurring debits start at `startAt`.
    */
   async createSubscription(opts: {
     planId: string;
@@ -115,6 +121,8 @@ export class RazorpayService {
     upfrontPaise: number;
     upfrontLabel: string;
     notes: Record<string, string>;
+    /** Number of billing cycles: 120 monthly or 10 yearly = 10 years */
+    totalCount?: number;
   }): Promise<{ id: string; status: string; short_url?: string }> {
     if (this.isMock) {
       const id = `sub_mock_${crypto.randomBytes(8).toString('hex')}`;
@@ -123,7 +131,7 @@ export class RazorpayService {
     }
     return this.request('POST', '/subscriptions', {
       plan_id: opts.planId,
-      total_count: 120, // 10 years of monthly cycles
+      total_count: opts.totalCount ?? 120, // 10 years of monthly cycles by default
       quantity: 1,
       start_at: Math.floor(opts.startAt.getTime() / 1000),
       customer_notify: 1,

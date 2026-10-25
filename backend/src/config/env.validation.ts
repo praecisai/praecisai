@@ -92,10 +92,14 @@ class EnvironmentVariables {
   @IsString()
   RAZORPAY_WEBHOOK_SECRET?: string;
 
-  // Reuse an existing ₹5,900/month plan instead of creating one at runtime
+  // Reuse an existing ₹5,000/month plan instead of creating one at runtime
   @IsOptional()
   @IsString()
   RAZORPAY_PLAN_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_YEARLY_PLAN_ID?: string; // existing ₹40,000/year plan, same idea
 
   // Force mock mode even when keys are present
   @IsOptional()

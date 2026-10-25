@@ -421,12 +421,12 @@ export default function BentoSection() {
 
             {/* Mini pie + recovery highlight */}
             <div className="flex items-center gap-6 rounded-2xl border p-4 bg-[rgba(127,85,57,0.06)] dark:bg-[rgba(221,184,146,0.05)] border-[rgba(221,184,146,0.22)] dark:border-[rgba(221,184,146,0.12)]">
-              <Donut pct={68} size={80} stroke={8} />
+              <Donut pct={38} size={80} stroke={8} />
               <div>
                 <p className="font-display text-3xl font-bold text-[var(--mahogany)]">₹18 Cr+</p>
                 <p className="font-body text-sm text-[var(--walnut)]">recovered by our customers</p>
                 <p className="mt-1 font-body text-[11px] font-semibold text-[var(--recovery-green)]">
-                  ↑ 68% average recovery rate
+                  ↑ 38% average recovery rate
                 </p>
               </div>
             </div>
@@ -492,7 +492,7 @@ export default function BentoSection() {
               {[
                 { icon: IconPhone,   label: 'Call connect rate', value: 78, color: 'var(--mahogany)' },
                 { icon: IconTarget,  label: 'Promise rate',       value: 62, color: 'var(--rust)'     },
-                { icon: IconCoin,    label: 'Collection rate',    value: 68, color: 'var(--recovery-green)' },
+                { icon: IconCoin,    label: 'Collection rate',    value: 38, color: 'var(--recovery-green)' },
                 { icon: IconClock,   label: 'Time saved',         value: 85, color: 'var(--walnut)'   },
               ].map(({ icon: Icon, label, value, color }, i) => (
                 <div key={label} className="space-y-1.5">

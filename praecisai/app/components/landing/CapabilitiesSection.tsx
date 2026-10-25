@@ -264,7 +264,7 @@ function SkeletonThree() {
               <p className="font-body text-[7px] text-[rgba(176,137,104,0.5)]">Recovered</p>
             </div>
             <div className="flex-1 rounded-lg bg-[rgba(221,184,146,0.06)] px-2 py-1.5 text-center">
-              <p className="font-display text-[14px] font-bold text-[#DDB892]">68%</p>
+              <p className="font-display text-[14px] font-bold text-[#DDB892]">38%</p>
               <p className="font-body text-[7px] text-[rgba(176,137,104,0.5)]">Rate</p>
             </div>
           </div>

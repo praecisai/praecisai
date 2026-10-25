@@ -50,7 +50,7 @@ export function BillingBanners() {
               href="/dashboard/billing/onboarding"
               className="text-xs font-semibold underline underline-offset-2 text-[var(--mahogany)]"
             >
-              Continue with full onboarding
+              Continue with a monthly or yearly plan
             </Link>
           </div>
         </div>

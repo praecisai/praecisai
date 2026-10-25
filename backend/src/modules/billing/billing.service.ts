@@ -17,11 +17,12 @@ import {
   computeOnboardingQuote,
   computeTrialQuote,
   firstDebitDate,
-  BillingAnchorMode,
+  firstYearlyDebitDate,
+  BillingPlan,
+  planAmountPaise,
+  planFromAmount,
   isAllowedCouponPercent,
-  SUBSCRIPTION_MONTHLY_PAISE,
   monthlySubscriptionGstPaise,
-  SUBSCRIPTION_PLAN_PAISE_INCL_GST,
   TRIAL_DAYS,
   TrialTier,
   DEFAULT_TRIAL_TIER,
@@ -44,11 +45,6 @@ export class BillingService {
     private bolnaUsage: BolnaUsageService,
     private salesSheet: SalesSheetService,
   ) {}
-
-  get anchorMode(): BillingAnchorMode {
-    const raw = this.config.get<string>('BILLING_ANCHOR_MODE');
-    return raw === 'FIRST_AFTER_FULL_MONTH' ? 'FIRST_AFTER_FULL_MONTH' : 'IMMEDIATE_NEXT_FIRST';
-  }
 
   // ─── Coupons ────────────────────────────────────────────────────────────────
 
@@ -91,20 +87,25 @@ export class BillingService {
   }
 
   /** Preview: coupon + full server-side quote (never trust client math). */
-  async quoteOnboarding(code: string, businessId: string) {
+  async quoteOnboarding(code: string, businessId: string, plan: BillingPlan = 'YEARLY') {
     const coupon = await this.validateCoupon(code, businessId);
-    const quote = computeOnboardingQuote(coupon.percent, await this.paidTrialAmount(businessId));
+    const quote = computeOnboardingQuote(coupon.percent, await this.paidTrialAmount(businessId), plan);
     return { coupon: { code: coupon.code, percent: coupon.percent }, quote };
   }
 
-  /** Quote with no coupon: used by the onboarding page before a code is typed. */
-  async quoteOnboardingPlain(businessId: string) {
-    return computeOnboardingQuote(0, await this.paidTrialAmount(businessId));
+  /** Quote with no coupon: used by the plan page before a code is typed. */
+  async quoteOnboardingPlain(businessId: string, plan: BillingPlan = 'YEARLY') {
+    return computeOnboardingQuote(0, await this.paidTrialAmount(businessId), plan);
   }
 
   // ─── Onboarding checkout ────────────────────────────────────────────────────
 
-  async createOnboardingCheckout(businessId: string, couponCode?: string) {
+  /**
+   * First payment for the chosen plan. MONTHLY charges Rs.5,000 now and starts
+   * the Rs.5,000 monthly mandate on the 1st after a full month; YEARLY charges
+   * Rs.40,000 now and starts the Rs.40,000 yearly mandate one year from today.
+   */
+  async createOnboardingCheckout(businessId: string, couponCode?: string, plan: BillingPlan = 'YEARLY') {
     const business = await this.prisma.business.findUnique({ where: { id: businessId } });
     if (!business) throw new NotFoundException('Business not found');
     if (business.onboarding_status === OnboardingStatus.PAID || business.onboarding_status === OnboardingStatus.ACTIVE) {
@@ -118,24 +119,31 @@ export class BillingService {
     let quote: ReturnType<typeof computeOnboardingQuote>;
     if (couponCode?.trim()) {
       coupon = await this.validateCoupon(couponCode.trim(), businessId);
-      quote = computeOnboardingQuote(coupon.percent, trialPaid);
+      quote = computeOnboardingQuote(coupon.percent, trialPaid, plan);
     } else {
-      quote = computeOnboardingQuote(0, trialPaid); // full price, no discount
+      quote = computeOnboardingQuote(0, trialPaid, plan); // full price, no discount
     }
 
-    const startAt = firstDebitDate(new Date(), this.anchorMode);
+    // Monthly: the first payment covers at least a full month, so the first
+    // auto-debit is the 1st after that month ends (never a second Rs.5,000 a
+    // few days after paying). Yearly: same day next year.
+    const now = new Date();
+    const startAt =
+      plan === 'YEARLY' ? firstYearlyDebitDate(now) : firstDebitDate(now, 'FIRST_AFTER_FULL_MONTH');
 
-    const planId = await this.razorpay.ensurePlanId();
+    const planLabel =
+      plan === 'YEARLY' ? 'PraecisAI yearly plan (first year)' : 'PraecisAI monthly plan (first month)';
+    const planId = await this.razorpay.ensurePlanId(plan);
     const subscription = await this.razorpay.createSubscription({
       planId,
       startAt,
       upfrontPaise: quote.totalAmount,
-      upfrontLabel: quote.trialCreditAmount
-        ? 'PraecisAI onboarding (setup + first month), trial amount adjusted'
-        : 'PraecisAI onboarding (setup + first month)',
+      upfrontLabel: quote.trialCreditAmount ? `${planLabel}, trial amount adjusted` : planLabel,
+      totalCount: plan === 'YEARLY' ? 10 : 120, // 10 years either way
       notes: {
         praecis_business_id: businessId,
         praecis_type: 'onboarding',
+        praecis_plan: plan,
         coupon: coupon?.code ?? 'none',
       },
     });
@@ -146,12 +154,14 @@ export class BillingService {
       create: {
         business_id: businessId,
         razorpay_subscription_id: subscription.id,
-        plan_amount: SUBSCRIPTION_MONTHLY_PAISE,
+        plan_amount: planAmountPaise(plan),
         status: 'PENDING',
         next_debit_date: startAt,
       },
       update: {
         razorpay_subscription_id: subscription.id,
+        // plan_amount also records which plan this is (see planFromAmount)
+        plan_amount: planAmountPaise(plan),
         status: 'PENDING',
         next_debit_date: startAt,
       },
@@ -322,7 +332,7 @@ export class BillingService {
   //  · their business has paid onboarding (PAID / ACTIVE)
   //  · their business has an unexpired 10-day trial
   async access(businessId: string, userEmail?: string | null) {
-    const [business, allowed] = await Promise.all([
+    const [business, allowed, subscription] = await Promise.all([
       this.prisma.business.findUnique({
         where: { id: businessId },
         select: {
@@ -337,6 +347,10 @@ export class BillingService {
       userEmail
         ? this.prisma.allowedEmail.findUnique({ where: { email: userEmail.toLowerCase() } })
         : Promise.resolve(null),
+      this.prisma.billingSubscription.findUnique({
+        where: { business_id: businessId },
+        select: { plan_amount: true },
+      }),
     ]);
 
     const now = new Date();
@@ -371,6 +385,8 @@ export class BillingService {
       setup_pending: setupPending,
       provisioned,
       onboarding_status: business?.onboarding_status ?? 'PENDING',
+      // MONTHLY or YEARLY once a plan is paid (null before that)
+      plan: paid && subscription ? planFromAmount(subscription.plan_amount) : null,
       trial_ends_at: business?.trial_ends_at ?? null,
       trial_active: trialActive,
       trial_expired: trialExpired,
@@ -444,7 +460,7 @@ export class BillingService {
     return paid;
   }
 
-  /** subscription.charged: monthly debit. Idempotent via razorpay_payment_id. */
+  /** subscription.charged: monthly or yearly debit. Idempotent via razorpay_payment_id. */
   async handleSubscriptionCharged(opts: {
     razorpaySubscriptionId: string;
     razorpayPaymentId: string;
@@ -464,16 +480,18 @@ export class BillingService {
       return null;
     }
 
+    const plan = planFromAmount(sub.plan_amount);
+    const planPaise = planAmountPaise(plan);
     const gst = monthlySubscriptionGstPaise();
-    const total = opts.amountPaise ?? SUBSCRIPTION_PLAN_PAISE_INCL_GST;
+    const total = opts.amountPaise ?? planPaise;
     const payment = await this.prisma.billingPayment.create({
       data: {
         business_id: sub.business_id,
         type: 'SUBSCRIPTION',
         razorpay_subscription_id: opts.razorpaySubscriptionId,
         razorpay_payment_id: opts.razorpayPaymentId,
-        base_amount: SUBSCRIPTION_MONTHLY_PAISE,
-        subscription_component: SUBSCRIPTION_MONTHLY_PAISE,
+        base_amount: planPaise,
+        subscription_component: planPaise,
         gst_amount: gst,
         total_amount: total,
         status: 'PAID',
@@ -481,8 +499,12 @@ export class BillingService {
       },
     });
 
-    // Extend validity: next debit is the following 1st
-    const nextDebit = firstDebitDate(payment.paid_at ?? new Date(), 'IMMEDIATE_NEXT_FIRST');
+    // Extend validity: monthly -> the following 1st, yearly -> same day next year
+    const chargedAt = payment.paid_at ?? new Date();
+    const nextDebit =
+      plan === 'YEARLY'
+        ? firstYearlyDebitDate(chargedAt)
+        : firstDebitDate(chargedAt, 'IMMEDIATE_NEXT_FIRST');
     await this.prisma.billingSubscription.update({
       where: { id: sub.id },
       data: { status: 'ACTIVE', next_debit_date: nextDebit },
@@ -497,7 +519,7 @@ export class BillingService {
     await this.notifications.create(
       sub.business_id,
       'DEBIT_SUCCESS',
-      `Monthly subscription of Rs.5,000 debited successfully. Next debit: ${nextDebit.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
+      `${plan === 'YEARLY' ? 'Yearly subscription of Rs.40,000' : 'Monthly subscription of Rs.5,000'} debited successfully. Next debit: ${nextDebit.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
     );
 
     await this.invoices.createForPayment(payment);
@@ -521,8 +543,8 @@ export class BillingService {
       sub.business_id,
       'MANDATE_FAILED',
       kind === 'halted'
-        ? 'Your monthly auto-debit mandate has been halted after repeated failures. Campaigns are paused until the payment issue is resolved: please update your payment method.'
-        : 'This month\'s auto-debit could not be completed and will be retried. Campaigns are paused until the payment goes through.',
+        ? 'Your auto-debit mandate has been halted after repeated failures. Campaigns are paused until the payment issue is resolved: please update your payment method.'
+        : 'This period\'s auto-debit could not be completed and will be retried. Campaigns are paused until the payment goes through.',
     );
     const business = await this.prisma.business.findUnique({
       where: { id: sub.business_id },
@@ -531,7 +553,7 @@ export class BillingService {
     await this.notifications.emailNudge(
       business?.billing_email,
       'PraecisAI: action needed on your subscription payment',
-      `Hello ${business?.name ?? ''},\n\nYour PraecisAI monthly auto-debit failed and your recovery campaigns are paused until it is resolved. Please update your payment method or retry the mandate.\n\nPraecisAI Billing`,
+      `Hello ${business?.name ?? ''},\n\nYour PraecisAI subscription auto-debit failed and your recovery campaigns are paused until it is resolved. Please update your payment method or retry the mandate.\n\nPraecisAI Billing`,
     );
     this.logger.warn(`Subscription ${kind} for business ${sub.business_id}: campaigns paused`);
   }
@@ -569,8 +591,9 @@ export class BillingService {
         ? {
             status: subscription.status,
             next_debit_date: subscription.next_debit_date,
+            plan: planFromAmount(subscription.plan_amount),
             plan_amount: subscription.plan_amount,
-            plan_amount_incl_gst: SUBSCRIPTION_PLAN_PAISE_INCL_GST,
+            plan_amount_incl_gst: subscription.plan_amount, // no GST is charged
             mandate_type: subscription.mandate_type,
           }
         : null,
@@ -608,6 +631,7 @@ export class BillingService {
           call_status: true,
           duration_seconds: true,
           bolna_cost_usd: true,
+          recording_url: true,
           customer: { select: { customer_name: true } },
         },
         orderBy: { created_at: 'desc' },
@@ -659,6 +683,7 @@ export class BillingService {
             status: c.call_status,
             duration_seconds: c.duration_seconds,
             cost_usd: c.bolna_cost_usd,
+            recording_url: c.recording_url,
           })),
           balance_history: snapshots,
         },
@@ -813,7 +838,7 @@ export class BillingService {
     });
   }
 
-  /** Simulates a monthly subscription.charged webhook. */
+  /** Simulates a recurring (monthly or yearly) subscription.charged webhook. */
   async simulateMonthlyCharge(businessId: string) {
     this.assertMock();
     const sub = await this.prisma.billingSubscription.findUnique({

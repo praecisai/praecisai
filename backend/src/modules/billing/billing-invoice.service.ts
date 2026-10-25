@@ -4,7 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Prisma, BillingPayment } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BillingInvoicePdfService, InvoiceLineItem } from './billing-invoice-pdf.service';
-import { financialYearCode, trialDaysForAmount } from './billing-math.util';
+import { financialYearCode, planFromAmount, trialDaysForAmount } from './billing-math.util';
 
 const BUCKET = 'billing-invoices';
 
@@ -144,8 +144,11 @@ export class BillingInvoiceService {
     });
     if (!business) throw new NotFoundException('Business not found for invoice');
 
-    const lineItems: InvoiceLineItem[] =
-      payment.type === 'ONBOARDING'
+    // Older onboarding payments carried a setup fee; new first payments are
+    // just the first month or year of the chosen plan (no setup fee).
+    const isYearly = planFromAmount(payment.base_amount) === 'YEARLY';
+    const firstPaymentLines: InvoiceLineItem[] =
+      payment.setup_component > 0
         ? [
             {
               description: 'One-time onboarding and setup fee',
@@ -155,6 +158,19 @@ export class BillingInvoiceService {
               description: 'First month subscription (included in onboarding)',
               amount: payment.subscription_component,
             },
+          ]
+        : [
+            {
+              description: isYearly
+                ? 'PraecisAI yearly plan: first 12 months (no setup fee)'
+                : 'PraecisAI monthly plan: first month (no setup fee)',
+              amount: payment.subscription_component || payment.total_amount,
+            },
+          ];
+    const lineItems: InvoiceLineItem[] =
+      payment.type === 'ONBOARDING'
+        ? [
+            ...firstPaymentLines,
             ...(payment.discount_amount > 0
               ? [
                   {
@@ -181,7 +197,7 @@ export class BillingInvoiceService {
             ]
           : [
               {
-                description: 'PraecisAI monthly subscription',
+                description: isYearly ? 'PraecisAI yearly subscription' : 'PraecisAI monthly subscription',
                 amount: payment.subscription_component || payment.base_amount,
               },
             ];
