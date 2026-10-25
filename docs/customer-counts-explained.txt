@@ -1,0 +1,78 @@
+CUSTOMER COUNTS: DASHBOARD vs REPORTS PAGE
+==========================================
+
+1. WHY 576 (Dashboard) vs 552 (Reports > Segment Overview)
+----------------------------------------------------------
+- Dashboard "Total Customers" = every customer record in the business, any balance.
+- Segment Overview = only ACTIVE customers (at least one bill with a positive due amount).
+- Customers whose bills are all credit notes (negative) or zero are marked CLEARED
+  and are left out of the overview.
+- 576 - 552 = 24 cleared / credit-note-only customers. Nothing to collect, so they
+  are not in any segment.
+
+2. WHY DASHBOARD SEGMENT CARDS ADD UP TO 684, NOT 552
+----------------------------------------------------
+- Dashboard cards (307 + 141 + 125 + 111 = 684) use per-bill ageing like Tally:
+  every bill is bucketed by its own age.
+- A customer with a 30-day bill and a 200-day bill counts in BOTH Soft Reminder
+  and Escalation.
+- Reports Segment Overview puts each customer in ONE segment (by their oldest
+  unpaid bill), so it adds up to exactly 552.
+- That is why Escalation is 111 customers on both pages but the amount differs:
+  - Dashboard Rs 77L = only their 181+ day bills.
+  - Reports Rs 2.03 Cr = their full outstanding.
+
+
+3. HOW THE REPORT CARDS RELATE
+------------------------------
+- Segment Overview (552) = all active customers.
+- Escalation (111)       = active customers in the Escalation segment (part of the 552).
+- Positive (24) / Negative (7) = active customers who have had AI calls (also part
+  of the 552; they can overlap with Escalation).
+- The cards are different views of the same customers. They are NOT meant to add up.
+
+
+4. HOW POSITIVE / NEGATIVE ARE DECIDED
+--------------------------------------
+Based on the customer's LATEST call outcome plus their call history. Negative
+rules are checked first.
+
+NEGATIVE (needs personal follow-up):
+- Latest call = refused to pay (immediately, even on the first refusal)
+- Promised to pay 4+ times in total and still owes
+- "Call later" on 7+ calls in a row
+- No answer on 7+ calls in a row
+- Unclear response on 7+ calls in a row
+- Dispute not resolved on 7+ calls in a row
+
+POSITIVE (responding well):
+- Latest call = willing to pay
+- Latest call = promised to pay (fewer than 4 promises so far)
+
+NEITHER (still in progress):
+- Called, but none of the rules above apply yet
+  (e.g. 3x call later, 5x no answer, a dispute under 7 calls).
+- These customers move to Positive/Negative as more calls happen.
+
+
+5. WHERE THE REST OF THE 552 ARE
+--------------------------------
+  Called customers ............ 138
+    Positive .................... 24
+    Negative ..................... 7
+    In progress (neither) ...... 107
+  Never called yet ............ ~414  (552 - 138)
+
+- The ~414 have no completed AI call yet, so they cannot be judged positive or
+  negative.
+- Small caveat: 138 counts every customer with a call log, including some who have
+  since cleared, so the exact split is approximate.
+
+
+SUMMARY
+-------
+Each number counts a different group:
+- 576 = all customers
+- 552 = customers who still owe
+- 684 = bill-wise bucket count
+- 24 / 7 / 107 / ~414 = how far the AI calls have got with those 552

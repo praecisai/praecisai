@@ -171,9 +171,7 @@ export default function PricingSection() {
                     {' '}/ month
                   </span>
                 </p>
-                <p className="mt-1.5 sm:mt-2.5 inline-flex items-center rounded-full bg-[var(--sand)] px-3 py-1 font-body text-[11px] sm:text-[12px] font-semibold text-[var(--mahogany)]">
-                  ₹0 setup cost
-                </p>
+
                 <p className="mt-1 sm:mt-2 font-body text-[12px] sm:text-[13px] text-[var(--walnut)]">
                   Billed monthly · Cancel anytime
                 </p>
@@ -234,13 +232,13 @@ export default function PricingSection() {
                   <span className="mr-2 align-middle font-body text-[20px] sm:text-[28px] font-semibold text-[var(--walnut)] line-through">
                     ₹60,000
                   </span>
-                  ₹40,000
-                  <span className="font-body text-[14px] sm:text-[18px] font-normal text-[var(--walnut)]">
-                    {' '}/ year
+                  <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+                    ₹40,000
+                    <span className="font-body text-[14px] sm:text-[18px] font-normal text-[var(--walnut)]">/&nbsp;year</span>
                   </span>
                 </p>
                 <p className="mt-1.5 sm:mt-2.5 inline-flex items-center rounded-full bg-[var(--mahogany)] px-3 py-1 font-body text-[11px] sm:text-[12px] font-semibold text-[var(--cream)]">
-                  Save ₹20,000 · ₹0 setup cost
+                  Save ₹20,000
                 </p>
                 <p className="mt-1 sm:mt-2 font-body text-[12px] sm:text-[13px] text-[var(--walnut)]">
                   Billed once a year · Works out to about ₹3,333 / month
