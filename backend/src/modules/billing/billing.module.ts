@@ -17,6 +17,8 @@ import { BolnaUsageService } from './bolna-usage.service';
 import { SalesSheetService } from './sales-sheet.service';
 import { BolnaUsageProcessor } from './queues/bolna-usage.processor';
 import { TenantKeysModule } from './tenant-keys.module';
+import { CreditsService } from './credits.service';
+import { CallModelController } from './call-model.controller';
 
 const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -25,7 +27,7 @@ const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
     TenantKeysModule,
     BullModule.registerQueue({ name: 'bolna-usage' }),
   ],
-  controllers: [BillingController, AdminAuthController, AdminController, RazorpayWebhookController],
+  controllers: [BillingController, AdminAuthController, AdminController, RazorpayWebhookController, CallModelController],
   providers: [
     BillingService,
     AdminService,
@@ -39,8 +41,9 @@ const BOLNA_POLL_EVERY_MS = 30 * 60 * 1000; // 30 minutes
     BolnaUsageService,
     SalesSheetService,
     BolnaUsageProcessor,
+    CreditsService,
   ],
-  exports: [BillingGateService, BillingNotificationService, TenantKeysModule, SalesSheetService],
+  exports: [BillingGateService, BillingNotificationService, TenantKeysModule, SalesSheetService, CreditsService],
 })
 export class BillingModule implements OnModuleInit {
   private readonly logger = new Logger(BillingModule.name);

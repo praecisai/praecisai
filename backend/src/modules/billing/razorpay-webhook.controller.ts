@@ -12,6 +12,7 @@ import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RazorpayService } from './razorpay.service';
 import { BillingService } from './billing.service';
+import { CreditsService } from './credits.service';
 
 /**
  * Razorpay webhook receiver.
@@ -29,6 +30,7 @@ export class RazorpayWebhookController {
     private prisma: PrismaService,
     private razorpay: RazorpayService,
     private billing: BillingService,
+    private credits: CreditsService,
   ) {}
 
   @Post('webhook')
@@ -78,11 +80,46 @@ export class RazorpayWebhookController {
               mandateType: payment.method,
             });
           } else if (payment?.id && payment?.order_id) {
-            // Order payments without a subscription: the 10-day trial
-            await this.billing.handleTrialCaptured({
+            // Order payments without a subscription: a credit pack (manual,
+            // autopay setup or autopay debit), otherwise the paid trial
+            const credits = await this.credits.handleCaptured({
               razorpayOrderId: payment.order_id,
               razorpayPaymentId: payment.id,
+              method: payment.method,
+              tokenId: payment.token_id,
             });
+            if (!credits) {
+              await this.billing.handleTrialCaptured({
+                razorpayOrderId: payment.order_id,
+                razorpayPaymentId: payment.id,
+              });
+            }
+          }
+          break;
+        }
+        case 'payment.failed': {
+          const payment = payload?.payload?.payment?.entity;
+          if (payment?.order_id) {
+            await this.credits.handleFailed({
+              razorpayOrderId: payment.order_id,
+              razorpayPaymentId: payment.id,
+              reason: payment.error_description || payment.error_reason || 'Payment failed',
+            });
+          }
+          break;
+        }
+        case 'token.confirmed':
+        case 'token.rejected':
+        case 'token.cancelled':
+        case 'token.paused': {
+          // Autopay mandate lifecycle (UPI Autopay confirms asynchronously)
+          const token = payload?.payload?.token?.entity;
+          if (token?.id) {
+            await this.credits.handleTokenEvent(
+              token.id,
+              eventType.split('.')[1],
+              token?.recurring_details?.failure_reason ?? null,
+            );
           }
           break;
         }

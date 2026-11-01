@@ -9,7 +9,6 @@ import DemoExhaustedBanner from '../../components/demo/DemoExhaustedBanner';
 import DemoStatCards from '../../components/demo/DemoStatCards';
 import DemoOutstandingTable from '../../components/demo/DemoOutstandingTable';
 import DemoCreditsBadge from '../../components/demo/DemoCreditsBadge';
-import DemoAgentSelector, { DemoAgentOption } from '../../components/demo/DemoAgentSelector';
 import { API_ORIGIN } from '../../../lib/api/base';
 
 export type DemoLead = {
@@ -30,8 +29,6 @@ export default function DemoDashboardClient({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creditsRefresh, setCreditsRefresh] = useState(0);
-  const [agents, setAgents] = useState<DemoAgentOption[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -50,16 +47,6 @@ export default function DemoDashboardClient({ token }: { token: string }) {
           // Backend may wrap in { data: [...] } envelope or return array directly
           const runsArray = Array.isArray(runsData) ? runsData : (runsData?.data ?? []);
           setPastRuns(runsArray);
-        }
-
-        // Voice agents the prospect can choose between (empty = env default agent)
-        const agentsRes = await fetch(`${backendUrl}/api/v1/demo-leads/agents`);
-        if (agentsRes.ok) {
-          const agentsData = await agentsRes.json();
-          const list: DemoAgentOption[] = Array.isArray(agentsData) ? agentsData : (agentsData?.data ?? []);
-          setAgents(list);
-          const initial = list.find((a) => a.isDefault) ?? list[0];
-          if (initial) setSelectedAgentId(initial.id);
         }
       } catch (err) {
         if (process.env.NODE_ENV === 'development') {
@@ -146,16 +133,10 @@ export default function DemoDashboardClient({ token }: { token: string }) {
 
         <DemoStatCards />
 
-        <DemoAgentSelector
-          agents={agents}
-          selectedId={selectedAgentId}
-          onSelect={setSelectedAgentId}
-        />
-
+        {/* Prospects get the single default agent; no model or tone picker here */}
         <div className="mt-8">
           <DemoOutstandingTable
             token={token}
-            selectedAgentId={selectedAgentId}
             whatsappUsed={lead.whatsappUsed}
             whatsappAllowed={lead.whatsappAllowed}
             callsUsed={lead.callsUsed}

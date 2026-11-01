@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsEnum, IsIn, IsNumber, IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DemoType } from '@prisma/client';
 
@@ -55,6 +55,12 @@ export class RunDemoDto {
   @IsString()
   @IsOptional()
   demoAgentId?: string;
+
+  // AI model for voice calls: "A" (best, uses the voice agent above), "B" or
+  // "C" (use that model's platform agent set in /admin/models). Optional.
+  @IsIn(['A', 'B', 'C'])
+  @IsOptional()
+  modelTier?: 'A' | 'B' | 'C';
 
   // Partial payment: how much was paid before on this bill
   @IsNumber()

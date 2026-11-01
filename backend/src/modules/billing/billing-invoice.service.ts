@@ -188,6 +188,16 @@ export class BillingInvoiceService {
                 ]
               : []),
           ]
+        : payment.type === 'CREDITS'
+          ? [
+              {
+                description:
+                  payment.credit_kind === 'WHATSAPP'
+                    ? `PraecisAI WhatsApp credits: ${(payment.credit_units ?? 0).toLocaleString('en-IN')} messages${payment.is_autopay ? ' (autopay)' : ''}`
+                    : `PraecisAI AI calling credits: ${(payment.credit_units ?? 0).toLocaleString('en-IN')} minutes${payment.credit_pack?.match(/^CALL_([ABC])_/) ? ` (Model ${payment.credit_pack.split('_')[1]})` : ''}${payment.is_autopay ? ' (autopay)' : ''}`,
+                amount: payment.base_amount,
+              },
+            ]
         : payment.type === 'TRIAL'
           ? [
               {

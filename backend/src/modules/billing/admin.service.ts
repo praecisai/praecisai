@@ -5,6 +5,8 @@ import { TenantKeysService } from './tenant-keys.service';
 import { isAllowedCouponPercent, planFromAmount } from './billing-math.util';
 import { isPlatformOwner } from '../../common/constants/platform-owner';
 import { SEGMENT_STYLES, VALID_STYLE_SLUGS, DEFAULT_STYLE } from '../demo/segment-styles';
+import { CreditsService } from './credits.service';
+import { isCreditKind, isModelTier } from './credit-packs.util';
 
 export interface UpsertTenantDto {
   name?: string;
@@ -22,6 +24,20 @@ export interface UpsertTenantDto {
   gstin?: string;
   handoffNumber?: string;
   city?: string;
+  // AI model this tenant dials with ("A" | "B" | "C") and the agent ids of
+  // models B and C on the tenant's Bolna account (empty string clears)
+  callModelTier?: string;
+  bolnaAgentIdB?: string;
+  bolnaAgentIdC?: string;
+  // Prepaid credits on/off for this tenant
+  creditBilling?: boolean;
+}
+
+export interface UpdateModelTierDto {
+  label?: string;
+  description?: string;
+  demoAgentId?: string;
+  active?: boolean;
 }
 
 export interface UpsertDemoAgentDto {
@@ -53,6 +69,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private tenantKeys: TenantKeysService,
+    private credits: CreditsService,
   ) {}
 
   // ─── Tenants ────────────────────────────────────────────────────────────────
@@ -183,6 +200,10 @@ export class AdminService {
         aisensy_api_key: true,
         trial_ends_at: true,
         created_at: true,
+        call_model_tier: true,
+        bolna_agent_id_b: true,
+        bolna_agent_id_c: true,
+        credit_billing: true,
         billing_subscriptions: true,
         users: { select: { email: true, phone: true, role: true, status: true } },
       },
@@ -206,6 +227,7 @@ export class AdminService {
 
     const { bolna_api_key, aisensy_api_key, bolna_agent_id, ...safe } = business;
     const trialActive = !!business.trial_ends_at && business.trial_ends_at > new Date();
+    const credits = await this.credits.getAccount(id);
 
     // Internal/demo tenant: a platform-owner login is on it. Billing & payment
     // never apply to these, so the admin UI hides those sections.
@@ -214,6 +236,12 @@ export class AdminService {
     return {
       ...safe,
       is_internal: isInternal,
+      credits: {
+        call: Math.round(credits.call_credits * 100) / 100,
+        whatsapp: Math.round(credits.whatsapp_credits * 100) / 100,
+        autopay_enabled: credits.autopay_enabled,
+        autopay_status: credits.autopay_status,
+      },
       keys: previews,
       allowed_emails: allowedEmails,
       checklist: {
@@ -247,6 +275,9 @@ export class AdminService {
     const business = await this.prisma.business.create({
       data: {
         name: dto.name.trim(),
+        // New tenants are on prepaid credits; untick in the tenant page for a
+        // legacy direct-billing customer
+        credit_billing: true,
         billing_email: dto.billingEmail?.trim() || null,
         gstin: dto.gstin?.trim() || null,
         handoff_number: dto.handoffNumber?.trim() || null,
@@ -299,6 +330,15 @@ export class AdminService {
           ? { handoff_number: dto.handoffNumber?.trim() || null }
           : {}),
         ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
+        ...(dto.callModelTier !== undefined
+          ? (() => {
+              if (!isModelTier(dto.callModelTier)) throw new BadRequestException('AI model must be A, B or C');
+              return { call_model_tier: dto.callModelTier };
+            })()
+          : {}),
+        ...(dto.bolnaAgentIdB !== undefined ? { bolna_agent_id_b: dto.bolnaAgentIdB?.trim() || null } : {}),
+        ...(dto.bolnaAgentIdC !== undefined ? { bolna_agent_id_c: dto.bolnaAgentIdC?.trim() || null } : {}),
+        ...(dto.creditBilling !== undefined ? { credit_billing: !!dto.creditBilling } : {}),
         ...(dto.lowBalanceThresholdUsd !== undefined
           ? { low_balance_threshold_usd: dto.lowBalanceThresholdUsd }
           : {}),
@@ -443,6 +483,53 @@ export class AdminService {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
     if (!coupon) throw new NotFoundException('Coupon not found');
     return this.prisma.coupon.update({ where: { id }, data: { active } });
+  }
+
+  // ─── AI models (A best, B 2nd best, C 3rd best) ─────────────────────────────
+  // Global names + the platform agent each model uses on the demo dashboard.
+  // Per-tenant agent ids for B/C are set on the tenant (updateTenant).
+
+  listModelTiers() {
+    return this.prisma.callModelTier.findMany({ orderBy: { tier: 'asc' } });
+  }
+
+  async updateModelTier(tier: string, dto: UpdateModelTierDto) {
+    if (!isModelTier(tier)) throw new BadRequestException('Unknown model');
+    if (dto.label !== undefined && !dto.label.trim()) throw new BadRequestException('Name cannot be empty');
+    return this.prisma.callModelTier.upsert({
+      where: { tier },
+      create: {
+        tier,
+        label: dto.label?.trim() || `Model ${tier}`,
+        description: dto.description?.trim() ?? '',
+        demo_agent_id: dto.demoAgentId?.trim() || null,
+        active: dto.active ?? true,
+      },
+      update: {
+        ...(dto.label !== undefined ? { label: dto.label.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description.trim() } : {}),
+        ...(dto.demoAgentId !== undefined ? { demo_agent_id: dto.demoAgentId.trim() || null } : {}),
+        ...(dto.active !== undefined ? { active: !!dto.active } : {}),
+      },
+    });
+  }
+
+  // ─── Credits (manual adjustments / opening balances) ─────────────────────────
+
+  async adjustCredits(id: string, body: { kind: string; delta: number; note?: string }) {
+    const exists = await this.prisma.business.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Tenant not found');
+    if (!isCreditKind(body.kind)) throw new BadRequestException('kind must be CALL or WHATSAPP');
+    await this.credits.adminAdjust(id, body.kind, Number(body.delta), body.note?.trim() || 'Adjusted by PraecisAI');
+    return this.getTenant(id);
+  }
+
+  creditHistory(id: string) {
+    return this.prisma.creditTransaction.findMany({
+      where: { business_id: id },
+      orderBy: { created_at: 'desc' },
+      take: 100,
+    });
   }
 
   // ─── Demo voice agents ───────────────────────────────────────────────────────

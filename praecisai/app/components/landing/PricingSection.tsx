@@ -6,12 +6,10 @@ import {
   IconCheck,
   IconArrowRight,
   IconShieldCheck,
-  IconBrandWhatsapp,
-  IconPhone,
-  IconInfoCircle,
 } from '@tabler/icons-react';
 import { itemVariants, sectionVariants, viewportOnce } from './motion';
 import AnimatedHeading from './AnimatedHeading';
+import CreditPricingTables from '../marketing/CreditPricingTables';
 import { handleAnchorClick } from '@/lib/utils/scroll-to-section';
 
 function scrollToDemo(e: React.MouseEvent) {
@@ -44,25 +42,6 @@ const setupIncluded = [
   'AI voice call system setup',
   'Team training & onboarding sessions',
   '7-day post-launch hand-holding support',
-];
-
-const addOnCards = [
-  {
-    icon: IconPhone,
-    title: 'AI Voice Calls',
-    subtitle: 'Charged per call',
-    description:
-      'Human-sounding Hindi and English calls that follow up on dues for you. You pay only for the calls that actually go out: no minimum, no prepaid pack.',
-    note: 'Every call, its duration and cost is listed in your Billing & Usage page',
-  },
-  {
-    icon: IconBrandWhatsapp,
-    title: 'WhatsApp Messages',
-    subtitle: 'Charged per message',
-    description:
-      'Reminders and PDF statements sent straight to your parties on WhatsApp. You pay only for the messages that are sent: nothing when it is quiet.',
-    note: 'Exact per-call and per-message rates are shared before you start',
-  },
 ];
 
 export default function PricingSection() {
@@ -299,36 +278,9 @@ export default function PricingSection() {
             Pay as you go: calls &amp; WhatsApp
           </p>
           <p className="mx-auto mb-5 max-w-xl text-center font-body text-[12px] sm:text-[13.5px] leading-relaxed text-[var(--walnut)]">
-            Calls and WhatsApp messages are not part of the platform fee. They are charged separately,
-            only for what you actually use, so a quiet month costs you less.
+            Top up only what you use. 1 credit = 1 minute of calling or 1 WhatsApp message.
           </p>
-          <div className="grid gap-4 sm:gap-5 sm:grid-cols-2">
-            {addOnCards.map(({ icon: Icon, title, subtitle, description, note }) => (
-              <div
-                key={title}
-                className="flex flex-col gap-3 sm:gap-4 rounded-2xl border border-[var(--caramel)]/50 bg-[var(--surface-warm)] px-5 py-4 sm:px-7 sm:py-6 text-left shadow-[0_4px_20px_rgba(127,85,57,0.07)]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--mahogany)]/10">
-                    <Icon size={17} className="text-[var(--mahogany)]" stroke={1.75} />
-                  </div>
-                  <div>
-                    <p className="font-display text-[13px] sm:text-[15px] font-semibold text-[var(--dark-brown)]">
-                      {title}
-                    </p>
-                    <p className="font-body text-[11px] sm:text-[12px] text-[var(--walnut)]">{subtitle}</p>
-                  </div>
-                </div>
-                <p className="font-body text-[12px] sm:text-[13.5px] leading-relaxed text-[var(--walnut)]">
-                  {description}
-                </p>
-                <div className="flex items-center gap-2 rounded-lg bg-[var(--sand)] px-3 py-2 sm:px-4 sm:py-2.5">
-                  <IconInfoCircle size={13} className="shrink-0 text-[var(--mahogany)]" stroke={2} />
-                  <p className="font-body text-[11px] sm:text-[12px] text-[var(--dark-brown)]/70">{note}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CreditPricingTables />
         </motion.div>
 
         {/* ── Bottom trust note ── */}

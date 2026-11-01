@@ -13,6 +13,7 @@ import { BillingInvoiceService } from './billing-invoice.service';
 import { TenantKeysService } from './tenant-keys.service';
 import { BolnaUsageService } from './bolna-usage.service';
 import { SalesSheetService } from './sales-sheet.service';
+import { CreditsService } from './credits.service';
 import {
   computeOnboardingQuote,
   computeTrialQuote,
@@ -44,6 +45,7 @@ export class BillingService {
     private tenantKeys: TenantKeysService,
     private bolnaUsage: BolnaUsageService,
     private salesSheet: SalesSheetService,
+    private credits: CreditsService,
   ) {}
 
   // ─── Coupons ────────────────────────────────────────────────────────────────
@@ -580,6 +582,7 @@ export class BillingService {
       this.invoices.listForTenant(businessId),
       this.notifications.openBanners(businessId),
     ]);
+    const creditBanners = await this.credits.lowCreditBanners(businessId);
 
     const onboardingPayment = payments.find((p) => p.type === 'ONBOARDING' && p.status === 'PAID') ?? null;
 
@@ -600,7 +603,7 @@ export class BillingService {
       onboarding_payment: onboardingPayment,
       payments,
       invoices: invoiceList,
-      banners,
+      banners: [...creditBanners, ...banners],
     };
   }
 
@@ -622,7 +625,9 @@ export class BillingService {
     const from = new Date(Date.UTC(year, monthIdx, 1) - IST_OFFSET_MS);
     const to = new Date(Date.UTC(year, monthIdx + 1, 1) - IST_OFFSET_MS);
 
-    const [calls, whatsappCount, snapshots, praecisPayments] = await Promise.all([
+    // Customers see usage in credits only (1 call credit = 1 minute, 1
+    // WhatsApp credit = 1 message): never the platform cost behind it.
+    const [calls, whatsappSent, usage] = await Promise.all([
       this.prisma.callLog.findMany({
         where: { business_id: businessId, created_at: { gte: from, lt: to } },
         select: {
@@ -630,7 +635,6 @@ export class BillingService {
           created_at: true,
           call_status: true,
           duration_seconds: true,
-          bolna_cost_usd: true,
           recording_url: true,
           customer: { select: { customer_name: true } },
         },
@@ -638,58 +642,49 @@ export class BillingService {
         take: 500,
       }),
       this.prisma.whatsAppLog.count({
-        where: { business_id: businessId, created_at: { gte: from, lt: to } },
+        where: { business_id: businessId, delivery_status: 'SENT', created_at: { gte: from, lt: to } },
       }),
-      this.prisma.usageSnapshot.findMany({
-        where: {
-          business_id: businessId,
-          source: 'BOLNA',
-          captured_at: { gte: from, lt: to },
-        },
-        orderBy: { captured_at: 'asc' },
-        select: { balance: true, captured_at: true },
-      }),
-      this.prisma.billingPayment.findMany({
-        where: {
-          business_id: businessId,
-          status: 'PAID',
-          paid_at: { gte: from, lt: to },
-        },
-        orderBy: { paid_at: 'asc' },
+      this.prisma.creditTransaction.findMany({
+        where: { business_id: businessId, reason: 'USAGE', created_at: { gte: from, lt: to } },
+        select: { kind: true, delta: true, ref_id: true },
       }),
     ]);
 
-    const totalSeconds = calls.reduce((s, c) => s + (c.duration_seconds ?? 0), 0);
-    const bolnaSpendUsd = calls.reduce((s, c) => s + (c.bolna_cost_usd ?? 0), 0);
+    const callCredits = new Map<string, number>();
+    let callCreditsUsed = 0;
+    let whatsappCreditsUsed = 0;
+    for (const u of usage) {
+      if (u.kind === 'CALL') {
+        callCreditsUsed += -u.delta;
+        if (u.ref_id) callCredits.set(u.ref_id, -u.delta);
+      } else {
+        whatsappCreditsUsed += -u.delta;
+      }
+    }
+    const totalSeconds = calls.reduce((sum, c) => sum + (c.duration_seconds ?? 0), 0);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
 
     return {
       month: `${year}-${String(monthIdx + 1).padStart(2, '0')}`,
       range: { from, to },
-      // What the client pays PRAECIS (subscription/onboarding)
-      praecis: {
-        payments: praecisPayments,
-        total_paise: praecisPayments.reduce((s, p) => s + p.total_amount, 0),
+      calls: {
+        made: calls.length,
+        total_minutes: Math.round((totalSeconds / 60) * 10) / 10,
+        credits_used: round2(callCreditsUsed),
+        per_call: calls.map((c) => ({
+          id: c.id,
+          at: c.created_at,
+          customer: c.customer?.customer_name ?? '-',
+          status: c.call_status,
+          duration_seconds: c.duration_seconds,
+          // null = not charged (no talk time, or the business is not on credits)
+          credits_used: callCredits.has(c.id) ? round2(callCredits.get(c.id)!) : null,
+          recording_url: c.recording_url,
+        })),
       },
-      // What the client spends on THEIR OWN platform accounts
-      platforms: {
-        bolna: {
-          calls_made: calls.length,
-          total_minutes: Math.round((totalSeconds / 60) * 10) / 10,
-          est_spend_usd: Math.round(bolnaSpendUsd * 100) / 100,
-          per_call: calls.map((c) => ({
-            id: c.id,
-            at: c.created_at,
-            customer: c.customer?.customer_name ?? '-',
-            status: c.call_status,
-            duration_seconds: c.duration_seconds,
-            cost_usd: c.bolna_cost_usd,
-            recording_url: c.recording_url,
-          })),
-          balance_history: snapshots,
-        },
-        aisensy: {
-          messages_sent: whatsappCount,
-        },
+      whatsapp: {
+        sent: whatsappSent,
+        credits_used: round2(whatsappCreditsUsed),
       },
     };
   }

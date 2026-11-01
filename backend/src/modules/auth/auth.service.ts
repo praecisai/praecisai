@@ -106,7 +106,8 @@ export class AuthService {
     // Create business + owner in transaction
     return this.prisma.$transaction(async (tx) => {
       const business = await tx.business.create({
-        data: { name: dto.businessName },
+        // New signups are on prepaid credits from day one
+        data: { name: dto.businessName, credit_billing: true },
       });
 
       const user = await tx.user.create({

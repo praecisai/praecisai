@@ -291,7 +291,7 @@ export default function OnboardingPaymentPage() {
                   {!quote && ' Have a discount coupon? Apply it below.'}
                 </p>
                 <p className="text-xs text-[var(--walnut)]">
-                  AI calls and WhatsApp messages are pay as you go, paid directly to Bolna and AiSensy.
+                  AI calls and WhatsApp messages use prepaid credits, bought separately in Billing &amp; Usage.
                 </p>
               </div>
             </div>

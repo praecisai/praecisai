@@ -1,9 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { DelayedError, Job } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DemoRunStatus, CallStatus } from '@prisma/client';
 import { TenantKeysService } from '../../billing/tenant-keys.service';
 import { CallerNumberService } from '../../billing/caller-number.service';
+import { CreditsHeldError, CreditsService } from '../../billing/credits.service';
 
 // Pacing: one dial every 5s (~12/min, ~720/hr). Indian operators flag a CLI
 // that emits a dense burst of short, unanswered calls, and a flagged CLI is
@@ -21,11 +22,12 @@ export class CallProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly tenantKeys: TenantKeysService,
     private readonly callerNumbers: CallerNumberService,
+    private readonly credits: CreditsService,
   ) {
     super();
   }
 
-  async process(job: Job<any, any, string>): Promise<any> {
+  async process(job: Job<any, any, string>, token?: string): Promise<any> {
     const { demoLeadId, callLogId, businessId, phoneNumber, context, bolnaAgentId } = job.data;
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
@@ -44,6 +46,27 @@ export class CallProcessor extends WorkerHost {
     // customer sees a number that rotates, cannot be called back, and carries
     // none of the tenant's Truecaller verification.
     let fromNumber = process.env.BOLNA_FROM_NUMBER || '';
+
+    // Prepaid credits: a call queued while minutes remained may reach the
+    // front of the queue after they ran out. Skip it (no retry) rather than dial.
+    // Minutes held by calls still in progress only delay it by a minute.
+    if (callLogId && businessId) {
+      try {
+        await this.credits.assertCanCall(businessId, { reserveInFlight: true });
+      } catch (err: any) {
+        if (err instanceof CreditsHeldError && token) {
+          await job.moveToDelayed(Date.now() + 60_000, token);
+          throw new DelayedError();
+        }
+        await this.prisma.callLog.update({
+          where: { id: callLogId },
+          data: { call_status: CallStatus.FAILED, status_reason: 'Out of call credits' },
+        });
+        console.warn(`Skipped callLog ${callLogId}: ${err?.message}`);
+        return { skipped: true, reason: 'OUT_OF_CREDITS' };
+      }
+    }
+
     if (callLogId && businessId) {
       const keys = await this.tenantKeys.getBolnaKeys(businessId);
       if (keys.apiKey) apiKey = keys.apiKey;

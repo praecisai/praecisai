@@ -674,6 +674,19 @@ export class DemoService {
 
   // Public list for the dashboard agent picker. Only cosmetic fields — never the
   // Bolna agent_id or the internal script style.
+  /** Public: the AI models a prospect can try. B/C need a demo agent in admin. */
+  async listModelsForDashboard() {
+    const tiers = await this.demoLeadRepo.listModelTiers();
+    return tiers
+      .filter((t) => t.active)
+      .map((t) => ({
+        tier: t.tier,
+        label: t.label,
+        description: t.description,
+        available: t.tier === 'A' || !!t.demo_agent_id,
+      }));
+  }
+
   async listAgentsForDashboard() {
     const agents = await this.demoLeadRepo.listActiveAgents();
     return agents.map((a) => ({
@@ -814,9 +827,18 @@ export class DemoService {
     // Resolve the selected voice agent (tone + voice). Falls back to the default
     // active agent, then to the env Bolna agent, so demo calls never break even
     // before any DemoAgent rows exist. Only calls use an agent; WhatsApp skips it.
-    const agent = isCall ? await this.demoLeadRepo.resolveDemoAgent(dto.demoAgentId) : null;
+    // AI model B / C: dial that model's platform agent with the default script
+    // style. Model A (or a B/C with no agent yet) keeps the voice-agent choice.
+    const modelTier =
+      isCall && dto.modelTier && dto.modelTier !== 'A'
+        ? await this.demoLeadRepo.findModelTier(dto.modelTier)
+        : null;
+    const useModelAgent = !!(modelTier?.active && modelTier.demo_agent_id);
+    const agent = isCall && !useModelAgent ? await this.demoLeadRepo.resolveDemoAgent(dto.demoAgentId) : null;
     const scriptStyle = agent?.script_style || DEFAULT_STYLE;
-    const bolnaAgentId = agent?.bolna_agent_id || process.env.BOLNA_AGENT_ID || '';
+    const bolnaAgentId = useModelAgent
+      ? modelTier!.demo_agent_id!
+      : agent?.bolna_agent_id || process.env.BOLNA_AGENT_ID || '';
     const segmentInstructions = buildSegmentInstructions(dto.segment, lead.business_name, scriptStyle);
 
     // Rule 1: Multi-invoice: use total across all bills, not just current bill

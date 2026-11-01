@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { IconCheck, IconShieldCheck, IconInfoCircle } from '@tabler/icons-react';
+import { IconCheck, IconShieldCheck } from '@tabler/icons-react';
 import MarketingPage, { SITE_URL } from '../components/marketing/MarketingPage';
+import CreditPricingTables from '../components/marketing/CreditPricingTables';
 import { PageHero, Section, FaqList, CtaBand, RelatedLinks } from '../components/marketing/blocks';
 
 export const metadata: Metadata = {
@@ -37,24 +38,11 @@ const trialPlans = [
   { price: '₹10,000', days: 10, note: 'Shorter run', featured: false },
 ];
 
-const addOns = [
-  {
-    title: 'AI voice calls',
-    subtitle: 'Charged per call',
-    body: 'Hindi and English AI calls that follow up on dues for you, only in the time slots you allow. You pay only for the calls that actually go out: no minimum, no prepaid pack.',
-  },
-  {
-    title: 'WhatsApp messages',
-    subtitle: 'Charged per message',
-    body: 'Reminders and PDF statements delivered to your parties on WhatsApp. You pay only for the messages that are sent, so a quiet month costs you less.',
-  },
-];
-
 const faqs = [
   {
     question: 'What does PraecisAI cost?',
     answer:
-      '₹5,000 per month, or ₹40,000 for a full year (instead of ₹60,000, so you save ₹20,000). There is no setup cost on either plan. AI calls and WhatsApp messages are charged separately, pay as you go, at per-call and per-message rates shared before you start.',
+      '₹5,000 per month, or ₹40,000 for a full year (instead of ₹60,000, so you save ₹20,000). There is no setup cost on either plan. AI calls and WhatsApp messages are paid with prepaid credits: 1 credit is 1 minute of calling or 1 WhatsApp message, starting at ₹5.17 a minute and ₹0.80 a message.',
   },
   {
     question: 'Is there a contract or lock-in?',
@@ -69,7 +57,7 @@ const faqs = [
   {
     question: 'How are calls and WhatsApp messages charged?',
     answer:
-      'Pay as you go. Each AI call and each WhatsApp message is charged separately, only when it is actually made or sent. There is no minimum and no prepaid pack, and every call with its duration and cost is listed in your Billing & Usage page.',
+      'With prepaid credits: 1 credit is 1 minute of calling or 1 WhatsApp message. You only pay for calls that get answered and messages that get delivered. Top up anytime or turn on autopay, and your credits never expire.',
   },
   {
     question: 'Does the price change with the number of parties?',
@@ -131,7 +119,7 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="AI Collections Agent Pricing in India"
-        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month, or ₹40,000 for a full year, with zero setup cost. AI calls and WhatsApp messages are pay as you go: charged separately, only for what you use. No lock-in, no per-party pricing, no surprises on the invoice."
+        lead="AI collections agent pricing should not require a sales call to discover. PraecisAI is ₹5,000 per month, or ₹40,000 for a full year, with zero setup cost. AI calls and WhatsApp messages run on prepaid credits (1 credit = 1 minute or 1 message), so you pay only for what you use. No lock-in, no per-party pricing, no surprises on the invoice."
       />
 
       <Section tone="cream">
@@ -265,30 +253,9 @@ export default function PricingPage() {
       <Section
         tone="warm"
         title="Pay as you go: calls and WhatsApp"
-        intro="Calls and WhatsApp messages are not part of the platform fee. They are charged separately, only for what you actually use, so a quiet month costs less than a heavy one."
+        intro="Top up only what you use. 1 credit = 1 minute of calling or 1 WhatsApp message."
       >
-        <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
-          {addOns.map((addOn) => (
-            <div
-              key={addOn.title}
-              className="rounded-2xl border border-[var(--caramel)] bg-[var(--cream)] p-5 sm:p-7"
-            >
-              <p className="font-display text-[15px] font-semibold text-[var(--dark-brown)] sm:text-[17px]">
-                {addOn.title}
-              </p>
-              <p className="mt-0.5 font-body text-[12px] text-[var(--walnut)]">{addOn.subtitle}</p>
-              <p className="mt-3 font-body text-[13px] leading-[1.75] text-[var(--walnut)] sm:text-[14px]">
-                {addOn.body}
-              </p>
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--sand)] px-3.5 py-2.5">
-                <IconInfoCircle size={13} className="shrink-0 text-[var(--mahogany)]" stroke={2} />
-                <p className="font-body text-[12px] text-[var(--dark-brown)]/75">
-                  Exact rates shared before you start · every charge visible in Billing &amp; Usage
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <CreditPricingTables />
       </Section>
 
       <Section tone="cream" title="Pricing questions">

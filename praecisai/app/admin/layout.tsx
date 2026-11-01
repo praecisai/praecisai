@@ -11,7 +11,7 @@ import {
 } from '../../lib/api/hooks';
 import {
   Building2, Bell, TicketPercent, ReceiptText,
-  ShieldCheck, LogOut, KeyRound, Bot,
+  ShieldCheck, LogOut, KeyRound, Bot, Cpu,
 } from 'lucide-react';
 import { AnimatedThemeToggler } from '../../registry/magicui/animated-theme-toggler';
 
@@ -19,6 +19,7 @@ const NAV = [
   { href: '/admin/tenants', label: 'Tenants', icon: Building2 },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent },
+  { href: '/admin/models', label: 'AI Models', icon: Cpu },
   { href: '/admin/demo-agents', label: 'Demo Agents', icon: Bot },
   { href: '/admin/billing', label: 'Billing', icon: ReceiptText },
 ];

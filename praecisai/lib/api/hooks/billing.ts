@@ -61,17 +61,6 @@ export function useBillingUsage(month?: string) {
   });
 }
 
-export function useBillingPlatforms() {
-  return useQuery({
-    queryKey: ['billing', 'platforms'],
-    queryFn: async () => {
-      const res = await api.get('/billing/platforms');
-      return res.data.data;
-    },
-    staleTime: 60_000,
-  });
-}
-
 // ─── Self-serve platform keys ─────────────────────────────────────────────────
 
 /** Connection status + last-4 previews for the tenant's own Bolna/AiSensy keys. */
@@ -512,6 +501,150 @@ export function useAdminInvoicePdf() {
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 /** Paise → "₹1,234.56" (UI can use the rupee glyph; PDFs cannot). */
+// ─── Prepaid credits ──────────────────────────────────────────────────────────
+
+/** Balances, packs for the business's AI model, autopay state, ledger. */
+export function useCredits() {
+  return useQuery({
+    queryKey: ['billing', 'credits'],
+    queryFn: async () => {
+      const res = await api.get('/billing/credits');
+      return res.data.data;
+    },
+    staleTime: 15_000,
+  });
+}
+
+export function useSetCreditThresholds() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { call?: number; whatsapp?: number }) => api.patch('/billing/credits/thresholds', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useCreateCreditCheckout() {
+  return useMutation({
+    mutationFn: async (pack_id: string) => {
+      const res = await api.post('/billing/credits/checkout', { pack_id });
+      return res.data.data;
+    },
+  });
+}
+
+/** Verifies a manual purchase or an autopay setup payment. */
+export function useVerifyCreditCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { order_id: string; payment_id: string; signature: string }) =>
+      api.post('/billing/credits/verify', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useSetupAutopay() {
+  return useMutation({
+    mutationFn: async (data: { call_pack: string | null; whatsapp_pack: string | null; method: 'upi' | 'card' }) => {
+      const res = await api.post('/billing/credits/autopay', data);
+      return res.data.data;
+    },
+  });
+}
+
+export function useUpdateAutopayPacks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { call_pack?: string | null; whatsapp_pack?: string | null }) =>
+      api.patch('/billing/credits/autopay', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+export function useDisableAutopay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete('/billing/credits/autopay'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+/** Mock mode only: settle a pending credits order without Razorpay. */
+export function useSimulateCreditsPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order_id: string) => api.post('/billing/dev/simulate-credits-paid', { order_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
+  });
+}
+
+// ─── AI model (A best, B 2nd best, C 3rd best) ───────────────────────────────
+
+export function useCallModel() {
+  return useQuery({
+    queryKey: ['call-model'],
+    queryFn: async () => {
+      const res = await api.get('/call-model');
+      return res.data.data;
+    },
+  });
+}
+
+/** Platform-owner logins only (the backend refuses everyone else). */
+export function useSetCallModel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tier: 'A' | 'B' | 'C') => api.patch('/call-model', { tier }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['call-model'] });
+      qc.invalidateQueries({ queryKey: ['billing'] });
+    },
+  });
+}
+
+// ─── Admin: AI models + tenant credits ────────────────────────────────────────
+
+export function useAdminModelTiers() {
+  return useQuery({
+    queryKey: ['admin', 'models'],
+    queryFn: async () => {
+      const res = await adminApi.get('/admin/models');
+      return res.data.data;
+    },
+  });
+}
+
+export function useAdminUpdateModelTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tier, ...data }: { tier: string; label?: string; description?: string; demoAgentId?: string; active?: boolean }) =>
+      adminApi.patch(`/admin/models/${tier}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'models'] }),
+  });
+}
+
+export function useAdminAdjustCredits(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { kind: 'CALL' | 'WHATSAPP'; delta: number; note?: string }) =>
+      adminApi.post(`/admin/tenants/${id}/credits`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'tenants', id] });
+      qc.invalidateQueries({ queryKey: ['admin', 'tenant-credits', id] });
+    },
+  });
+}
+
+export function useAdminCreditHistory(id: string) {
+  return useQuery({
+    queryKey: ['admin', 'tenant-credits', id],
+    queryFn: async () => {
+      const res = await adminApi.get(`/admin/tenants/${id}/credits`);
+      return res.data.data;
+    },
+    enabled: !!id,
+  });
+}
+
 export function formatPaise(paise: number | null | undefined): string {
   if (paise === null || paise === undefined) return '-';
   return `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

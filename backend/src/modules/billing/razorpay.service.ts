@@ -69,7 +69,7 @@ export class RazorpayService {
       this.logger.error(`Razorpay ${method} ${path} failed (${res.status}): ${text}`);
       throw new InternalServerErrorException('Payment gateway request failed');
     }
-    return JSON.parse(text) as T;
+    return (text ? JSON.parse(text) : {}) as T;
   }
 
   /**
@@ -165,6 +165,125 @@ export class RazorpayService {
       receipt: opts.receipt,
       notes: opts.notes,
     });
+  }
+
+  // ─── Recurring (autopay) ───────────────────────────────────────────────────
+  // Razorpay Recurring Payments: an authorisation order (method + token block)
+  // is paid once through Checkout with recurring=1, which saves a token on the
+  // customer. Later debits charge that token server-side via
+  // /payments/create/recurring. Requires Recurring Payments to be enabled on
+  // the Razorpay account (UPI Autopay and/or cards).
+
+  /** Get-or-create a Razorpay customer. fail_existing=0 returns the existing one. */
+  async createCustomer(opts: { name: string; email?: string | null; contact?: string | null; notes?: Record<string, string> }): Promise<{ id: string }> {
+    if (this.isMock) return { id: `cust_mock_${crypto.randomBytes(6).toString('hex')}` };
+    return this.request('POST', '/customers', {
+      name: opts.name.slice(0, 50),
+      ...(opts.email ? { email: opts.email } : {}),
+      ...(opts.contact ? { contact: opts.contact } : {}),
+      fail_existing: '0',
+      notes: opts.notes ?? {},
+    });
+  }
+
+  /**
+   * Authorisation order for autopay. The customer pays `amountPaise` now (their
+   * first pack) and in the same step approves a mandate for later debits of up
+   * to `maxAmountPaise` each, charged "as presented" (variable amounts).
+   */
+  async createRecurringAuthOrder(opts: {
+    amountPaise: number;
+    customerId: string;
+    method: 'upi' | 'card';
+    maxAmountPaise: number;
+    receipt: string;
+    notes: Record<string, string>;
+  }): Promise<{ id: string; status: string }> {
+    if (this.isMock) {
+      const id = `order_mock_${crypto.randomBytes(8).toString('hex')}`;
+      this.logger.log(`[MOCK] Created recurring auth order ${id} for ${opts.amountPaise} paise`);
+      return { id, status: 'created' };
+    }
+    // Mandate valid for 5 years; the customer can cancel it any time.
+    const expireAt = Math.floor(Date.now() / 1000) + 5 * 365 * 24 * 60 * 60;
+    return this.request('POST', '/orders', {
+      amount: opts.amountPaise,
+      currency: 'INR',
+      customer_id: opts.customerId,
+      method: opts.method,
+      payment_capture: 1,
+      receipt: opts.receipt,
+      notes: opts.notes,
+      token: {
+        max_amount: opts.maxAmountPaise,
+        expire_at: expireAt,
+        frequency: 'as_presented',
+      },
+    });
+  }
+
+  /**
+   * Charge a saved token (a later autopay debit). For UPI Autopay the bank
+   * debits only after a pre-debit notice (about 24 hours), so the result is
+   * usually "created"/"pending": credits are added when payment.captured
+   * arrives (webhook) or when the pending payment is reconciled.
+   */
+  async createRecurringPayment(opts: {
+    orderId: string;
+    customerId: string;
+    tokenId: string;
+    amountPaise: number;
+    email: string;
+    contact: string;
+    description: string;
+    notes: Record<string, string>;
+  }): Promise<{ razorpay_payment_id: string; razorpay_order_id?: string }> {
+    if (this.isMock) {
+      return { razorpay_payment_id: `pay_mock_${crypto.randomBytes(8).toString('hex')}`, razorpay_order_id: opts.orderId };
+    }
+    return this.request('POST', '/payments/create/recurring', {
+      email: opts.email,
+      contact: opts.contact,
+      amount: opts.amountPaise,
+      currency: 'INR',
+      order_id: opts.orderId,
+      customer_id: opts.customerId,
+      token: opts.tokenId,
+      recurring: '1',
+      description: opts.description,
+      notes: opts.notes,
+    });
+  }
+
+  async fetchCustomer(customerId: string): Promise<{ id: string; email?: string; contact?: string }> {
+    if (this.isMock) return { id: customerId, email: 'mock@example.com', contact: '+919999999999' };
+    return this.request('GET', `/customers/${customerId}`);
+  }
+
+  async fetchPayment(paymentId: string): Promise<any> {
+    if (this.isMock) return { id: paymentId, status: 'captured', method: 'upi', token_id: `token_mock_${paymentId.slice(-6)}` };
+    return this.request('GET', `/payments/${paymentId}`);
+  }
+
+  /** All payment attempts on an order (used to reconcile when no webhook arrived). */
+  async fetchOrderPayments(orderId: string): Promise<any[]> {
+    if (this.isMock) return [];
+    const res = await this.request<{ items?: any[] }>('GET', `/orders/${orderId}/payments`);
+    return res?.items ?? [];
+  }
+
+  /** Token status: recurring_details.status is "initiated" | "confirmed" | "rejected" | "cancelled" | "paused". */
+  async fetchToken(customerId: string, tokenId: string): Promise<any> {
+    if (this.isMock) return { id: tokenId, recurring_details: { status: 'confirmed' } };
+    return this.request('GET', `/customers/${customerId}/tokens/${tokenId}`);
+  }
+
+  async deleteToken(customerId: string, tokenId: string): Promise<void> {
+    if (this.isMock) {
+      this.logger.log(`[MOCK] Deleted token ${tokenId}`);
+      return;
+    }
+    await this.request('DELETE', `/customers/${customerId}/tokens/${tokenId}`);
   }
 
   /** Checkout-callback signature for ORDER payments: HMAC(order_id|payment_id). */

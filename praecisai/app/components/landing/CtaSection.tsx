@@ -89,7 +89,7 @@ export default function CtaSection() {
           variants={itemVariants}
           className="mt-7 font-body text-[12px] tracking-wide text-[var(--walnut)]"
         >
-          ₹5,000 / month or ₹40,000 / year · ₹0 setup · calls &amp; WhatsApp pay as you go
+          ₹5,000 / month or ₹40,000 / year · ₹0 setup · calls &amp; WhatsApp on prepaid credits
         </motion.p>
       </motion.div>
     </section>

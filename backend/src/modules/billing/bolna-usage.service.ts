@@ -88,7 +88,8 @@ export class BolnaUsageService {
       }
     }
 
-    // 3. Threshold crossing: alert ONCE per crossing, auto-clear on recovery
+    // 3. Threshold crossing: alert ONCE per crossing, auto-clear on recovery.
+    // Shown in /admin/notifications only (hidden from the tenant dashboard).
     const threshold = business.low_balance_threshold_usd ?? 5;
     if (balanceUsd < threshold) {
       const message = `Bolna calling balance is low: $${balanceUsd.toFixed(2)} (threshold $${threshold}). AI calls stop when the balance runs out. Add funds on ${BOLNA_TOPUP_URL} (paid directly to Bolna, not to Praecis).`;
@@ -97,13 +98,8 @@ export class BolnaUsageService {
       // live balance and threshold, so an already-open one is rewritten each
       // poll instead of showing the figures from when it first crossed.
       if (!created) await this.notifications.refreshOpen(businessId, 'BOLNA_LOW', message);
-      if (created) {
-        await this.notifications.emailNudge(
-          business.billing_email,
-          'PraecisAI: your Bolna calling balance is low',
-          `Hello ${business.name},\n\nYour Bolna balance is $${balanceUsd.toFixed(2)}, below your $${threshold} alert threshold. AI recovery calls will stop when it runs out.\n\nTop up here (paid directly to Bolna): ${BOLNA_TOPUP_URL}\n\nPraecisAI`,
-        );
-      }
+      // Admin-only alert now: customers are on prepaid credits and never see
+      // or pay the Bolna wallet, so no customer email is sent any more.
     } else {
       await this.notifications.resolveOpen(businessId, 'BOLNA_LOW');
     }

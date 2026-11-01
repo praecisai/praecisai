@@ -114,6 +114,8 @@ enum BillingPaymentType {
   ONBOARDING
   SUBSCRIPTION
   TRIAL
+  // A prepaid pack of call minutes or WhatsApp messages (manual or autopay)
+  CREDITS
 }
 
 enum BillingPaymentStatus {
@@ -145,67 +147,67 @@ enum BillingNotificationKind {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Business {
-  id             String         @id @default(uuid())
-  name           String
-  status         BusinessStatus @default(ACTIVE)
-  plan           BusinessPlan   @default(FREE)
+  id                        String               @id @default(uuid())
+  name                      String
+  status                    BusinessStatus       @default(ACTIVE)
+  plan                      BusinessPlan         @default(FREE)
   // Per-business segment day ranges; null = platform defaults
-  segment_rules  Json?
+  segment_rules             Json?
   // Separate day ranges that decide the WhatsApp segment (template + cadence),
   // independent of the call segment. Null = mirror segment_rules (so WhatsApp
   // behaves exactly like calls until the business sets its own ranges).
-  whatsapp_segment_rules Json?
+  whatsapp_segment_rules    Json?
   // Number the AI transfers a call to when the customer asks for a human/senior.
   // Null = fall back to the platform default (BOLNA_HANDOFF_NUMBER env var).
-  handoff_number String?
+  handoff_number            String?
   // Language the AI recovery agent speaks. Must match the tenant's Bolna agent
   // primary language: it selects whether spoken variables are built in Hindi or
   // English. Default HINDI keeps existing tenants unchanged.
-  call_language  BusinessCallLanguage @default(HINDI)
+  call_language             BusinessCallLanguage @default(HINDI)
   // City the business operates from. Spoken by the AI when a customer asks
   // "aap kahaan se bol rahe ho?" ({business_city}). Null = fall back to the
   // CALL_BUSINESS_CITY env default, then "Mumbai".
-  city           String?
+  city                      String?
   // VIP-only override: { min_days, max_days, segment }. VIP customers whose
   // days overdue fall in this range are contacted (manually: VIPs are never
   // auto-contacted) with the chosen segment's script/template instead of the
   // day-range segment. Null = no override.
-  vip_rule       Json?
+  vip_rule                  Json?
   // Master switch for the unattended 12:00 and 16:00 IST calling runs.
   // OFF by default: automatic dialing is never enabled without an explicit
   // opt-in from the business.
-  auto_calls_enabled Boolean    @default(false)
+  auto_calls_enabled        Boolean              @default(false)
   // Master switch for the unattended 10:00 IST WhatsApp statement run.
   // OFF by default, same reasoning as auto_calls_enabled.
-  auto_whatsapp_enabled Boolean @default(false)
+  auto_whatsapp_enabled     Boolean              @default(false)
   // When the unattended runs fire, per business. Hours are IST (0-23); weekdays
   // are 0=Sun … 6=Sat. Defaults preserve the original fixed behaviour: calls at
   // 12:00 and 16:00, WhatsApp at 10:00, every day. The schedulers run hourly and
   // only act on a business when the current IST hour+weekday match.
-  auto_call_hours       Int[]   @default([12, 16])
-  auto_call_weekdays    Int[]   @default([0, 1, 2, 3, 4, 5, 6])
-  auto_whatsapp_hours   Int[]   @default([10])
-  auto_whatsapp_weekdays Int[]  @default([0, 1, 2, 3, 4, 5, 6])
+  auto_call_hours           Int[]                @default([12, 16])
+  auto_call_weekdays        Int[]                @default([0, 1, 2, 3, 4, 5, 6])
+  auto_whatsapp_hours       Int[]                @default([10])
+  auto_whatsapp_weekdays    Int[]                @default([0, 1, 2, 3, 4, 5, 6])
   // Which months of the year the unattended runs are allowed in (1=Jan … 12=Dec).
   // Default is every month, so the behaviour is unchanged unless a business
   // deliberately pauses a season (audit month, factory shutdown, festival weeks).
-  auto_call_months      Int[]   @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
-  auto_whatsapp_months  Int[]   @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  auto_call_months          Int[]                @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  auto_whatsapp_months      Int[]                @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   // PDC cheque reminder: a WhatsApp nudge to the party two days before the
   // cheque date so the account is funded before the cheque is banked. ON by
   // default because it is a courtesy message the party asked for by giving the
   // cheque, and it goes only to parties who have a pending cheque on file.
-  pdc_reminder_enabled Boolean  @default(true)
+  pdc_reminder_enabled      Boolean              @default(true)
   // Per-segment override for how many days must pass before the same party may
   // receive another automated statement. Null = platform defaults
   // (Soft Reminder 15 days, every other contactable segment 7 days).
   // Shape: { "Soft Reminder": 15, "Follow-up": 7, ... }
-  whatsapp_cadence_days Json?
+  whatsapp_cadence_days     Json?
   // Safety ceilings for one automated run. These exist to protect the tenant's
   // WhatsApp quality rating and calling CLI, not to price the product: a run
   // that would exceed the cap stops early and resumes at the next slot.
-  daily_whatsapp_cap Int        @default(200)
-  daily_call_cap     Int        @default(200)
+  daily_whatsapp_cap        Int                  @default(200)
+  daily_call_cap            Int                  @default(200)
   // Escalation-only daily call ceiling (bulk + automated runs). Null = off:
   // Escalation parties are dialed at every scheduled slot exactly as before.
   // Set (1-3): at most this many attempts per party per IST day, at least
@@ -213,9 +215,9 @@ model Business {
   // day once the party has spoken to the agent. Extra attempts beyond the
   // scheduled slots are placed by the hourly run (see AutoCallProcessor).
   escalation_calls_per_day  Int?
-  escalation_call_gap_hours Int     @default(3)
-  created_at     DateTime       @default(now())
-  updated_at     DateTime       @updatedAt
+  escalation_call_gap_hours Int                  @default(3)
+  created_at                DateTime             @default(now())
+  updated_at                DateTime             @updatedAt
 
   // ─── Billing: per-tenant third-party accounts + Razorpay linkage ──────────
   // API keys are AES-256-GCM encrypted with BILLING_ENCRYPTION_KEY. They are
@@ -249,6 +251,20 @@ model Business {
   // then the paywall returns. Null = never bought a trial.
   trial_ends_at             DateTime?
 
+  // ─── AI model tier + prepaid credits ──────────────────────────────────────
+  // Which AI calling model this tenant dials with: "A" (best, the tenant's
+  // bolna_agent_id), "B" (2nd best) or "C" (3rd best). B/C use the agent ids
+  // below, which live on the SAME Bolna account as bolna_api_key. A tier with
+  // no agent id falls back to A, so a half-configured tier never breaks calls.
+  call_model_tier  String  @default("A")
+  bolna_agent_id_b String?
+  bolna_agent_id_c String?
+  // true = calls and WhatsApp are paid from prepaid credits (1 call credit =
+  // 1 minute, 1 WhatsApp credit = 1 message) and stop when credits run out.
+  // false = legacy direct billing (no deduction, no blocking). New signups are
+  // created with true; existing tenants are switched by the admin.
+  credit_billing   Boolean @default(false)
+
   // Relations
   users                 User[]
   customers             Customer[]
@@ -270,6 +286,8 @@ model Business {
   billing_notifications BillingNotification[]
   coupons_used          Coupon[]
   caller_number_checks  CallerNumberCheck[]
+  credit_account        CreditAccount?
+  credit_transactions   CreditTransaction[]
 
   @@map("businesses")
 }
@@ -328,27 +346,27 @@ model User {
 }
 
 model Customer {
-  id              String   @id @default(uuid())
-  business_id     String
-  customer_name   String
-  phone           String?
+  id                       String   @id @default(uuid())
+  business_id              String
+  customer_name            String
+  phone                    String?
   // Fallback numbers (Excel rows can carry several) — dialed in order when the
   // primary number goes unanswered; the chain stops at the first answered call.
-  alt_phones      String[] @default([])
-  email           String?
-  city            String?
-  tags            String[] @default([])
-  is_vip          Boolean  @default(false)
+  alt_phones               String[] @default([])
+  email                    String?
+  city                     String?
+  tags                     String[] @default([])
+  is_vip                   Boolean  @default(false)
   // Sales agent from the latest import (Excel AGENT column, party-level)
-  assigned_agent  String?
+  assigned_agent           String?
   // Per-customer segment day-range override; same shape as
   // businesses.segment_rules. Null = follow the business rules.
-  custom_schedule Json?
+  custom_schedule          Json?
   // Per-customer WhatsApp segment override. Null = follow the business
   // whatsapp_segment_rules (which itself falls back to the call ranges).
   whatsapp_custom_schedule Json?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 
   // Relations
   business        Business       @relation(fields: [business_id], references: [id], onDelete: Cascade)
@@ -482,7 +500,7 @@ model CallLog {
   // Whether a person clicked "call" or an automated run dialled this. Lets the
   // activity feed distinguish the two; automated is the default because the
   // schedulers are the high-volume path.
-  call_source      CallSource  @default(AUTOMATED)
+  call_source      CallSource @default(AUTOMATED)
   duration_seconds Int?
   created_at       DateTime   @default(now())
 
@@ -795,23 +813,23 @@ model PdcUploadHistory {
 }
 
 model PdcCheque {
-  id              String    @id @default(uuid())
-  business_id     String
-  customer_id     String?
-  upload_batch_id String
-  party_name      String
-  cheque_no       String
-  cheque_date     DateTime
-  amount          Float
-  status          PdcStatus @default(PENDING)
-  cleared_date    DateTime?
-  notes           String?
+  id               String    @id @default(uuid())
+  business_id      String
+  customer_id      String?
+  upload_batch_id  String
+  party_name       String
+  cheque_no        String
+  cheque_date      DateTime
+  amount           Float
+  status           PdcStatus @default(PENDING)
+  cleared_date     DateTime?
+  notes            String?
   // When the "your cheque is due in 2 days" WhatsApp went out. Set once and
   // never cleared: it is what stops a second reminder when the tenant has more
   // than one WhatsApp slot configured, or when the worker retries.
   reminder_sent_at DateTime?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   business     Business         @relation(fields: [business_id], references: [id], onDelete: Cascade)
   customer     Customer?        @relation(fields: [customer_id], references: [id], onDelete: SetNull)
@@ -871,6 +889,14 @@ model BillingPayment {
   status                   BillingPaymentStatus @default(CREATED)
   paid_at                  DateTime?
   coupon_id                String?
+  // CREDITS payments only: what was bought. kind = "CALL" | "WHATSAPP",
+  // units = minutes or messages, pack = pack id (e.g. "CALL_1000").
+  credit_kind              String?
+  credit_units             Float?
+  credit_pack              String?
+  // true when charged by autopay (saved Razorpay token), not a manual checkout
+  is_autopay               Boolean              @default(false)
+  failure_reason           String?
   created_at               DateTime             @default(now())
   updated_at               DateTime             @updatedAt
 
@@ -959,4 +985,89 @@ model RazorpayEvent {
   processed_at DateTime @default(now())
 
   @@map("razorpay_events")
+}
+
+// ─── Prepaid credits ──────────────────────────────────────────────────────────
+
+// One wallet per business. Balances only ever change inside a transaction that
+// also writes a CreditTransaction row, so the ledger always explains them.
+model CreditAccount {
+  business_id            String  @id
+  // Minutes of AI calling left (fractional: calls are charged per second)
+  call_credits           Float   @default(0)
+  // WhatsApp messages left
+  whatsapp_credits       Float   @default(0)
+  // Warn (dashboard banner + email) and trigger autopay below these
+  call_low_threshold     Float   @default(60)
+  whatsapp_low_threshold Float   @default(100)
+  // Set once a low alert has been emailed; cleared when topped up above the
+  // threshold, so each crossing alerts once instead of on every call
+  call_low_alerted       Boolean @default(false)
+  whatsapp_low_alerted   Boolean @default(false)
+
+  // Autopay: a saved Razorpay recurring token is charged for the chosen pack
+  // whenever a balance drops below its threshold. A null pack = no autopay
+  // for that kind.
+  autopay_enabled        Boolean   @default(false)
+  autopay_call_pack      String?
+  autopay_whatsapp_pack  String?
+  // NONE | PENDING (authorised, waiting for the bank to confirm) | ACTIVE |
+  // FAILED (token rejected/cancelled, needs a fresh setup)
+  autopay_status         String    @default("NONE")
+  autopay_method         String?
+  razorpay_token_id      String?
+  // Order of the setup checkout that saves the token, so only THAT payment
+  // is read for a token (a manual purchase meanwhile is just a purchase)
+  autopay_setup_order_id String?
+  autopay_last_error     String?
+  autopay_last_charge_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@map("credit_accounts")
+}
+
+// Append-only ledger of every credit movement.
+model CreditTransaction {
+  id            String   @id @default(uuid())
+  business_id   String
+  // "CALL" | "WHATSAPP"
+  kind          String
+  // + for purchases/adjustments, - for usage
+  delta         Float
+  balance_after Float
+  // "PURCHASE" | "AUTOPAY" | "USAGE" | "ADJUSTMENT"
+  reason        String
+  // What caused it: CallLog id / WhatsAppLog id for usage, BillingPayment id
+  // for purchases. Unique per (kind, reason, ref_id) so a replayed webhook can
+  // never charge or credit twice.
+  ref_id        String?
+  note          String?
+  created_at    DateTime @default(now())
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([kind, reason, ref_id])
+  @@index([business_id, created_at])
+  @@map("credit_transactions")
+}
+
+// Global settings for the three AI calling models. Credit prices per model are
+// fixed in code (credit-packs.util.ts); this only holds names and the platform
+// account agent each model uses on the public demo dashboard.
+model CallModelTier {
+  // "A" | "B" | "C"
+  tier          String   @id
+  label         String
+  description   String   @default("")
+  // Agent on the PLATFORM Bolna account used by demo calls on this model.
+  // Model A demos keep using the demo voice agents (tones) instead.
+  demo_agent_id String?
+  active        Boolean  @default(true)
+  updated_at    DateTime @updatedAt
+
+  @@map("call_model_tiers")
 }

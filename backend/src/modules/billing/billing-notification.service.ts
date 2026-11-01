@@ -69,7 +69,13 @@ export class BillingNotificationService {
 
   async listForTenant(businessId: string, unreadOnly = false) {
     return this.prisma.billingNotification.findMany({
-      where: { business_id: businessId, ...(unreadOnly ? { read_at: null } : {}) },
+      where: {
+        business_id: businessId,
+        // Platform wallet alerts (Bolna/AiSensy) are for the Praecis admin only:
+        // customers see credit balances instead.
+        kind: { notIn: ['BOLNA_LOW', 'AISENSY_LOW'] },
+        ...(unreadOnly ? { read_at: null } : {}),
+      },
       orderBy: { created_at: 'desc' },
       take: 100,
     });
@@ -98,13 +104,17 @@ export class BillingNotificationService {
     });
   }
 
-  /** Open banner conditions for the client dashboard. */
+  /**
+   * Open banner conditions for the client dashboard. Only the halted-mandate
+   * alert comes from here; low-credit banners are computed live by
+   * CreditsService.lowCreditBanners.
+   */
   async openBanners(businessId: string) {
     return this.prisma.billingNotification.findMany({
       where: {
         business_id: businessId,
         resolved_at: null,
-        kind: { in: ['BOLNA_LOW', 'AISENSY_LOW', 'MANDATE_FAILED'] },
+        kind: { in: ['MANDATE_FAILED'] },
       },
       orderBy: { created_at: 'desc' },
     });

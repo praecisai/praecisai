@@ -12,7 +12,7 @@ import {
 import { IsNotEmpty, IsString } from 'class-validator';
 import { AdminGuard } from './admin.guard';
 import { AdminAuthService } from './admin-auth.service';
-import { AdminService, UpsertTenantDto, UpsertDemoAgentDto } from './admin.service';
+import { AdminService, UpsertTenantDto, UpsertDemoAgentDto, UpdateModelTierDto } from './admin.service';
 import { BillingNotificationService } from './billing-notification.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BolnaUsageService } from './bolna-usage.service';
@@ -170,6 +170,30 @@ export class AdminController {
   }
 
   // ─── Demo voice agents ────────────────────────────────────────────────────────
+
+  // ─── AI models ──────────────────────────────────────────────────────────────
+
+  @Get('models')
+  listModelTiers() {
+    return this.admin.listModelTiers();
+  }
+
+  @Patch('models/:tier')
+  updateModelTier(@Param('tier') tier: string, @Body() dto: UpdateModelTierDto) {
+    return this.admin.updateModelTier(tier, dto);
+  }
+
+  // ─── Credits ────────────────────────────────────────────────────────────────
+
+  @Post('tenants/:id/credits')
+  adjustCredits(@Param('id') id: string, @Body() body: { kind: string; delta: number; note?: string }) {
+    return this.admin.adjustCredits(id, body);
+  }
+
+  @Get('tenants/:id/credits')
+  creditHistory(@Param('id') id: string) {
+    return this.admin.creditHistory(id);
+  }
 
   @Get('demo-agents/styles')
   demoAgentStyles() {

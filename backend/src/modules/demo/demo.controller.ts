@@ -18,6 +18,12 @@ export class DemoController {
     return this.demoService.listAgentsForDashboard();
   }
 
+  /** Public: AI models (A best, B 2nd best, C 3rd best) for the demo dashboard. */
+  @Get('models')
+  async listModels() {
+    return this.demoService.listModelsForDashboard();
+  }
+
   @Get('validate-token/:token')
   async validateToken(@Param('token') token: string) {
     return this.demoService.validateToken(token);

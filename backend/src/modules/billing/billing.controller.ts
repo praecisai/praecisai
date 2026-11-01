@@ -1,11 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
-import { IsIn, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Min } from 'class-validator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { BusinessId, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BillingService } from './billing.service';
 import { BillingInvoiceService } from './billing-invoice.service';
 import { BillingNotificationService } from './billing-notification.service';
+import { CreditsService } from './credits.service';
 import { isTrialTier, DEFAULT_TRIAL_TIER, TRIAL_PLANS, BillingPlan, isBillingPlan } from './billing-math.util';
 
 /** MONTHLY or YEARLY; anything else falls back to YEARLY. */
@@ -33,6 +34,46 @@ class OnboardingCheckoutDto {
   @IsOptional()
   @IsIn(['MONTHLY', 'YEARLY'])
   plan?: BillingPlan;
+}
+
+class CreditCheckoutDto {
+  @IsString()
+  @IsNotEmpty()
+  pack_id: string;
+}
+
+class CreditThresholdsDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  call?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  whatsapp?: number;
+}
+
+/** null clears that kind's autopay pack; omitted leaves it unchanged. */
+class AutopayPacksDto {
+  @IsOptional()
+  @IsString()
+  call_pack?: string | null;
+
+  @IsOptional()
+  @IsString()
+  whatsapp_pack?: string | null;
+}
+
+class AutopaySetupDto extends AutopayPacksDto {
+  @IsIn(['upi', 'card'])
+  method: 'upi' | 'card';
+}
+
+class SimulateCreditsDto {
+  @IsString()
+  @IsNotEmpty()
+  order_id: string;
 }
 
 class UsageQueryDto {
@@ -101,7 +142,55 @@ export class BillingController {
     private billing: BillingService,
     private invoices: BillingInvoiceService,
     private notifications: BillingNotificationService,
+    private credits: CreditsService,
   ) {}
+
+  // ─── Prepaid credits ────────────────────────────────────────────────────────
+
+  /** Balances, packs for the business's AI model, autopay state, ledger. */
+  @Get('credits')
+  creditSummary(@BusinessId() businessId: string) {
+    return this.credits.summary(businessId);
+  }
+
+  @Patch('credits/thresholds')
+  setCreditThresholds(@BusinessId() businessId: string, @Body() dto: CreditThresholdsDto) {
+    return this.credits.setThresholds(businessId, dto);
+  }
+
+  /** One-time purchase of a pack through Razorpay Checkout. */
+  @Post('credits/checkout')
+  creditCheckout(@BusinessId() businessId: string, @Body() dto: CreditCheckoutDto) {
+    return this.credits.createCheckout(businessId, dto.pack_id);
+  }
+
+  /** Checkout success (manual purchase or autopay setup): verify, add credits. */
+  @Post('credits/verify')
+  verifyCreditCheckout(@BusinessId() businessId: string, @Body() dto: VerifyOrderDto) {
+    return this.credits.verifyCheckout(businessId, dto);
+  }
+
+  /** Start autopay: pay for the first pack and approve future top-ups. */
+  @Post('credits/autopay')
+  setupAutopay(@BusinessId() businessId: string, @Body() dto: AutopaySetupDto) {
+    return this.credits.setupAutopay(businessId, dto);
+  }
+
+  @Patch('credits/autopay')
+  updateAutopay(@BusinessId() businessId: string, @Body() dto: AutopayPacksDto) {
+    return this.credits.updateAutopayPacks(businessId, dto);
+  }
+
+  @Delete('credits/autopay')
+  disableAutopay(@BusinessId() businessId: string) {
+    return this.credits.disableAutopay(businessId);
+  }
+
+  /** Mock mode only: settle a pending credits order without Razorpay. */
+  @Post('dev/simulate-credits-paid')
+  simulateCreditsPaid(@BusinessId() businessId: string, @Body() dto: SimulateCreditsDto) {
+    return this.credits.simulatePaid(businessId, dto.order_id);
+  }
 
   /**
    * Paywall probe: is this account entitled to the dashboard?
@@ -154,11 +243,6 @@ export class BillingController {
   @Get('usage')
   usage(@BusinessId() businessId: string, @Query() query: UsageQueryDto) {
     return this.billing.monthlyUsage(businessId, query.month);
-  }
-
-  @Get('platforms')
-  platforms(@BusinessId() businessId: string) {
-    return this.billing.platforms(businessId);
   }
 
   /** Connection status + masked previews for the tenant's own keys. */

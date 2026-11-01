@@ -7,9 +7,9 @@ import { createClient } from '../../lib/supabase/client';
 import {
   LayoutDashboard, Users, FileText, TrendingDown,
   Upload, Settings, LogOut, Star, ClipboardList,
-  ChevronRight, FileSpreadsheet, Menu, X, Activity, CreditCard,
+  ChevronRight, FileSpreadsheet, Menu, X, Activity, CreditCard, Cpu,
 } from 'lucide-react';
-import { useMe } from '../../lib/api/hooks';
+import { useMe, useBillingAccess } from '../../lib/api/hooks';
 import { AutoCallToggle } from '../shared/AutoCallToggle';
 import { AutoWhatsappToggle } from '../shared/AutoWhatsappToggle';
 import { Logo } from '../../app/components/landing/Logo';
@@ -28,6 +28,10 @@ const NAV_ITEMS = [
   { href: '/dashboard/billing',   label: 'Billing & Usage', icon: CreditCard },
   { href: '/dashboard/settings',  label: 'Settings', icon: Settings },
 ];
+
+// Only for platform-owner logins (praecisai@gmail.com): switch the AI calling
+// model (A best, B 2nd best, C 3rd best) this account dials with.
+const AI_MODEL_ITEM: (typeof NAV_ITEMS)[number] = { href: '/dashboard/ai-model', label: 'AI Model', icon: Cpu };
 
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -60,7 +64,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: user } = useMe();
+  const { data: access } = useBillingAccess();
   const { open, setOpen } = useContext(SidebarContext);
+  const navItems =
+    access?.reason === 'OWNER'
+      ? [...NAV_ITEMS.slice(0, -1), AI_MODEL_ITEM, NAV_ITEMS[NAV_ITEMS.length - 1]]
+      : NAV_ITEMS;
 
   async function handleLogout() {
     const supabase = createClient();
@@ -127,7 +136,7 @@ export function Sidebar() {
 
         {/* Nav: scrollable, pushes footer to bottom */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto min-h-0">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact
               ? pathname === item.href

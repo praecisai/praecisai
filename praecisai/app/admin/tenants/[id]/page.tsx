@@ -1,5 +1,6 @@
 'use client';
 
+import { TenantModelCreditsCard } from '../../../../components/admin/TenantModelCreditsCard';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -153,7 +154,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Edit form */}
-        <div className="glass-card p-5 lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
+        <div className="glass-card p-5">
           <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-4">Tenant settings</h2>
           <TenantForm
             initial={{
@@ -169,6 +171,10 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
             submitLabel="Save changes"
             onSubmit={submit}
           />
+        </div>
+
+        {/* AI model (A/B/C) + prepaid credits */}
+        <TenantModelCreditsCard key={tenant.id} tenant={tenant} />
         </div>
 
         <div className="space-y-4">

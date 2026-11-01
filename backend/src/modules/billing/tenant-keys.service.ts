@@ -34,8 +34,24 @@ export class TenantKeysService {
   async getBolnaKeys(businessId: string): Promise<BolnaKeys> {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      select: { bolna_api_key: true, bolna_agent_id: true, bolna_from_number: true },
+      select: {
+        bolna_api_key: true,
+        bolna_agent_id: true,
+        bolna_from_number: true,
+        call_model_tier: true,
+        bolna_agent_id_b: true,
+        bolna_agent_id_c: true,
+      },
     });
+    // AI model: B / C dial their own agent (same Bolna account, same caller
+    // IDs). A model with no agent id set falls back to the main agent (A), so
+    // switching to a half-configured model never stops calls.
+    const tierAgent =
+      business?.call_model_tier === 'B'
+        ? business.bolna_agent_id_b
+        : business?.call_model_tier === 'C'
+          ? business.bolna_agent_id_c
+          : null;
     // The caller ID resolves independently of the API key: a tenant still on
     // the platform's Bolna account can already own the number it dials from.
     const fromNumber =
@@ -43,7 +59,7 @@ export class TenantKeysService {
     if (business?.bolna_api_key) {
       return {
         apiKey: this.cryptoService.decrypt(business.bolna_api_key),
-        agentId: business.bolna_agent_id ?? this.config.get<string>('BOLNA_AGENT_ID') ?? null,
+        agentId: tierAgent || business.bolna_agent_id || this.config.get<string>('BOLNA_AGENT_ID') || null,
         fromNumber,
         fromTenant: true,
       };

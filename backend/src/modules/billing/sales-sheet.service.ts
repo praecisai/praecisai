@@ -30,6 +30,7 @@ export class SalesSheetService {
     const yearly = planFromAmount(basePaise ?? totalPaise) === 'YEARLY';
     if (type === 'ONBOARDING') return yearly ? 'Yearly plan (first year)' : 'Monthly plan (first month)';
     if (type === 'SUBSCRIPTION') return yearly ? 'Yearly subscription' : 'Monthly subscription';
+    if (type === 'CREDITS') return 'Credits pack';
     return type;
   }
 

@@ -81,6 +81,15 @@ export class DemoLeadRepository {
     });
   }
 
+  // AI models (A/B/C) and the platform agent each uses on the demo dashboard
+  async listModelTiers() {
+    return this.prisma.callModelTier.findMany({ orderBy: { tier: 'asc' } });
+  }
+
+  async findModelTier(tier: string) {
+    return this.prisma.callModelTier.findUnique({ where: { tier } });
+  }
+
   // Resolve the agent for a call: the explicitly selected one (if still active),
   // else the default active agent, else the first active agent. null if none
   // exist yet — the caller then falls back to the env Bolna agent.

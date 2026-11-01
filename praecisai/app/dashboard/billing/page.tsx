@@ -6,17 +6,16 @@ import { toast } from 'sonner';
 import { TopHeader } from '../../../components/layout/Sidebar';
 import { BillingBanners } from '../../../components/shared/BillingBanners';
 import { Select } from '../../../components/ui/Select';
+import { CreditsPanel } from '../../../components/billing/CreditsPanel';
 import {
   useBillingSummary,
   useBillingUsage,
-  useBillingPlatforms,
   useInvoicePdf,
   useSimulateMonthlyCharge,
   formatPaise,
 } from '../../../lib/api/hooks';
 import {
-  CreditCard, PhoneCall, MessageCircle, Wallet, Download,
-  ExternalLink, CalendarClock, BadgeCheck, AlertTriangle, FlaskConical, PlayCircle, Search,
+  CreditCard, PhoneCall, Download, CalendarClock, BadgeCheck, FlaskConical, PlayCircle, Search,
 } from 'lucide-react';
 
 function fmtDate(d: string | Date | null | undefined) {
@@ -48,13 +47,12 @@ export default function BillingPage() {
   const { data: summary, isLoading } = useBillingSummary();
   const [month, setMonth] = useState<string>(monthOptions()[0].value);
   const { data: usage, isLoading: usageLoading } = useBillingUsage(month);
-  const { data: platforms } = useBillingPlatforms();
   const pdf = useInvoicePdf();
   const simulateCharge = useSimulateMonthlyCharge();
   // Per-call table filters (client-side, over the month's calls)
   const [callSearch, setCallSearch] = useState('');
   const [onlyRecorded, setOnlyRecorded] = useState(false);
-  const perCall: any[] = usage?.platforms?.bolna?.per_call ?? [];
+  const perCall: any[] = usage?.calls?.per_call ?? [];
   const recordedCount = perCall.filter((c) => c.recording_url).length;
   const visibleCalls = perCall.filter(
     (c) =>
@@ -78,7 +76,7 @@ export default function BillingPage() {
 
   return (
     <>
-      <TopHeader title="Billing & Usage" subtitle="Praecis subscription · monthly usage · connected platforms" />
+      <TopHeader title="Billing & Usage" subtitle="Credits · autopay · usage · invoices" />
       <div className="p-4 sm:p-6 space-y-5">
         <BillingBanners />
 
@@ -103,7 +101,10 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* ── a. Praecis subscription ─────────────────────────────────── */}
+        {/* ── a. Prepaid credits (balances, buy, autopay, history) ───────── */}
+        <CreditsPanel />
+
+        {/* ── b. Praecis subscription ─────────────────────────────────── */}
         <div className="glass-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard size={18} className="text-[var(--mahogany)]" />
@@ -187,8 +188,10 @@ export default function BillingPage() {
                           {inv.payment?.type === 'ONBOARDING'
                             ? 'First payment'
                             : inv.payment?.type === 'TRIAL'
-                              ? 'Trial (10 days)'
-                              : 'Subscription'}
+                              ? 'Trial'
+                              : inv.payment?.type === 'CREDITS'
+                                ? 'Credits'
+                                : 'Subscription'}
                         </td>
                         <td className="text-xs text-[var(--walnut)]">{fmtDate(inv.created_at)}</td>
                         <td className="text-right text-sm font-semibold text-[var(--dark-brown)]">{formatPaise(inv.total)}</td>
@@ -212,7 +215,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* ── b. Usage this month ─────────────────────────────────────── */}
+        {/* ── c. Usage this month (in credits) ────────────────────────── */}
         <div className="glass-card p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
@@ -230,13 +233,10 @@ export default function BillingPage() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'AI calls made', value: usage?.platforms?.bolna?.calls_made ?? '-' },
-              { label: 'Total minutes', value: usage?.platforms?.bolna?.total_minutes ?? '-' },
-              { label: 'WhatsApp messages', value: usage?.platforms?.aisensy?.messages_sent ?? '-' },
-              {
-                label: 'Bolna spend (est.)',
-                value: usage?.platforms?.bolna?.est_spend_usd != null ? `$${usage.platforms.bolna.est_spend_usd}` : '-',
-              },
+              { label: 'AI calls made', value: usage?.calls?.made ?? '-' },
+              { label: 'Call credits used', value: usage?.calls?.credits_used ?? '-' },
+              { label: 'WhatsApp messages sent', value: usage?.whatsapp?.sent ?? '-' },
+              { label: 'WhatsApp credits used', value: usage?.whatsapp?.credits_used ?? '-' },
             ].map((card) => (
               <div key={card.label} className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">{card.label}</p>
@@ -246,7 +246,8 @@ export default function BillingPage() {
           </div>
 
           <p className="text-xs text-[var(--walnut)] mt-3">
-            Praecis fees this month: {formatPaise(usage?.praecis?.total_paise ?? 0)} · Bolna and AiSensy spend is billed to you directly by those platforms, not by Praecis.
+            1 call credit = 1 minute of talk time (charged per second) · 1 WhatsApp credit = 1 message sent. Calls nobody
+            answered and messages that failed use no credits.
           </p>
 
           {perCall.length > 0 && (
@@ -281,7 +282,7 @@ export default function BillingPage() {
                       <th className="text-left">Customer</th>
                       <th className="text-left">Status</th>
                       <th className="text-right">Duration</th>
-                      <th className="text-right">Bolna cost</th>
+                      <th className="text-right">Credits used</th>
                       <th className="text-right">Recording</th>
                     </tr>
                   </thead>
@@ -295,7 +296,7 @@ export default function BillingPage() {
                           {c.duration_seconds != null ? `${Math.round(c.duration_seconds / 6) / 10} min` : '-'}
                         </td>
                         <td className="text-right text-xs text-[var(--walnut)]">
-                          {c.cost_usd != null ? `$${c.cost_usd.toFixed(3)}` : '-'}
+                          {c.credits_used != null ? c.credits_used.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '-'}
                         </td>
                         <td className="text-right text-xs">
                           {c.recording_url ? (
@@ -320,97 +321,11 @@ export default function BillingPage() {
           )}
         </div>
 
-        {/* ── c. Connected platforms ──────────────────────────────────── */}
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet size={18} className="text-[var(--mahogany)]" />
-            <h2 className="font-semibold text-[var(--dark-brown)]">Connected Platforms</h2>
-          </div>
-          <p className="text-xs text-[var(--walnut)] mb-4">
-            These are your own accounts: you pay Bolna and AiSensy directly on their platforms. Praecis only tracks the balances for you.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Bolna */}
-            <div
-              className="p-4 rounded-xl border"
-              style={{
-                background: 'var(--sand)',
-                borderColor: platforms?.bolna?.low ? '#E6510060' : 'transparent',
-              }}
-            >
-              {platforms?.bolna?.low && (
-                <div
-                  className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg mb-3"
-                  style={{ background: '#E6510018', color: '#E65100' }}
-                >
-                  <AlertTriangle size={14} />
-                  Balance is below your ${platforms?.bolna?.threshold_usd} alert threshold: calls stop when it runs out
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-[var(--dark-brown)] flex items-center gap-2">
-                    <PhoneCall size={15} className="text-[var(--mahogany)]" /> Bolna · AI Calling
-                  </p>
-                  <p className="text-2xl font-bold text-[var(--dark-brown)] mt-2">
-                    {platforms?.bolna?.balance_usd != null ? `$${platforms.bolna.balance_usd.toFixed(2)}` : '-'}
-                  </p>
-                  <p className="text-[11px] text-[var(--walnut)] mt-0.5">
-                    {platforms?.bolna?.connected ? (
-                      `Balance as of ${platforms?.bolna?.captured_at ? fmtDate(platforms.bolna.captured_at) : '-'}`
-                    ) : (
-                      'Not connected yet · contact the PraecisAI team to link your account'
-                    )}
-                  </p>
-                </div>
-              </div>
-              <a
-                href={platforms?.bolna?.topup_url ?? 'https://platform.bolna.ai'}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
-              >
-                Add funds on Bolna <ExternalLink size={13} />
-              </a>
-              <p className="text-[11px] text-[var(--walnut)] mt-2">Paid directly to Bolna, not to Praecis</p>
-            </div>
-
-            {/* AiSensy */}
-            <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
-              <p className="font-semibold text-[var(--dark-brown)] flex items-center gap-2">
-                <MessageCircle size={15} className="text-[var(--mahogany)]" /> AiSensy · WhatsApp
-              </p>
-              <p className="text-2xl font-bold text-[var(--dark-brown)] mt-2">
-                {platforms?.aisensy?.messages_this_month ?? '-'}
-              </p>
-              <p className="text-[11px] text-[var(--walnut)] mt-0.5">
-                {platforms?.aisensy?.connected ? (
-                  'messages sent this month · account connected'
-                ) : (
-                  'messages sent this month · contact the PraecisAI team to link your account'
-                )}
-              </p>
-              <a
-                href={platforms?.aisensy?.dashboard_url ?? 'https://www.app.aisensy.com'}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
-              >
-                Manage AiSensy plan <ExternalLink size={13} />
-              </a>
-              <p className="text-[11px] text-[var(--walnut)] mt-2">Plan and credits are paid directly to AiSensy</p>
-            </div>
-          </div>
-        </div>
-
         {/* Test-mode helper: only meaningful while Razorpay runs in mock mode */}
         {sub && (
           <div className="glass-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
             <p className="text-xs text-[var(--walnut)] flex items-center gap-2">
-              <FlaskConical size={14} /> Test mode helper: simulate the next monthly auto-debit (works only while Razorpay keys are not configured)
+              <FlaskConical size={14} /> Test mode helper: simulate the next subscription auto-debit (works only while Razorpay keys are not configured)
             </p>
             <button
               onClick={() =>

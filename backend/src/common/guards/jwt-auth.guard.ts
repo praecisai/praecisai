@@ -92,7 +92,8 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const business = await tx.business.create({ data: { name: businessName } });
+        // New signups are on prepaid credits from day one
+        const business = await tx.business.create({ data: { name: businessName, credit_billing: true } });
         return tx.user.create({
           data: {
             business_id: business.id,

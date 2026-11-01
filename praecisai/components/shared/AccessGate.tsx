@@ -517,8 +517,8 @@ function PlansScreen({ trialExpired }: { trialExpired: boolean }) {
 
       <p className="text-[11px] text-[var(--walnut)] text-center mt-6">
         All prices are final: no GST is added and there is no setup fee. AI calls and WhatsApp
-        messages are pay as you go: Bolna calling credits and AiSensy WhatsApp plans are paid
-        directly to those platforms and are not part of these prices.
+        messages are not part of these prices: you buy credits for them in Billing &amp; Usage
+        (1 credit = 1 minute or 1 message), with optional autopay.
       </p>
     </div>
   );

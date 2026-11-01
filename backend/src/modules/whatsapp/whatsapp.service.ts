@@ -13,6 +13,7 @@ import {
 import { StorageService } from '../storage/storage.service';
 import { TenantKeysService } from '../billing/tenant-keys.service';
 import { BillingNotificationService } from '../billing/billing-notification.service';
+import { CreditsService } from '../billing/credits.service';
 import {
   getSegment,
   parseSegmentRules,
@@ -34,6 +35,7 @@ export class WhatsappService {
     private storage: StorageService,
     private tenantKeys: TenantKeysService,
     private billingNotifications: BillingNotificationService,
+    private credits: CreditsService,
     @InjectQueue('whatsapp-statements') private statementQueue: Queue,
   ) {}
 
@@ -86,6 +88,9 @@ export class WhatsappService {
     if (!destinationPhone) throw new BadRequestException('Customer has no phone number');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
+
+    // Prepaid credits: checked before the PDF is built (credit-billed only)
+    await this.credits.assertCanSendWhatsapp(businessId);
 
     // PDC cooldown: a party whose cheque just cleared is not messaged again
     // while the payment settles. An inbound reply (overridePhone) is exempt —
@@ -207,7 +212,7 @@ export class WhatsappService {
       throw err;
     }
 
-    await this.prisma.whatsAppLog.create({
+    const sentLog = await this.prisma.whatsAppLog.create({
       data: {
         business_id: businessId,
         customer_id: customerId,
@@ -215,6 +220,9 @@ export class WhatsappService {
         delivery_status: 'SENT',
       },
     });
+    await this.credits
+      .chargeWhatsapp(businessId, sentLog.id, `WhatsApp statement to ${customer.customer_name}`)
+      .catch((err) => this.logger.error(`WhatsApp credit charge failed (${sentLog.id}): ${err?.message}`));
 
     return {
       success: true,
@@ -269,6 +277,9 @@ export class WhatsappService {
     chequeDate: Date;
     amount: number;
   }): Promise<void> {
+    // Prepaid credits: no WhatsApp credits, no message
+    await this.credits.assertCanSendWhatsapp(params.businessId);
+
     const campaignName =
       process.env[PDC_REMINDER_CAMPAIGN_ENV] || PDC_REMINDER_CAMPAIGN_FALLBACK;
     const apiKeyOverride = (await this.tenantKeys.getAisensyKey(params.businessId)) ?? undefined;
@@ -311,7 +322,7 @@ export class WhatsappService {
       throw err;
     }
 
-    await this.prisma.whatsAppLog.create({
+    const sentLog = await this.prisma.whatsAppLog.create({
       data: {
         business_id: params.businessId,
         customer_id: params.customerId,
@@ -319,6 +330,9 @@ export class WhatsappService {
         delivery_status: 'SENT',
       },
     });
+    await this.credits
+      .chargeWhatsapp(params.businessId, sentLog.id, `PDC reminder to ${params.partyName}`)
+      .catch((err) => this.logger.error(`WhatsApp credit charge failed (${sentLog.id}): ${err?.message}`));
   }
 
   // ─── Bulk: statement PDFs to every eligible customer in a segment ──────────
@@ -333,6 +347,10 @@ export class WhatsappService {
         `"${NO_FOLLOWUP_SEGMENT}" customers are never called or messaged.`,
       );
     }
+    // Prepaid credits: refuse the whole run up front when none are left (each
+    // message is checked again as it is sent)
+    await this.credits.assertCanSendWhatsapp(businessId);
+
     // VIP protection: VIPs NEVER receive bulk messages unless explicitly
     // targeted (vipOnly toggle, or the special "VIP" segment = all VIPs).
     const isVipSegment = segment === 'VIP';

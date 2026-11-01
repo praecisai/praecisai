@@ -25,6 +25,7 @@ import { isPdcCooldownActive, pdcCooldownMessage } from '../../common/utils/pdc-
 import { computeCallbackTime, CallbackIntent } from '../../common/utils/callback-slot.util';
 import { computePromiseDate, promiseBasisLabel, PromiseIntent } from '../../common/utils/promise-date.util';
 import { BillingGateService } from '../billing/billing-gate.service';
+import { CreditsService } from '../billing/credits.service';
 import { CallerNumberService } from '../billing/caller-number.service';
 import {
   amountToSpoken,
@@ -53,6 +54,7 @@ export class CallingService {
     private readonly extractionService: CallExtractionService,
     private readonly whatsappService: WhatsappService,
     private readonly billingGate: BillingGateService,
+    private readonly credits: CreditsService,
     private readonly callerNumbers: CallerNumberService,
     @InjectQueue('outbound-calls') private readonly callingQueue: Queue,
     @InjectQueue('callback-redials') private readonly callbackQueue: Queue,
@@ -150,6 +152,9 @@ export class CallingService {
     if (!dialPhone) throw new BadRequestException('Customer has no phone number: add one first');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
+
+    // Prepaid credits: no call minutes left, no call (credit-billed businesses only)
+    await this.credits.assertCanCall(businessId);
 
     // Sensitive situation cooldown: death/medical emergency pauses calling
     const sensitive = await this.prisma.callLog.findFirst({
@@ -904,6 +909,18 @@ export class CallingService {
         call_sentiment: callSentiment,
       },
     });
+
+    // Prepaid credits: charge the talk time (per second). Idempotent per call,
+    // so a repeated "completed" webhook never charges twice.
+    const charged = await this.prisma.callLog.findUnique({
+      where: { retell_call_id: callId },
+      select: { id: true },
+    });
+    if (charged) {
+      await this.credits
+        .chargeCall(charged.id)
+        .catch((err) => this.logger.error(`Credit charge failed for call ${callId}: ${err?.message}`));
+    }
 
     // Production-call follow-ups that need the CallLog (PTP + auto-WhatsApp)
     const whatsappRequested = extraction?.whatsapp_requested ?? false;
