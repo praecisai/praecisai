@@ -19,7 +19,7 @@ export interface TenantFormValues {
   city?: string;
 }
 
-interface KeyPreviews {
+export interface KeyPreviews {
   bolna_key_last4?: string | null;
   bolna_agent_id?: string | null;
   bolna_from_number?: string | null;
@@ -29,17 +29,17 @@ interface KeyPreviews {
   aisensy_key_last4?: string | null;
 }
 
-const splitNumbers = (s: string) =>
+export const splitNumbers = (s: string) =>
   s
     .split(/[\s,;]+/)
     .map((n) => n.trim())
     .filter(Boolean);
 
-const inputCls =
+export const inputCls =
   'w-full px-3 py-2.5 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]';
-const inputStyle = { borderColor: 'var(--caramel)' } as const;
+export const inputStyle = { borderColor: 'var(--caramel)' } as const;
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-xs font-semibold text-[var(--walnut)] uppercase tracking-wider mb-1.5">
@@ -56,7 +56,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
  * last 4 characters and a "Replace key" action reveals an empty input. An
  * untouched key field is omitted from the payload entirely.
  */
-function SecretField({
+export function SecretField({
   label,
   saved,
   value,

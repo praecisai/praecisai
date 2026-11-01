@@ -40,18 +40,15 @@ export class CallModelController {
         select: {
           call_model_tier: true,
           bolna_agent_id: true,
-          bolna_agent_id_b: true,
-          bolna_agent_id_c: true,
+          model_keys: { select: { tier: true, bolna_agent_id: true } },
         },
       }),
       this.prisma.callModelTier.findMany({ orderBy: { tier: 'asc' } }),
     ]);
     const agentFor = (t: string) =>
-      t === 'B'
-        ? business?.bolna_agent_id_b
-        : t === 'C'
-          ? business?.bolna_agent_id_c
-          : business?.bolna_agent_id;
+      t === 'A'
+        ? business?.bolna_agent_id
+        : business?.model_keys.find((k) => k.tier === t)?.bolna_agent_id;
     return {
       current: isModelTier(business?.call_model_tier)
         ? business!.call_model_tier
@@ -90,13 +87,11 @@ export class CallModelController {
     if (!tier?.active)
       throw new BadRequestException('That model is switched off in admin');
     if (dto.tier !== 'A') {
-      const b = await this.prisma.business.findUnique({
-        where: { id: businessId },
-        select: { bolna_agent_id_b: true, bolna_agent_id_c: true },
+      const row = await this.prisma.businessModelKeys.findUnique({
+        where: { business_id_tier: { business_id: businessId, tier: dto.tier } },
+        select: { bolna_agent_id: true },
       });
-      const agent =
-        dto.tier === 'B' ? b?.bolna_agent_id_b : b?.bolna_agent_id_c;
-      if (!agent) {
+      if (!row?.bolna_agent_id) {
         throw new BadRequestException(
           `Add the ${tier.label} agent id for this business in admin first`,
         );

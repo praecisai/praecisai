@@ -9,6 +9,7 @@ import {
   useAdminCreditHistory,
   useAdminModelTiers,
 } from '../../lib/api/hooks';
+import { ModelKeysForm } from './ModelKeysForm';
 
 const inputCls =
   'w-full px-3 py-2 rounded-lg text-sm border bg-[var(--surface-warm)] text-[var(--dark-brown)]';
@@ -22,8 +23,8 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 /**
- * Admin tenant page: which AI model the tenant dials with (+ the agent ids of
- * models B and C on the tenant's Bolna account), prepaid credits on/off,
+ * Admin tenant page: which AI model the tenant dials with (+ the full
+ * connection settings of models B and C), prepaid credits on/off,
  * balances, and manual credit adjustments (opening balance, goodwill, fixes).
  */
 export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
@@ -34,17 +35,18 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
   const tierLabel = (t: string) => (tiers ?? []).find((x: any) => x.tier === t)?.label ?? `Model ${t}`;
 
   const [tier, setTier] = useState<string>(tenant.call_model_tier ?? 'A');
-  const [agentB, setAgentB] = useState<string>(tenant.bolna_agent_id_b ?? '');
-  const [agentC, setAgentC] = useState<string>(tenant.bolna_agent_id_c ?? '');
+  const [editTier, setEditTier] = useState<'B' | 'C'>('B');
+  const modelPreviews = tenant.keys?.models ?? {};
   const [kind, setKind] = useState<'CALL' | 'WHATSAPP'>('CALL');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
   function saveModel() {
-    if (tier === 'B' && !agentB.trim()) return toast.error('Add the Model B agent id before switching to it');
-    if (tier === 'C' && !agentC.trim()) return toast.error('Add the Model C agent id before switching to it');
+    if ((tier === 'B' || tier === 'C') && !modelPreviews[tier]?.bolna_agent_id) {
+      return toast.error(`Save the Model ${tier} Bolna agent id below before switching to it`);
+    }
     update.mutate(
-      { callModelTier: tier, bolnaAgentIdB: agentB.trim(), bolnaAgentIdC: agentC.trim() },
+      { callModelTier: tier },
       { onSuccess: () => toast.success('AI model saved'), onError: (e: any) => toast.error(e.message) },
     );
   }
@@ -85,11 +87,12 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
           <Cpu size={15} className="text-[var(--mahogany)]" /> AI model
         </h2>
         <p className="text-xs text-[var(--walnut)] mb-3">
-          Model A uses the main Bolna agent id above. Models B and C need their own agent on the SAME Bolna account (same
-          API key and caller IDs). A model without an agent id falls back to Model A.
+          Model A uses the tenant settings above. Models B and C have their own full settings below (Bolna, caller IDs,
+          Vobiz, AiSensy); any field left empty uses Model A&apos;s. Calls and WhatsApp use the settings of the model in
+          use.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px]">
             <label className={labelCls}>Model in use</label>
             <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputCls} style={{ borderColor: 'var(--caramel)' }}>
               {['A', 'B', 'C'].map((t) => (
@@ -99,23 +102,41 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
               ))}
             </select>
           </div>
-          <div>
-            <label className={labelCls}>Model B agent id</label>
-            <input value={agentB} onChange={(e) => setAgentB(e.target.value)} placeholder="Bolna agent id" className={inputCls} style={{ borderColor: 'var(--caramel)' }} />
-          </div>
-          <div>
-            <label className={labelCls}>Model C agent id</label>
-            <input value={agentC} onChange={(e) => setAgentC(e.target.value)} placeholder="Bolna agent id" className={inputCls} style={{ borderColor: 'var(--caramel)' }} />
-          </div>
+          <button
+            onClick={saveModel}
+            disabled={update.isPending}
+            className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
+          >
+            Save AI model
+          </button>
         </div>
-        <button
-          onClick={saveModel}
-          disabled={update.isPending}
-          className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-          style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
-        >
-          Save AI model
-        </button>
+
+        <div className="mt-5 rounded-xl border p-4" style={{ borderColor: 'rgba(221,184,146,0.5)' }}>
+          <div className="flex gap-1.5 mb-4">
+            {(['B', 'C'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setEditTier(t)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border"
+                style={
+                  editTier === t
+                    ? { background: 'var(--mahogany)', color: 'var(--cream)', borderColor: 'var(--mahogany)' }
+                    : { borderColor: 'var(--caramel)', color: 'var(--mahogany)' }
+                }
+              >
+                {tierLabel(t)} settings
+              </button>
+            ))}
+          </div>
+          <ModelKeysForm
+            key={`${tenant.id}-${editTier}`}
+            tenantId={tenant.id}
+            tier={editTier}
+            previews={modelPreviews[editTier]}
+          />
+        </div>
       </div>
 
       {/* Credits */}

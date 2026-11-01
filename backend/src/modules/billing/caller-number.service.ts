@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { CallerNumberCheck } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CryptoService } from './crypto.service';
-import { TenantKeysService } from './tenant-keys.service';
+import { RAW_KEY_SELECT, TenantKeysService, mergeModelKeys } from './tenant-keys.service';
 import { toE164India } from '../../common/utils/call-script.util';
 
 const VOBIZ_API = 'https://api.vobiz.ai/api/v1';
@@ -44,19 +44,14 @@ export class CallerNumberService {
     private tenantKeys: TenantKeysService,
   ) {}
 
-  /** Primary first, then backups; E.164, de-duplicated. */
+  /** Primary first, then backups; E.164, de-duplicated. Of the AI model in use. */
   async pool(businessId: string) {
-    const b = await this.prisma.business.findUnique({
-      where: { id: businessId },
-      select: {
-        bolna_from_number: true,
-        backup_from_numbers: true,
-        vobiz_auth_id: true,
-        vobiz_auth_token: true,
-      },
-    });
+    const b = await this.tenantKeys.effectiveKeys(businessId);
     if (!b) throw new NotFoundException('Tenant not found');
-    const primary = b.bolna_from_number || this.config.get<string>('BOLNA_FROM_NUMBER') || null;
+    const primary =
+      b.bolna_from_number ||
+      (b.ownBolnaAccount ? null : this.config.get<string>('BOLNA_FROM_NUMBER')) ||
+      null;
     const all: string[] = [];
     for (const n of [primary, ...(b.backup_from_numbers ?? [])]) {
       const e = n ? toE164India(n) : '';
@@ -178,24 +173,29 @@ export class CallerNumberService {
   async sharedPool(businessId: string): Promise<Array<{ phone: string; owner: string }>> {
     const mine = await this.tenantKeys.getBolnaKeys(businessId);
     if (!mine.apiKey) return [];
+    // Each other business lends the numbers of the AI model it is on now
     const others = await this.prisma.business.findMany({
-      where: {
-        id: { not: businessId },
-        status: 'ACTIVE',
-        OR: [{ bolna_from_number: { not: null } }, { backup_from_numbers: { isEmpty: false } }],
-      },
+      where: { id: { not: businessId }, status: 'ACTIVE' },
       orderBy: { created_at: 'asc' },
-      select: { id: true, name: true, bolna_from_number: true, backup_from_numbers: true },
+      select: {
+        id: true,
+        name: true,
+        call_model_tier: true,
+        ...RAW_KEY_SELECT,
+        model_keys: { select: { tier: true, ...RAW_KEY_SELECT } },
+      },
     });
+    const envKey = this.config.get<string>('BOLNA_API_KEY') ?? null;
     const out: Array<{ phone: string; owner: string }> = [];
     for (const o of others) {
+      const keys = mergeModelKeys(o.call_model_tier, o, o.model_keys);
       try {
-        const keys = await this.tenantKeys.getBolnaKeys(o.id);
-        if (keys.apiKey !== mine.apiKey) continue;
+        const apiKey = keys.bolna_api_key ? this.crypto.decrypt(keys.bolna_api_key) : envKey;
+        if (apiKey !== mine.apiKey) continue;
       } catch {
         continue; // an undecryptable key never makes its numbers borrowable
       }
-      for (const n of [o.bolna_from_number, ...(o.backup_from_numbers ?? [])]) {
+      for (const n of [keys.bolna_from_number, ...(keys.backup_from_numbers ?? [])]) {
         const e = n ? toE164India(n) : '';
         if (e && !out.some((x) => x.phone === e)) out.push({ phone: e, owner: o.name });
       }
@@ -205,10 +205,7 @@ export class CallerNumberService {
 
   /** Reads every number on the tenant's Vobiz account and records each pool number's status. */
   async refreshVobiz(businessId: string): Promise<CallerNumberCheck[]> {
-    const b = await this.prisma.business.findUnique({
-      where: { id: businessId },
-      select: { vobiz_auth_id: true, vobiz_auth_token: true },
-    });
+    const b = await this.tenantKeys.effectiveKeys(businessId);
     const creds = b ? this.vobizCreds(b) : null;
     if (!creds) {
       throw new BadRequestException(

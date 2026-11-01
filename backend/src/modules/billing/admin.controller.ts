@@ -95,6 +95,22 @@ export class AdminController {
     return result;
   }
 
+  /** Model B / C keys: Bolna key + agent, caller IDs, Vobiz, AiSensy. */
+  @Patch('tenants/:id/model-keys/:tier')
+  async updateModelKeys(
+    @Param('id') id: string,
+    @Param('tier') tier: string,
+    @Body() dto: UpsertTenantDto,
+  ) {
+    const result = await this.admin.updateModelKeys(id, tier, dto);
+    try {
+      await this.bolnaUsage.pollTenant(id);
+    } catch {
+      // balance banner catches up on the next scheduled poll
+    }
+    return result;
+  }
+
   @Delete('tenants/:id')
   deleteTenant(@Param('id') id: string, @Body() body: { confirmName: string }) {
     return this.admin.deleteTenant(id, body?.confirmName ?? '');

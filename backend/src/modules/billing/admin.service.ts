@@ -27,8 +27,6 @@ export interface UpsertTenantDto {
   // AI model this tenant dials with ("A" | "B" | "C") and the agent ids of
   // models B and C on the tenant's Bolna account (empty string clears)
   callModelTier?: string;
-  bolnaAgentIdB?: string;
-  bolnaAgentIdC?: string;
   // Prepaid credits on/off for this tenant
   creditBilling?: boolean;
 }
@@ -201,8 +199,6 @@ export class AdminService {
         trial_ends_at: true,
         created_at: true,
         call_model_tier: true,
-        bolna_agent_id_b: true,
-        bolna_agent_id_c: true,
         credit_billing: true,
         billing_subscriptions: true,
         users: { select: { email: true, phone: true, role: true, status: true } },
@@ -270,6 +266,38 @@ export class AdminService {
     };
   }
 
+  /** Model B / C can be switched on only once its Bolna agent id is saved. */
+  private async assertModelReady(id: string, tier: 'B' | 'C') {
+    const row = await this.prisma.businessModelKeys.findUnique({
+      where: { business_id_tier: { business_id: id, tier } },
+      select: { bolna_agent_id: true },
+    });
+    if (!row?.bolna_agent_id) {
+      throw new BadRequestException(`Save the Model ${tier} Bolna agent id before switching to it`);
+    }
+  }
+
+  /** Model B / C connection settings: same fields and rules as model A's. */
+  async updateModelKeys(id: string, tier: string, dto: UpsertTenantDto) {
+    if (tier !== 'B' && tier !== 'C') throw new BadRequestException('Model must be B or C');
+    const existing = await this.prisma.business.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw new NotFoundException('Tenant not found');
+    await this.tenantKeys.setKeys(
+      id,
+      {
+        bolnaApiKey: dto.bolnaApiKey,
+        bolnaAgentId: dto.bolnaAgentId,
+        bolnaFromNumber: dto.bolnaFromNumber,
+        aisensyApiKey: dto.aisensyApiKey,
+        backupFromNumbers: dto.backupFromNumbers,
+        vobizAuthId: dto.vobizAuthId,
+        vobizAuthToken: dto.vobizAuthToken,
+      },
+      tier,
+    );
+    return this.getTenant(id);
+  }
+
   async createTenant(dto: UpsertTenantDto) {
     if (!dto.name?.trim()) throw new BadRequestException('Business name is required');
     const business = await this.prisma.business.create({
@@ -319,6 +347,9 @@ export class AdminService {
   async updateTenant(id: string, dto: UpsertTenantDto) {
     const existing = await this.prisma.business.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Tenant not found');
+    if (dto.callModelTier === 'B' || dto.callModelTier === 'C') {
+      await this.assertModelReady(id, dto.callModelTier);
+    }
 
     await this.prisma.business.update({
       where: { id },
@@ -336,8 +367,6 @@ export class AdminService {
               return { call_model_tier: dto.callModelTier };
             })()
           : {}),
-        ...(dto.bolnaAgentIdB !== undefined ? { bolna_agent_id_b: dto.bolnaAgentIdB?.trim() || null } : {}),
-        ...(dto.bolnaAgentIdC !== undefined ? { bolna_agent_id_c: dto.bolnaAgentIdC?.trim() || null } : {}),
         ...(dto.creditBilling !== undefined ? { credit_billing: !!dto.creditBilling } : {}),
         ...(dto.lowBalanceThresholdUsd !== undefined
           ? { low_balance_threshold_usd: dto.lowBalanceThresholdUsd }

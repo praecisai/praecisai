@@ -252,11 +252,13 @@ model Business {
   trial_ends_at             DateTime?
 
   // ─── AI model tier + prepaid credits ──────────────────────────────────────
-  // Which AI calling model this tenant dials with: "A" (best, the tenant's
-  // bolna_agent_id), "B" (2nd best) or "C" (3rd best). B/C use the agent ids
-  // below, which live on the SAME Bolna account as bolna_api_key. A tier with
-  // no agent id falls back to A, so a half-configured tier never breaks calls.
+  // Which AI calling model this tenant dials with: "A" (the keys on this
+  // record), "B" or "C" (their own full set of keys in business_model_keys).
+  // A tier with no agent id falls back to A, so a half-configured tier never
+  // breaks calls.
   call_model_tier  String  @default("A")
+  // Superseded by business_model_keys.bolna_agent_id (copied there by
+  // 2026-11-02_model_keys.sql); kept so the column is not dropped.
   bolna_agent_id_b String?
   bolna_agent_id_c String?
   // true = calls and WhatsApp are paid from prepaid credits (1 call credit =
@@ -288,6 +290,7 @@ model Business {
   caller_number_checks  CallerNumberCheck[]
   credit_account        CreditAccount?
   credit_transactions   CreditTransaction[]
+  model_keys            BusinessModelKeys[]
 
   @@map("businesses")
 }
@@ -1070,4 +1073,29 @@ model CallModelTier {
   updated_at    DateTime @updatedAt
 
   @@map("call_model_tiers")
+}
+
+// Models B and C carry the same connection settings as model A (which lives on
+// the business record): Bolna key + agent, caller IDs, Vobiz login, AiSensy
+// key. Empty fields fall back to model A's; see TenantKeysService.
+model BusinessModelKeys {
+  id                  String   @id @default(uuid())
+  business_id         String
+  // "B" | "C"
+  tier                String
+  // Encrypted at rest (CryptoService), like the business record's keys
+  bolna_api_key       String?
+  bolna_agent_id      String?
+  bolna_from_number   String?
+  backup_from_numbers String[] @default([])
+  vobiz_auth_id       String?
+  vobiz_auth_token    String?
+  aisensy_api_key     String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([business_id, tier])
+  @@map("business_model_keys")
 }

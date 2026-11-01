@@ -14,6 +14,86 @@ export interface BolnaKeys {
   fromTenant: boolean;
 }
 
+/** The connection fields a model carries (stored encrypted where secret). */
+export interface RawKeys {
+  bolna_api_key: string | null;
+  bolna_agent_id: string | null;
+  bolna_from_number: string | null;
+  backup_from_numbers: string[];
+  vobiz_auth_id: string | null;
+  vobiz_auth_token: string | null;
+  aisensy_api_key: string | null;
+}
+
+export type KeyTier = 'A' | 'B' | 'C';
+
+export interface EffectiveKeys extends RawKeys {
+  tier: KeyTier;
+  /** The model dials on a Bolna account of its own, not model A's. */
+  ownBolnaAccount: boolean;
+}
+
+export const RAW_KEY_SELECT = {
+  bolna_api_key: true,
+  bolna_agent_id: true,
+  bolna_from_number: true,
+  backup_from_numbers: true,
+  vobiz_auth_id: true,
+  vobiz_auth_token: true,
+  aisensy_api_key: true,
+} as const;
+
+/**
+ * Model A's keys live on the business record, B's and C's in
+ * business_model_keys. A model with no agent id is not set up for calling, so
+ * calls use model A's Bolna settings (switching to a half-configured model
+ * never stops calls). A set-up model on model A's Bolna account (no key of its
+ * own) borrows any caller ID / backups it leaves empty; one on its own account
+ * uses only its own numbers, since a caller ID works only with its account's
+ * key. The Vobiz login and AiSensy key each fall back to model A's when empty.
+ */
+export function mergeModelKeys(
+  tier: string | null | undefined,
+  a: RawKeys,
+  rows: Array<RawKeys & { tier: string }>,
+): EffectiveKeys {
+  const t: KeyTier = tier === 'B' || tier === 'C' ? tier : 'A';
+  const row = t === 'A' ? undefined : rows.find((r) => r.tier === t);
+  const vobiz =
+    row?.vobiz_auth_id && row.vobiz_auth_token
+      ? { vobiz_auth_id: row.vobiz_auth_id, vobiz_auth_token: row.vobiz_auth_token }
+      : { vobiz_auth_id: a.vobiz_auth_id, vobiz_auth_token: a.vobiz_auth_token };
+  const aisensy_api_key = row?.aisensy_api_key || a.aisensy_api_key;
+
+  if (!row?.bolna_agent_id) {
+    return {
+      bolna_api_key: a.bolna_api_key,
+      bolna_agent_id: a.bolna_agent_id,
+      bolna_from_number: a.bolna_from_number,
+      backup_from_numbers: a.backup_from_numbers ?? [],
+      ...vobiz,
+      aisensy_api_key,
+      tier: t,
+      ownBolnaAccount: false,
+    };
+  }
+  const own = !!row.bolna_api_key;
+  return {
+    tier: t,
+    ownBolnaAccount: own,
+    bolna_api_key: row.bolna_api_key || a.bolna_api_key,
+    bolna_agent_id: row.bolna_agent_id,
+    bolna_from_number: own ? row.bolna_from_number : row.bolna_from_number || a.bolna_from_number,
+    backup_from_numbers: own
+      ? (row.backup_from_numbers ?? [])
+      : row.backup_from_numbers?.length
+        ? row.backup_from_numbers
+        : (a.backup_from_numbers ?? []),
+    ...vobiz,
+    aisensy_api_key,
+  };
+}
+
 /**
  * Single source of truth for per-tenant third-party credentials.
  *
@@ -31,35 +111,33 @@ export class TenantKeysService {
     private cryptoService: CryptoService,
   ) {}
 
-  async getBolnaKeys(businessId: string): Promise<BolnaKeys> {
+  /** Encrypted keys of the model this business dials with now (null: no such business). */
+  async effectiveKeys(businessId: string): Promise<EffectiveKeys | null> {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
       select: {
-        bolna_api_key: true,
-        bolna_agent_id: true,
-        bolna_from_number: true,
+        ...RAW_KEY_SELECT,
         call_model_tier: true,
-        bolna_agent_id_b: true,
-        bolna_agent_id_c: true,
+        model_keys: { select: { tier: true, ...RAW_KEY_SELECT } },
       },
     });
-    // AI model: B / C dial their own agent (same Bolna account, same caller
-    // IDs). A model with no agent id set falls back to the main agent (A), so
-    // switching to a half-configured model never stops calls.
-    const tierAgent =
-      business?.call_model_tier === 'B'
-        ? business.bolna_agent_id_b
-        : business?.call_model_tier === 'C'
-          ? business.bolna_agent_id_c
-          : null;
+    if (!business) return null;
+    return mergeModelKeys(business.call_model_tier, business, business.model_keys);
+  }
+
+  async getBolnaKeys(businessId: string): Promise<BolnaKeys> {
+    const keys = await this.effectiveKeys(businessId);
     // The caller ID resolves independently of the API key: a tenant still on
     // the platform's Bolna account can already own the number it dials from.
+    // The platform's env number never goes out on a model's own Bolna account.
     const fromNumber =
-      business?.bolna_from_number || this.config.get<string>('BOLNA_FROM_NUMBER') || null;
-    if (business?.bolna_api_key) {
+      keys?.bolna_from_number ||
+      (keys?.ownBolnaAccount ? null : this.config.get<string>('BOLNA_FROM_NUMBER')) ||
+      null;
+    if (keys?.bolna_api_key) {
       return {
-        apiKey: this.cryptoService.decrypt(business.bolna_api_key),
-        agentId: tierAgent || business.bolna_agent_id || this.config.get<string>('BOLNA_AGENT_ID') || null,
+        apiKey: this.cryptoService.decrypt(keys.bolna_api_key),
+        agentId: keys.bolna_agent_id || this.config.get<string>('BOLNA_AGENT_ID') || null,
         fromNumber,
         fromTenant: true,
       };
@@ -73,11 +151,8 @@ export class TenantKeysService {
   }
 
   async getAisensyKey(businessId: string): Promise<string | null> {
-    const business = await this.prisma.business.findUnique({
-      where: { id: businessId },
-      select: { aisensy_api_key: true },
-    });
-    if (business?.aisensy_api_key) return this.cryptoService.decrypt(business.aisensy_api_key);
+    const keys = await this.effectiveKeys(businessId);
+    if (keys?.aisensy_api_key) return this.cryptoService.decrypt(keys.aisensy_api_key);
     return this.config.get<string>('AISENSY_API_KEY') ?? null;
   }
 
@@ -97,6 +172,8 @@ export class TenantKeysService {
       vobizAuthId?: string;
       vobizAuthToken?: string;
     },
+    // A = the business record; B / C = that model's row in business_model_keys
+    tier: KeyTier = 'A',
   ) {
     const data: Record<string, string | string[] | null> = {};
     if (keys.backupFromNumbers !== undefined) {
@@ -138,6 +215,16 @@ export class TenantKeysService {
         : null;
     }
 
+    if (tier !== 'A') {
+      await this.prisma.businessModelKeys.upsert({
+        where: { business_id_tier: { business_id: businessId, tier } },
+        create: { business_id: businessId, tier, ...data },
+        update: data,
+      });
+      this.logger.log(`Model ${tier} keys updated for business ${businessId}`);
+      return { success: true };
+    }
+
     const updated = await this.prisma.business.update({
       where: { id: businessId },
       data,
@@ -177,6 +264,28 @@ export class TenantKeysService {
       },
       select: { name: true, bolna_from_number: true, backup_from_numbers: true },
     });
+    // Models B / C of other businesses own their numbers too
+    const otherModels = await this.prisma.businessModelKeys.findMany({
+      where: {
+        business_id: { not: businessId },
+        OR: [
+          { bolna_from_number: { in: numbers } },
+          { backup_from_numbers: { hasSome: numbers } },
+        ],
+      },
+      select: {
+        bolna_from_number: true,
+        backup_from_numbers: true,
+        business: { select: { name: true } },
+      },
+    });
+    for (const m of otherModels) {
+      others.push({
+        name: m.business.name,
+        bolna_from_number: m.bolna_from_number,
+        backup_from_numbers: m.backup_from_numbers,
+      });
+    }
     for (const other of others) {
       const taken = numbers.find(
         (n) => other.bolna_from_number === n || (other.backup_from_numbers ?? []).includes(n),
@@ -193,26 +302,24 @@ export class TenantKeysService {
   async keyPreviews(businessId: string) {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      select: {
-        bolna_api_key: true,
-        bolna_agent_id: true,
-        bolna_from_number: true,
-        aisensy_api_key: true,
-        backup_from_numbers: true,
-        vobiz_auth_id: true,
-        vobiz_auth_token: true,
-      },
+      select: { ...RAW_KEY_SELECT, model_keys: { select: { tier: true, ...RAW_KEY_SELECT } } },
     });
-    return {
-      backup_from_numbers: business?.backup_from_numbers ?? [],
+    const preview = (k: Partial<RawKeys> | null | undefined) => ({
+      backup_from_numbers: k?.backup_from_numbers ?? [],
       // Auth ID is an account identifier, not a secret; the token is.
-      vobiz_auth_id: business?.vobiz_auth_id ?? null,
-      vobiz_token_last4: this.cryptoService.last4(business?.vobiz_auth_token),
-      bolna_key_last4: this.cryptoService.last4(business?.bolna_api_key),
-      bolna_agent_id: business?.bolna_agent_id ?? null,
+      vobiz_auth_id: k?.vobiz_auth_id ?? null,
+      vobiz_token_last4: this.cryptoService.last4(k?.vobiz_auth_token),
+      bolna_key_last4: this.cryptoService.last4(k?.bolna_api_key),
+      bolna_agent_id: k?.bolna_agent_id ?? null,
       // Not a secret: shown in full so the admin can confirm the caller ID.
-      bolna_from_number: business?.bolna_from_number ?? null,
-      aisensy_key_last4: this.cryptoService.last4(business?.aisensy_api_key),
+      bolna_from_number: k?.bolna_from_number ?? null,
+      aisensy_key_last4: this.cryptoService.last4(k?.aisensy_api_key),
+    });
+    const row = (t: string) => business?.model_keys.find((m) => m.tier === t);
+    return {
+      ...preview(business),
+      // Models B and C: their own settings (empty = falls back to model A's)
+      models: { B: preview(row('B')), C: preview(row('C')) },
     };
   }
 }

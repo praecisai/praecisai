@@ -27,10 +27,19 @@ export class BolnaUsageService {
     return this.config.get<string>('BOLNA_API_BASE') || 'https://api.bolna.dev';
   }
 
-  /** Businesses that have their own Bolna key on record (tenant-connected). */
+  /**
+   * Businesses that have their own Bolna key on record (tenant-connected), on
+   * model A or on model B / C. The poll reads the account of the model in use.
+   */
   async connectedTenants() {
     return this.prisma.business.findMany({
-      where: { status: 'ACTIVE', bolna_api_key: { not: null } },
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          { bolna_api_key: { not: null } },
+          { model_keys: { some: { bolna_api_key: { not: null } } } },
+        ],
+      },
       select: { id: true, name: true, low_balance_threshold_usd: true, billing_email: true },
     });
   }

@@ -318,6 +318,16 @@ export function useAdminUpdateTenant(id: string) {
   });
 }
 
+/** Model B / C connection settings (same fields as model A's). */
+export function useAdminUpdateModelKeys(id: string, tier: 'B' | 'C') {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => adminApi.patch(`/admin/tenants/${id}/model-keys/${tier}`, data),
+    // Tenant detail and the caller-number panel both read these keys
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin'] }),
+  });
+}
+
 export function useAdminToggleTestCall(id: string) {
   const qc = useQueryClient();
   return useMutation({
