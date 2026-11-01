@@ -33,9 +33,10 @@ export default function AdminModelsPage() {
           <Cpu size={18} className="text-[var(--mahogany)]" /> AI Models
         </h1>
         <p className="text-xs text-[var(--walnut)] mt-1 max-w-3xl">
-          Model A is the agent in use today. Fill in Models B and C here for the demo dashboard, then add each
-          customer&apos;s B and C agent ids on their tenant page. A model with no agent id is shown as &quot;coming
-          soon&quot; and never dialled.
+          These settings are for the public demo only: demo calls and WhatsApp always use the platform Bolna and
+          AiSensy keys on the server, so the agent ids here must be on the platform Bolna account. For a customer,
+          open their tenant page: the AI model card has the full Model B and C settings (Bolna key and agent, caller
+          IDs, Vobiz, AiSensy). A model with no agent id is shown as &quot;coming soon&quot; and never dialled.
         </p>
       </div>
 

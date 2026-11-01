@@ -135,6 +135,7 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
             tenantId={tenant.id}
             tier={editTier}
             previews={modelPreviews[editTier]}
+            modelA={tenant.keys}
           />
         </div>
       </div>

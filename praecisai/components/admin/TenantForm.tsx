@@ -61,15 +61,19 @@ export function SecretField({
   saved,
   value,
   onChange,
+  emptyPlaceholder = 'Paste API key',
+  hint,
 }: {
   label: string;
   saved: string | null | undefined;
   value: string | undefined;
   onChange: (v: string | undefined) => void;
+  emptyPlaceholder?: string;
+  hint?: string;
 }) {
   const [replacing, setReplacing] = useState(!saved);
   return (
-    <Field label={label}>
+    <Field label={label} hint={hint}>
       {saved && !replacing ? (
         <div className="flex items-center gap-2">
           <div
@@ -93,7 +97,7 @@ export function SecretField({
           autoComplete="off"
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value || undefined)}
-          placeholder={saved ? 'Enter new key to replace' : 'Paste API key'}
+          placeholder={saved ? 'Enter new key to replace' : emptyPlaceholder}
           className={inputCls}
           style={inputStyle}
         />
