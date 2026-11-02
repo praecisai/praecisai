@@ -146,7 +146,9 @@ export function getAgingBucket(daysOverdue: number): string {
  * Output: +91XXXXXXXXXX
  */
 export function normalizePhone(raw: string | number): string {
-  const str = String(raw).replace(/\D/g, '');
+  // Leading zeros are a trunk / international prefix, not part of the number:
+  // "093726 20588" and "0091 98765 43210" are written that way in ledgers.
+  const str = String(raw).replace(/\D/g, '').replace(/^0+/, '');
   if (str.startsWith('91') && str.length === 12) {
     return `+${str}`;
   }
@@ -179,14 +181,28 @@ export function parsePhones(raw: string | number): string[] {
 }
 
 /**
+ * Share (0-1) of a column's non-empty cells that hold at least one Indian
+ * mobile number. Lets the importer find the phone column by its contents when
+ * the header is something like "Order No." or "Party No.".
+ */
+export function phoneColumnScore(values: string[]): number {
+  const filled = values.filter((v) => String(v ?? '').trim() !== '');
+  if (filled.length === 0) return 0;
+  const hits = filled.filter((v) => parsePhones(v).some((p) => /^\+91[6-9]\d{9}$/.test(p))).length;
+  return hits / filled.length;
+}
+
+/**
  * Parse Indian date format DD/MM/YYYY to JS Date.
  */
 export function parseIndianDate(raw: string): Date | null {
   if (!raw) return null;
   const cleaned = raw.trim();
 
-  // DD/MM/YYYY
-  const indianMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // DD/MM/YYYY, also DD-MM-YYYY and DD.MM.YYYY (how Excel shows dates in many
+  // exports). Must be read day-first here: the native fallback below would
+  // take "03-07-2026" as 7 March and reject "25-07-2026" outright.
+  const indianMatch = cleaned.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
   if (indianMatch) {
     const [, day, month, year] = indianMatch;
     return new Date(

@@ -21,7 +21,12 @@ import {
   applyVipRule,
   NO_FOLLOWUP_SEGMENT,
 } from '../../common/utils/segment.util';
-import { dedupeByPhone } from '../../common/utils/contact-cadence.util';
+import {
+  EXTRA_NUMBER_GAP_MS,
+  contactNumbers,
+  dedupeByPhone,
+  phoneKey,
+} from '../../common/utils/contact-cadence.util';
 import { isPdcCooldownActive, pdcCooldownMessage } from '../../common/utils/pdc-cooldown.util';
 
 @Injectable()
@@ -67,8 +72,10 @@ export class WhatsappService {
     businessId: string,
     customerId: string,
     overridePhone?: string,
-    // Which rung of the scheduled-send retry ladder this is (1 = first try)
-    opts?: { attempt?: number },
+    // Which rung of the scheduled-send retry ladder this is (1 = first try);
+    // toPhone = one of the party's own numbers (a fan-out send), which unlike
+    // overridePhone still respects the PDC cooldown.
+    opts?: { attempt?: number; toPhone?: string },
   ) {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
@@ -84,7 +91,7 @@ export class WhatsappService {
     if (!customer) throw new NotFoundException('Customer not found');
     // overridePhone is used by the inbound flow when the customer replies with
     // a different WhatsApp number than the one on their party record.
-    const destinationPhone = overridePhone ?? customer.phone;
+    const destinationPhone = overridePhone ?? opts?.toPhone ?? customer.phone;
     if (!destinationPhone) throw new BadRequestException('Customer has no phone number');
     if (customer.invoices.length === 0)
       throw new BadRequestException('Customer has no outstanding invoices');
@@ -234,6 +241,35 @@ export class WhatsappService {
   }
 
   /**
+   * Manual "send statement" for one party: the primary number now, and each of
+   * the party's other distinct numbers queued EXTRA_NUMBER_GAP_MS apart.
+   */
+  async sendStatementToAllNumbers(businessId: string, customerId: string) {
+    const result = await this.sendStatementToCustomer(businessId, customerId);
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, business_id: businessId },
+      select: { customer_name: true, phone: true, alt_phones: true },
+    });
+    const extra = contactNumbers(customer?.phone, customer?.alt_phones).slice(1);
+    if (customer && extra.length) {
+      await this.statementQueue.addBulk(
+        extra.map((phone, i) => ({
+          name: 'send-statement',
+          data: { businessId, customerId, customerName: customer.customer_name, phone },
+          opts: { delay: (i + 1) * EXTRA_NUMBER_GAP_MS },
+        })),
+      );
+    }
+    return {
+      ...result,
+      extra_numbers_queued: extra.length,
+      message: extra.length
+        ? `${result.message}; ${extra.length} more number(s) queued, ${EXTRA_NUMBER_GAP_MS / 60000} min apart`
+        : result.message,
+    };
+  }
+
+  /**
    * Send the human-agent handoff briefing on WhatsApp when a call is being
    * transferred to a person. Uses the tenant AiSensy key and the configurable
    * handoff campaign template (AISENSY_CAMPAIGN_AGENT_HANDOFF, one {{1}} body
@@ -363,7 +399,7 @@ export class WhatsappService {
         // Parties still settling a cleared cheque are excluded up front.
         OR: [{ pdc_cooldown_until: null }, { pdc_cooldown_until: { lte: new Date() } }],
       },
-      include: { customer: { select: { id: true, customer_name: true, phone: true } } },
+      include: { customer: { select: { id: true, customer_name: true, phone: true, alt_phones: true } } },
     });
 
     const withPhone = outstandings.filter((o) => o.customer?.phone);
@@ -374,28 +410,39 @@ export class WhatsappService {
     // costs the tenant's WhatsApp quality rating.
     const { unique: eligible, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
 
-    await this.statementQueue.addBulk(
-      eligible.map((o) => ({
-        name: 'send-statement',
-        data: {
-          businessId,
-          customerId: o.customer.id,
-          customerName: o.customer.customer_name,
-        },
-      })),
-    );
+    // Every distinct number of each party gets the statement, the extra ones
+    // EXTRA_NUMBER_GAP_MS apart; a number already used by another party in
+    // this run is skipped (one message per handset).
+    const used = new Set(eligible.map((o) => phoneKey(o.customer.phone!)));
+    const jobs = eligible.flatMap((o) => {
+      const extra = contactNumbers(o.customer.phone, o.customer.alt_phones)
+        .slice(1)
+        .filter((n) => !used.has(phoneKey(n)) && used.add(phoneKey(n)));
+      const base = { businessId, customerId: o.customer.id, customerName: o.customer.customer_name };
+      return [
+        { name: 'send-statement', data: base },
+        ...extra.map((phone, i) => ({
+          name: 'send-statement',
+          data: { ...base, phone },
+          opts: { delay: (i + 1) * EXTRA_NUMBER_GAP_MS },
+        })),
+      ];
+    });
+    await this.statementQueue.addBulk(jobs);
+    const extraCount = jobs.length - eligible.length;
 
     return {
       success: true,
       segment,
       queued: eligible.length,
+      extra_numbers_queued: extraCount,
       no_phone: noPhone,
       shared_number: duplicates.length,
       skipped: duplicates.map((o) => ({
         customer: o.customer.customer_name,
         reason: 'Another party in this batch shares the same phone number',
       })),
-      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}: sending in the background${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}`,
+      message: `${eligible.length} statement(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}: sending in the background${extraCount ? `; ${extraCount} to parties' other numbers, ${EXTRA_NUMBER_GAP_MS / 60000} min apart` : ''}${noPhone ? `; ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}`,
     };
   }
 

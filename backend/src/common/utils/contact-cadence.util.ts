@@ -59,6 +59,28 @@ export function cadenceCutoff(days: number, now = new Date()): Date {
 }
 
 /**
+ * A party's distinct numbers, primary first: the same number written twice
+ * (or with/without +91) counts once.
+ */
+export function contactNumbers(
+  phone: string | null | undefined,
+  altPhones: string[] | null | undefined,
+): string[] {
+  const out: string[] = [];
+  for (const n of [phone, ...(altPhones ?? [])]) {
+    if (n && phoneKey(n) && !out.some((x) => phoneKey(x) === phoneKey(n))) out.push(n);
+  }
+  return out;
+}
+
+/**
+ * Gap between a party's numbers when a statement goes to each of them, on top
+ * of the worker-wide pacing. Messages to one party's several contacts arriving
+ * minutes apart read as a person working a ledger, not a bulk blast.
+ */
+export const EXTRA_NUMBER_GAP_MS = 5 * 60 * 1000;
+
+/**
  * Collapse a list to one entry per physical phone number.
  *
  * Several parties in the same ledger routinely share one number (a group's

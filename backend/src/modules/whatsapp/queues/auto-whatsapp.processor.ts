@@ -8,6 +8,8 @@ import {
   cadenceCutoff,
   dedupeByPhone,
   phoneKey,
+  contactNumbers,
+  EXTRA_NUMBER_GAP_MS,
 } from '../../../common/utils/contact-cadence.util';
 
 /**
@@ -143,6 +145,7 @@ export class AutoWhatsappProcessor extends WorkerHost {
               id: true,
               customer_name: true,
               phone: true,
+              alt_phones: true,
               // Most recent message to this party, to apply the cadence.
               whatsapp_logs: {
                 orderBy: { created_at: 'desc' },
@@ -173,31 +176,44 @@ export class AutoWhatsappProcessor extends WorkerHost {
         return true;
       });
 
-      const batch = fresh.slice(0, budget);
-      if (batch.length > 0) {
-        // originalAt anchors the retry ladder: a provider failure retries
-        // +3.5h today, then tomorrow at THIS slot's time.
-        const originalAt = new Date().toISOString();
-        await this.statementQueue.addBulk(
-          batch.map((o) => ({
-            name: 'send-statement',
-            data: {
-              businessId: business.id,
-              customerId: o.customer!.id,
-              customerName: o.customer!.customer_name,
-              attempt: 1,
-              originalAt,
-            },
-          })),
-        );
-        queued += batch.length;
-        budget -= batch.length;
+      // Each party's other distinct numbers get the statement too, spaced
+      // EXTRA_NUMBER_GAP_MS apart, skipping numbers already used in this run.
+      // Every message counts against the daily cap.
+      // originalAt anchors the retry ladder: a provider failure retries
+      // +3.5h today, then tomorrow at THIS slot's time.
+      const originalAt = new Date().toISOString();
+      const jobs: Array<{ name: string; data: any; opts?: { delay: number } }> = [];
+      let batch = 0;
+      for (const o of fresh) {
+        if (jobs.length >= budget) break;
+        const base = {
+          businessId: business.id,
+          customerId: o.customer!.id,
+          customerName: o.customer!.customer_name,
+          attempt: 1,
+          originalAt,
+        };
+        jobs.push({ name: 'send-statement', data: base });
+        batch++;
+        const extra = contactNumbers(o.customer!.phone, o.customer!.alt_phones).slice(1);
+        let gap = 0;
+        for (const phone of extra) {
+          if (jobs.length >= budget || seenPhones.has(phoneKey(phone))) continue;
+          seenPhones.add(phoneKey(phone));
+          gap++;
+          jobs.push({ name: 'send-statement', data: { ...base, phone }, opts: { delay: gap * EXTRA_NUMBER_GAP_MS } });
+        }
+      }
+      if (jobs.length > 0) {
+        await this.statementQueue.addBulk(jobs);
+        queued += jobs.length;
+        budget -= jobs.length;
       }
 
-      if (batch.length > 0 || duplicates.length > 0) {
+      if (batch > 0 || duplicates.length > 0) {
         this.logger.log(
           `Auto-WhatsApp ${slot}: ${business.name} / ${segment} (every ${days}d) ` +
-            `queued ${batch.length}, skipped ${duplicates.length} shared-number, ` +
+            `queued ${batch} (${jobs.length - batch} to other numbers), skipped ${duplicates.length} shared-number, ` +
             `${outstandings.length - due.length} within cadence`,
         );
       }

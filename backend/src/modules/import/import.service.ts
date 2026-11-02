@@ -10,6 +10,7 @@ import { OutstandingService } from '../outstanding/outstanding.service';
 import {
   normalizePhone,
   parsePhones,
+  phoneColumnScore,
   parseIndianDate,
   getSegment,
   getAgingBucket,
@@ -105,7 +106,7 @@ export class ImportService {
     });
 
     // Auto-detect column mappings via fuzzy match
-    const suggestedMappings = this.autoDetectMappings(headers);
+    const suggestedMappings = this.autoDetectMappings(headers, this.parseFile(file.buffer, ext!));
 
     return {
       history_id: history.id,
@@ -289,6 +290,27 @@ export class ImportService {
     }
 
     const imported = parsedRows.length;
+
+    // A party's bills can each carry a different contact number (one per
+    // order / contact person). Collect every distinct number across all of the
+    // party's rows, in file order: the first is the primary, the rest are
+    // fallbacks and extra WhatsApp recipients. The same number written twice
+    // ("98765 43210 / 98765 43210") is one number.
+    const normKey = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+    const phonesByParty = new Map<string, string[]>();
+    for (const r of parsedRows) {
+      const key = normKey(r.name);
+      const list = phonesByParty.get(key) ?? [];
+      for (const ph of [r.phone, ...r.altPhones]) {
+        if (ph && !list.some((x) => x.slice(-10) === ph.slice(-10))) list.push(ph);
+      }
+      phonesByParty.set(key, list);
+    }
+    for (const r of parsedRows) {
+      const all = phonesByParty.get(normKey(r.name)) ?? [];
+      r.phone = all[0] ?? null;
+      r.altPhones = all.slice(1);
+    }
 
     // ── Phase 2: resolve customers (2 queries + 1 bulk insert) ────────────────
     const existingCustomers = await this.prisma.customer.findMany({
@@ -712,7 +734,10 @@ export class ImportService {
     return /^(PARTY|GRAND|SUB)?\s*TOTALS?$/i.test(customerName.trim());
   }
 
-  private autoDetectMappings(headers: string[]): Array<{ target_field: TargetField; source_column: string; confidence: number }> {
+  private autoDetectMappings(
+    headers: string[],
+    rows: Record<string, string>[] = [],
+  ): Array<{ target_field: TargetField; source_column: string; confidence: number }> {
     const results: Array<{ target_field: TargetField; source_column: string; confidence: number }> = [];
     const claimed = new Set<string>();
 
@@ -754,6 +779,33 @@ export class ImportService {
       if (bestMatch && bestMatch.confidence > 0.65) {
         results.push({ target_field: field, source_column: bestMatch.source_column, confidence: bestMatch.confidence });
         claimed.add(bestMatch.source_column);
+      }
+    }
+
+    // Pass 3: the phone column by its contents. Exports often put mobiles
+    // under a header no alias covers ("Order No.", "Party No.", "Contact
+    // Person No."), or under an empty "Party No." while the real numbers sit
+    // in another column. The column where most filled cells hold a mobile
+    // wins, unless the header-matched one already holds mobiles.
+    if (rows.length) {
+      const sample = rows.slice(0, 500);
+      const score = (h: string) => phoneColumnScore(sample.map((r) => r[h] ?? ''));
+      const current = results.find((r) => r.target_field === 'phone');
+      if (!current || score(current.source_column) < 0.5) {
+        let best: { header: string; score: number } | null = null;
+        for (const h of headers) {
+          if (claimed.has(h) && h !== current?.source_column) continue;
+          const sc = score(h);
+          if (sc >= 0.5 && (!best || sc > best.score)) best = { header: h, score: sc };
+        }
+        if (best) {
+          if (current) {
+            claimed.delete(current.source_column);
+            results.splice(results.indexOf(current), 1);
+          }
+          results.push({ target_field: 'phone', source_column: best.header, confidence: Math.min(0.95, best.score) });
+          claimed.add(best.header);
+        }
       }
     }
 

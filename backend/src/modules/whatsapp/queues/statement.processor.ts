@@ -14,6 +14,8 @@ export interface StatementJob {
   businessId: string;
   customerId: string;
   customerName: string;
+  /** The party number this send is for; absent = the primary number */
+  phone?: string;
   /** Ladder position: 1 = the scheduled send, 2 = same-day, 3 = next-day */
   attempt?: number;
   /** ISO time the cycle was originally scheduled for (drives the ladder) */
@@ -55,7 +57,7 @@ export class StatementProcessor extends WorkerHost {
   }
 
   async process(job: Job<StatementJob>) {
-    const { businessId, customerId, customerName } = job.data;
+    const { businessId, customerId, customerName, phone } = job.data;
     const attempt = job.data.attempt ?? 1;
     const originalAt = job.data.originalAt ? new Date(job.data.originalAt) : new Date();
 
@@ -64,7 +66,7 @@ export class StatementProcessor extends WorkerHost {
         businessId,
         customerId,
         undefined,
-        { attempt },
+        { attempt, toPhone: phone },
       );
       if (attempt > 1) {
         this.logger.log(
@@ -99,6 +101,7 @@ export class StatementProcessor extends WorkerHost {
           businessId,
           customerId,
           customerName,
+          phone,
           attempt: attempt + 1,
           originalAt: originalAt.toISOString(),
         } satisfies StatementJob,

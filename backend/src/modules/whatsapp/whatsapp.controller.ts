@@ -23,7 +23,7 @@ export class WhatsappController {
   @Post('send-statement/:customerId')
   @UseGuards(EmailAllowlistGuard)
   sendStatement(@BusinessId() businessId: string, @Param('customerId') customerId: string) {
-    return this.whatsappService.sendStatementToCustomer(businessId, customerId);
+    return this.whatsappService.sendStatementToAllNumbers(businessId, customerId);
   }
 
   // Bulk: statement PDFs to every eligible customer in a segment

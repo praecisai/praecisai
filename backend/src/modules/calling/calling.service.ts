@@ -45,6 +45,9 @@ import {
   PTP_WINDOW_MONTHS,
 } from '../../common/utils/call-script.util';
 
+/** Wait before dialling a party's next number after one goes unanswered. */
+const NEXT_NUMBER_GAP_MS = 3 * 60 * 1000;
+
 @Injectable()
 export class CallingService {
   private readonly logger = new Logger(CallingService.name);
@@ -134,6 +137,8 @@ export class CallingService {
        * the overnight runs.
        */
       source?: CallSource;
+      /** Hold the dial this long after queueing (next-number fallback). */
+      delayMs?: number;
     } = {},
   ) {
     const customer = await this.prisma.customer.findFirst({
@@ -380,7 +385,7 @@ export class CallingService {
         // customer explicitly asks for the bill number (read slowly in the canvas).
         last_bill_number: latestInvoice.invoice_number || '',
       },
-    });
+    }, opts.delayMs ? { delay: opts.delayMs } : undefined);
 
     return {
       success: true,
@@ -777,8 +782,8 @@ export class CallingService {
 
   // ─── Fallback dialing ───────────────────────────────────────────────────────
   // A customer row can carry several numbers (phone + alt_phones). When the
-  // dialed number goes unanswered or the call fails, immediately dial the NEXT
-  // number in the list. An answered call ends the chain naturally (its
+  // dialed number goes unanswered or the call fails, dial the NEXT number in
+  // the list NEXT_NUMBER_GAP_MS later. An answered call ends the chain naturally (its
   // disposition won't be NO_ANSWER, so this never fires).
   private async tryNextPhone(callId: string) {
     try {
@@ -804,9 +809,12 @@ export class CallingService {
       this.logger.log(
         `No answer on ${log.dialed_phone} for ${customer.customer_name}: falling back to ${next} (${idx + 2}/${numbers.length})`,
       );
+      // Not back-to-back: a burst of unanswered calls from one caller ID is
+      // what gets it flagged as spam, so the next number waits a few minutes.
       await this.queueCustomerCall(log.business_id, log.customer_id, {
         phoneOverride: next,
         skipCooldown: true,
+        delayMs: NEXT_NUMBER_GAP_MS,
       });
     } catch (err: any) {
       // Fallback dialing must never break webhook processing
