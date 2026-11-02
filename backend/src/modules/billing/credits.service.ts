@@ -18,6 +18,9 @@ import {
   ModelTier,
   callCreditsForSeconds,
   callPacks,
+  callPackFor,
+  MIN_CUSTOM_CREDITS,
+  MAX_CUSTOM_CREDITS,
   findPack,
   isModelTier,
   roundCredits,
@@ -157,7 +160,7 @@ export class CreditsService {
     const account = await this.getAccount(businessId);
     if (account.call_credits < MIN_CALL_CREDITS) {
       throw new OutOfCreditsError(
-        `Out of call credits: ${Math.max(0, roundCredits(account.call_credits))} minutes left. Buy call credits in Billing & Usage to keep calling.`,
+        `Out of call credits: ${Math.max(0, roundCredits(account.call_credits))} minutes left. Add call credits in Billing & Usage to start calling.`,
       );
     }
     if (!opts?.reserveInFlight) return;
@@ -182,7 +185,7 @@ export class CreditsService {
     const account = await this.getAccount(businessId);
     if (account.whatsapp_credits < count) {
       throw new OutOfCreditsError(
-        `Out of WhatsApp credits: ${Math.max(0, Math.floor(account.whatsapp_credits))} messages left. Buy WhatsApp credits in Billing & Usage to keep sending.`,
+        `Out of WhatsApp credits: ${Math.max(0, Math.floor(account.whatsapp_credits))} messages left. Add WhatsApp credits in Billing & Usage to start sending.`,
       );
     }
   }
@@ -357,6 +360,7 @@ export class CreditsService {
         used_this_month: used('WHATSAPP'),
       },
       packs: { call: callPacks(tier), whatsapp: whatsappPacks() },
+      custom_limits: { min: MIN_CUSTOM_CREDITS, max: MAX_CUSTOM_CREDITS },
       autopay: {
         enabled: account.autopay_enabled,
         status: account.autopay_status,
@@ -408,14 +412,30 @@ export class CreditsService {
     const a = await this.getAccount(businessId);
     const out: Array<{ id: string; kind: string; message: string }> = [];
     const autopay = a.autopay_enabled && a.autopay_status === 'ACTIVE';
-    if (a.call_credits < a.call_low_threshold) {
+    // An empty wallet (a new tenant, or everything used up) is not "low": the
+    // feature is off until credits are bought, so say so plainly.
+    const callEmpty = a.call_credits < MIN_CALL_CREDITS;
+    const waEmpty = a.whatsapp_credits < 1;
+    if (callEmpty || waEmpty) {
+      out.push({
+        id: 'credits-empty',
+        kind: 'CREDITS_EMPTY',
+        message:
+          callEmpty && waEmpty
+            ? 'Add credits to start AI calls and WhatsApp reminders. Your dashboard is ready; nothing is sent until you buy credits (minimum 100).'
+            : callEmpty
+              ? 'Add call credits to start AI calls. No calls go out until you buy call credits (minimum 100).'
+              : 'Add WhatsApp credits to start WhatsApp reminders. No messages go out until you buy WhatsApp credits (minimum 100).',
+      });
+    }
+    if (!callEmpty && a.call_credits < a.call_low_threshold) {
       out.push({
         id: 'credits-call-low',
         kind: 'CREDITS_LOW',
         message: `Call credits are low: ${roundCredits(Math.max(0, a.call_credits))} minutes left (alert level ${a.call_low_threshold}). ${autopay && a.autopay_call_pack ? 'Autopay will top up automatically.' : 'AI calls stop when credits run out.'}`,
       });
     }
-    if (a.whatsapp_credits < a.whatsapp_low_threshold) {
+    if (!waEmpty && a.whatsapp_credits < a.whatsapp_low_threshold) {
       out.push({
         id: 'credits-whatsapp-low',
         kind: 'CREDITS_LOW',
@@ -440,7 +460,10 @@ export class CreditsService {
     packId: string,
   ): Promise<CreditPack> {
     const pack = findPack(packId);
-    if (!pack) throw new BadRequestException('Unknown credit pack');
+    if (!pack)
+      throw new BadRequestException(
+        `Buy between ${MIN_CUSTOM_CREDITS.toLocaleString('en-IN')} and ${MAX_CUSTOM_CREDITS.toLocaleString('en-IN')} credits at a time`,
+      );
     if (pack.kind === 'CALL') {
       const b = await this.prisma.business.findUnique({
         where: { id: businessId },
@@ -1024,9 +1047,7 @@ export class CreditsService {
       });
       const tier = isModelTier(b?.call_model_tier) ? b!.call_model_tier : 'A';
       const minutes = findPack(packId)?.units;
-      packId =
-        callPacks(tier as ModelTier).find((p) => p.units === minutes)?.id ??
-        packId;
+      if (minutes) packId = callPackFor(tier as ModelTier, minutes).id;
     }
     const pack = findPack(packId);
     if (!pack || !pack.autopayEligible) return false;

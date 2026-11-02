@@ -57,51 +57,77 @@ export interface CreditPack {
   autopayEligible: boolean;
 }
 
-function callPack(tier: ModelTier, idx: number): CreditPack {
-  const units = CALL_PACK_MINUTES[idx];
-  const rate = CALL_RATES_RUPEES[tier][idx];
-  const pricePaise = Math.round(units * rate * 100);
+/** Smallest and largest amount a customer may buy (or autopay) in one go. */
+export const MIN_CUSTOM_CREDITS = 100;
+export const MAX_CUSTOM_CREDITS = 100000;
+
+/**
+ * Rupees per credit for any amount: the pack rates are fixed points and an
+ * amount between two packs slides linearly from one rate to the next, so a
+ * bigger purchase is always a little cheaper per credit. Past the largest
+ * pack the best rate holds.
+ */
+function interpolatedRate(sizes: readonly number[], rates: readonly number[], units: number): number {
+  if (units <= sizes[0]) return rates[0];
+  for (let i = 0; i < sizes.length - 1; i++) {
+    if (units <= sizes[i + 1]) {
+      const t = (units - sizes[i]) / (sizes[i + 1] - sizes[i]);
+      return rates[i] + t * (rates[i + 1] - rates[i]);
+    }
+  }
+  return rates[rates.length - 1];
+}
+
+function makePack(kind: CreditKind, tier: ModelTier | null, units: number, rateRupees: number): CreditPack {
+  // Whole rupees, so the pack sizes keep their exact list prices
+  const pricePaise = Math.round(units * rateRupees) * 100;
   return {
-    id: `CALL_${tier}_${units}`,
-    kind: 'CALL',
+    id: kind === 'CALL' ? `CALL_${tier}_${units}` : `WA_${units}`,
+    kind,
     tier,
     units,
     pricePaise,
-    ratePaise: Math.round(rate * 100),
+    ratePaise: Math.round(pricePaise / units),
     autopayEligible: pricePaise <= AUTOPAY_MAX_PAISE,
   };
 }
 
-function whatsappPack(idx: number): CreditPack {
-  const p = WHATSAPP_PACKS_RUPEES[idx];
-  const pricePaise = p.price * 100;
-  return {
-    id: `WA_${p.messages}`,
-    kind: 'WHATSAPP',
-    tier: null,
-    units: p.messages,
-    pricePaise,
-    ratePaise: Math.round(pricePaise / p.messages),
-    autopayEligible: pricePaise <= AUTOPAY_MAX_PAISE,
-  };
+/** A call pack of any size from MIN_CUSTOM_CREDITS to MAX_CUSTOM_CREDITS minutes. */
+export function callPackFor(tier: ModelTier, minutes: number): CreditPack {
+  return makePack('CALL', tier, minutes, interpolatedRate(CALL_PACK_MINUTES, CALL_RATES_RUPEES[tier], minutes));
+}
+
+/** A WhatsApp pack of any size from MIN_CUSTOM_CREDITS to MAX_CUSTOM_CREDITS messages. */
+export function whatsappPackFor(messages: number): CreditPack {
+  const sizes = WHATSAPP_PACKS_RUPEES.map((p) => p.messages);
+  const rates = WHATSAPP_PACKS_RUPEES.map((p) => p.price / p.messages);
+  return makePack('WHATSAPP', null, messages, interpolatedRate(sizes, rates, messages));
 }
 
 export function callPacks(tier: ModelTier): CreditPack[] {
-  return CALL_PACK_MINUTES.map((_, i) => callPack(tier, i));
+  return CALL_PACK_MINUTES.map((m) => callPackFor(tier, m));
 }
 
 export function whatsappPacks(): CreditPack[] {
-  return WHATSAPP_PACKS_RUPEES.map((_, i) => whatsappPack(i));
+  return WHATSAPP_PACKS_RUPEES.map((p) => whatsappPackFor(p.messages));
 }
 
-/** Every pack for every model, for lookups by id. */
+/** The standard packs for every model, for listing. */
 export function allPacks(): CreditPack[] {
   return [...MODEL_TIERS.flatMap((t) => callPacks(t)), ...whatsappPacks()];
 }
 
+/**
+ * Pack ids carry their size ("CALL_A_750", "WA_250"), so any whole amount
+ * inside the allowed range resolves, not just the listed packs.
+ */
 export function findPack(id: string | null | undefined): CreditPack | null {
   if (!id) return null;
-  return allPacks().find((p) => p.id === id) ?? null;
+  const m = /^(?:CALL_([ABC])|WA)_(\d+)$/.exec(id);
+  if (!m) return null;
+  const units = Number(m[2]);
+  if (!Number.isSafeInteger(units) || units < MIN_CUSTOM_CREDITS || units > MAX_CUSTOM_CREDITS) return null;
+  return m[1] ? callPackFor(m[1] as ModelTier, units) : whatsappPackFor(units);
 }
 
 /**

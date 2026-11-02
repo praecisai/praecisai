@@ -42,3 +42,43 @@ export function rupees(n: number, decimals = 0): string {
 export function credits(n: number): string {
   return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
+
+/** Smallest and largest custom amount (credits) in one purchase. */
+export const MIN_CUSTOM_CREDITS = 100;
+export const MAX_CUSTOM_CREDITS = 100000;
+/** Most a single autopay debit may be, in rupees. */
+export const AUTOPAY_MAX_RUPEES = 15000;
+
+/**
+ * Rupees per credit for any amount: pack rates are fixed points and amounts in
+ * between slide linearly to the next pack's rate; past the largest pack the
+ * best rate holds. Mirrors credit-packs.util.ts interpolatedRate.
+ */
+function interpolatedRate(sizes: readonly number[], rates: readonly number[], units: number): number {
+  if (units <= sizes[0]) return rates[0];
+  for (let i = 0; i < sizes.length - 1; i++) {
+    if (units <= sizes[i + 1]) {
+      const t = (units - sizes[i]) / (sizes[i + 1] - sizes[i]);
+      return rates[i] + t * (rates[i + 1] - rates[i]);
+    }
+  }
+  return rates[rates.length - 1];
+}
+
+/** Price in whole rupees for any number of call minutes or WhatsApp messages. */
+export function customPrice(kind: 'CALL' | 'WHATSAPP', tier: ModelTier, units: number): number {
+  const rate =
+    kind === 'CALL'
+      ? interpolatedRate(CALL_PACK_MINUTES, CALL_RATES[tier], units)
+      : interpolatedRate(
+          WHATSAPP_PACKS.map((p) => p.messages),
+          WHATSAPP_PACKS.map((p) => p.price / p.messages),
+          units,
+        );
+  return Math.round(units * rate);
+}
+
+/** The pack id the backend accepts for a custom amount ("CALL_A_750", "WA_250"). */
+export function customPackId(kind: 'CALL' | 'WHATSAPP', tier: ModelTier, units: number): string {
+  return kind === 'CALL' ? `CALL_${tier}_${units}` : `WA_${units}`;
+}

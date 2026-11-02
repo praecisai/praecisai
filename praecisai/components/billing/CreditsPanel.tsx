@@ -16,6 +16,14 @@ import {
   useSimulateCreditsPaid,
   formatPaise,
 } from '../../lib/api/hooks';
+import {
+  customPrice,
+  customPackId,
+  MIN_CUSTOM_CREDITS,
+  MAX_CUSTOM_CREDITS,
+  AUTOPAY_MAX_RUPEES,
+  type ModelTier,
+} from '../../lib/pricing/credits';
 import { loadRazorpayScript } from './razorpay';
 
 type Kind = 'CALL' | 'WHATSAPP';
@@ -33,6 +41,24 @@ interface Pack {
 const fmtUnits = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const rate = (paise: number) =>
   `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Any pack id ("CALL_A_750", "WA_250") as units + price, priced like the backend. */
+function packFromId(id: string | null | undefined, tier: ModelTier): Pack | null {
+  const m = /^(?:CALL_([ABC])|WA)_(\d+)$/.exec(id ?? '');
+  if (!m) return null;
+  const kind: Kind = m[1] ? 'CALL' : 'WHATSAPP';
+  const units = Number(m[2]);
+  const pricePaise = customPrice(kind, tier, units) * 100;
+  return {
+    id: customPackId(kind, tier, units),
+    kind,
+    tier: kind === 'CALL' ? tier : null,
+    units,
+    pricePaise,
+    ratePaise: Math.round(pricePaise / units),
+    autopayEligible: pricePaise <= AUTOPAY_MAX_RUPEES * 100,
+  };
+}
 
 function fmtDateTime(d: string | Date) {
   const date = new Date(d);
@@ -143,7 +169,8 @@ export function CreditsPanel() {
   }
 
   const packs: Pack[] = tab === 'CALL' ? data.packs.call : data.packs.whatsapp;
-  const planName = `Plan ${data.model.tier ?? 'A'}`;
+  const tier: ModelTier = data.model.tier ?? 'A';
+  const planName = `Plan ${tier}`;
   const bestRate = Math.min(...packs.map((p) => p.ratePaise));
   const firstRate = packs[0]?.ratePaise ?? 0;
 
@@ -260,6 +287,16 @@ export function CreditsPanel() {
           })}
         </div>
 
+        <CustomAmount
+          key={tab}
+          kind={tab}
+          tier={tier}
+          firstRate={firstRate}
+          busy={!!buying || !!mockOrder}
+          buyingId={buying}
+          onBuy={buy}
+        />
+
         {mockOrder && (
           <div className="mt-4 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ background: '#B8860B14' }}>
             <p className="text-xs text-[var(--dark-brown)] flex items-center gap-2">
@@ -330,6 +367,77 @@ export function CreditsPanel() {
           <p className="text-sm text-[var(--walnut)]">No credit activity yet.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Type any amount (minimum 100). The price updates as you type, using the same
+ * sliding rate as the packs, so 2,500 minutes costs less per minute than 1,000.
+ */
+function CustomAmount({
+  kind, tier, firstRate, busy, buyingId, onBuy,
+}: {
+  kind: Kind;
+  tier: ModelTier;
+  firstRate: number;
+  busy: boolean;
+  buyingId: string | null;
+  onBuy: (pack: Pack) => void;
+}) {
+  const [value, setValue] = useState('');
+  const units = Number(value);
+  const valid = Number.isInteger(units) && units >= MIN_CUSTOM_CREDITS && units <= MAX_CUSTOM_CREDITS;
+  const pack = valid ? packFromId(customPackId(kind, tier, units), tier) : null;
+  const saving = pack && firstRate > 0 ? Math.round((1 - pack.ratePaise / firstRate) * 100) : 0;
+  const unitWord = kind === 'CALL' ? 'minute' : 'message';
+
+  let hint = `Minimum ${fmtUnits(MIN_CUSTOM_CREDITS)}, maximum ${fmtUnits(MAX_CUSTOM_CREDITS)}.`;
+  if (value && !Number.isInteger(units)) hint = 'Enter a whole number.';
+  else if (value && units < MIN_CUSTOM_CREDITS) hint = `Minimum is ${fmtUnits(MIN_CUSTOM_CREDITS)} credits.`;
+  else if (value && units > MAX_CUSTOM_CREDITS) hint = `Maximum is ${fmtUnits(MAX_CUSTOM_CREDITS)} credits at a time.`;
+
+  return (
+    <div
+      className="mt-3 rounded-xl border p-4 flex flex-col md:flex-row md:items-end gap-4"
+      style={{ background: 'var(--surface-warm)', borderColor: 'var(--caramel)' }}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">
+          Or enter your own amount
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            inputMode="numeric"
+            min={MIN_CUSTOM_CREDITS}
+            max={MAX_CUSTOM_CREDITS}
+            step={1}
+            placeholder={String(MIN_CUSTOM_CREDITS)}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="w-36 px-3 py-2 rounded-lg border bg-transparent text-[var(--dark-brown)] text-sm"
+            style={{ borderColor: 'var(--caramel)' }}
+          />
+          <span className="text-xs text-[var(--walnut)]">
+            {kind === 'CALL' ? 'call credits (minutes)' : 'WhatsApp credits (messages)'}
+          </span>
+        </div>
+        <p className="text-[11px] mt-1.5" style={{ color: value && !valid ? '#C62828' : 'var(--walnut)' }}>
+          {pack
+            ? `${rate(pack.ratePaise)} per ${unitWord}${saving > 0 ? ` · ${saving}% cheaper per credit` : ''}`
+            : hint}
+        </p>
+      </div>
+      <button
+        onClick={() => pack && onBuy(pack)}
+        disabled={!pack || busy}
+        className="md:w-56 w-full py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+        style={{ background: 'var(--mahogany)', color: 'var(--cream)' }}
+      >
+        {pack && buyingId === pack.id ? <Loader2 size={14} className="animate-spin" /> : null}
+        {pack ? `Buy for ${formatPaise(pack.pricePaise)}` : 'Enter an amount'}
+      </button>
     </div>
   );
 }
@@ -444,9 +552,10 @@ function AutopayCard({
   const callOptions: Pack[] = data.packs.call.filter((p: Pack) => p.autopayEligible);
   const waOptions: Pack[] = data.packs.whatsapp.filter((p: Pack) => p.autopayEligible);
 
-  // The saved call pack may be for another model: match it by minutes
+  const tier: ModelTier = data.model.tier ?? 'A';
+  // The saved call pack may be for another model: same minutes, current model
   const savedCallMinutes = ap.call_pack ? Number(String(ap.call_pack).split('_').pop()) : null;
-  const savedCallId = callOptions.find((p) => p.units === savedCallMinutes)?.id ?? '';
+  const savedCallId = savedCallMinutes ? customPackId('CALL', tier, savedCallMinutes) : '';
 
   const [callPack, setCallPack] = useState<string>(savedCallId || callOptions[1]?.id || callOptions[0]?.id || '');
   const [waPack, setWaPack] = useState<string>(ap.whatsapp_pack || waOptions[1]?.id || '');
@@ -456,7 +565,7 @@ function AutopayCard({
 
   const active = ap.enabled && ap.status === 'ACTIVE';
   const pending = ap.status === 'PENDING';
-  const firstPrice = (callOptions.find((p) => p.id === callPack) ?? waOptions.find((p) => p.id === waPack))?.pricePaise;
+  const firstPrice = packFromId(callPack || waPack, tier)?.pricePaise;
 
   async function turnOn() {
     if (!callPack && !waPack) {
@@ -479,8 +588,8 @@ function AutopayCard({
     }
   }
 
-  const label = (packs: Pack[], id: string | null, unit: string) => {
-    const p = packs.find((x) => x.id === id);
+  const label = (id: string | null, unit: string) => {
+    const p = packFromId(id, tier);
     return p ? `${p.units.toLocaleString('en-IN')} ${unit} for ${formatPaise(p.pricePaise)}` : 'Off';
   };
 
@@ -523,6 +632,8 @@ function AutopayCard({
               value={savedCallId}
               options={callOptions}
               unit="minutes"
+              kind="CALL"
+              tier={tier}
               onChange={(v) => updatePacks.mutate({ call_pack: v || null }, { onSuccess: () => toast.success('Autopay updated'), onError: (e: any) => toast.error(e.message) })}
             />
             <PackSelect
@@ -530,6 +641,8 @@ function AutopayCard({
               value={ap.whatsapp_pack ?? ''}
               options={waOptions}
               unit="messages"
+              kind="WHATSAPP"
+              tier={tier}
               onChange={(v) => updatePacks.mutate({ whatsapp_pack: v || null }, { onSuccess: () => toast.success('Autopay updated'), onError: (e: any) => toast.error(e.message) })}
             />
           </div>
@@ -552,12 +665,12 @@ function AutopayCard({
           {pending && !mockOrder && (
             <p className="text-xs text-[var(--walnut)]">
               Your first payment is done. Your bank is confirming the mandate, which usually takes a few minutes for UPI.
-              {' '}Call packs set: {label(callOptions, savedCallId, 'minutes')} · WhatsApp: {label(waOptions, ap.whatsapp_pack, 'messages')}.
+              {' '}Call packs set: {label(savedCallId, 'minutes')} · WhatsApp: {label(ap.whatsapp_pack, 'messages')}.
             </p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <PackSelect label="Call minutes top-up" value={callPack} options={callOptions} unit="minutes" onChange={setCallPack} />
-            <PackSelect label="WhatsApp messages top-up" value={waPack} options={waOptions} unit="messages" onChange={setWaPack} />
+            <PackSelect label="Call minutes top-up" value={callPack} options={callOptions} unit="minutes" kind="CALL" tier={tier} live onChange={setCallPack} />
+            <PackSelect label="WhatsApp messages top-up" value={waPack} options={waOptions} unit="messages" kind="WHATSAPP" tier={tier} live onChange={setWaPack} />
             <div>
               <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">Pay with</p>
               <div className="inline-flex rounded-lg p-1 w-full" style={{ background: 'var(--sand)' }}>
@@ -616,21 +729,66 @@ function AutopayCard({
   );
 }
 
+const CUSTOM = '__custom';
+
+/**
+ * Autopay top-up size: a listed pack, or any amount typed in (minimum 100,
+ * at most ₹15,000 per top-up). `live` applies a valid typed amount straight
+ * away (before autopay is on); otherwise a Save button applies it.
+ */
 function PackSelect({
-  label, value, options, unit, onChange,
+  label, value, options, unit, kind, tier, live, onChange,
 }: {
   label: string;
   value: string;
   options: Pack[];
   unit: string;
+  kind: Kind;
+  tier: ModelTier;
+  live?: boolean;
   onChange: (v: string) => void;
 }) {
+  const current = packFromId(value, tier);
+  const [custom, setCustom] = useState(!!value && !options.some((p) => p.id === value));
+  const [amount, setAmount] = useState(custom && current ? String(current.units) : '');
+  const units = Number(amount);
+  const typed =
+    Number.isInteger(units) && units >= MIN_CUSTOM_CREDITS && units <= MAX_CUSTOM_CREDITS
+      ? packFromId(customPackId(kind, tier, units), tier)
+      : null;
+  const usable = typed && typed.autopayEligible ? typed : null;
+
+  function type(v: string) {
+    setAmount(v);
+    if (!live) return;
+    const n = Number(v);
+    const p =
+      Number.isInteger(n) && n >= MIN_CUSTOM_CREDITS && n <= MAX_CUSTOM_CREDITS
+        ? packFromId(customPackId(kind, tier, n), tier)
+        : null;
+    onChange(p && p.autopayEligible ? p.id : '');
+  }
+
+  let hint = `Minimum ${fmtUnits(MIN_CUSTOM_CREDITS)} ${unit}.`;
+  if (typed && !typed.autopayEligible)
+    hint = `${formatPaise(typed.pricePaise)} is over the ₹15,000 autopay limit. Pick fewer ${unit}.`;
+  else if (usable) hint = `${formatPaise(usable.pricePaise)} per top-up · ${rate(usable.ratePaise)} per ${kind === 'CALL' ? 'minute' : 'message'}`;
+  else if (amount) hint = `Enter ${fmtUnits(MIN_CUSTOM_CREDITS)} or more ${unit}.`;
+
   return (
     <div>
       <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--walnut)] mb-1.5">{label}</p>
       <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={custom ? CUSTOM : value}
+        onChange={(e) => {
+          if (e.target.value === CUSTOM) {
+            setCustom(true);
+            if (live) onChange(usable?.id ?? '');
+            return;
+          }
+          setCustom(false);
+          onChange(e.target.value);
+        }}
         className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--surface-warm)] text-[var(--dark-brown)]"
         style={{ borderColor: 'var(--caramel)' }}
       >
@@ -640,7 +798,38 @@ function PackSelect({
             {p.units.toLocaleString('en-IN')} {unit} for {formatPaise(p.pricePaise)}
           </option>
         ))}
+        <option value={CUSTOM}>Custom amount…</option>
       </select>
+      {custom && (
+        <div className="mt-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={MIN_CUSTOM_CREDITS}
+              step={1}
+              placeholder={String(MIN_CUSTOM_CREDITS)}
+              value={amount}
+              onChange={(e) => type(e.target.value)}
+              className="w-28 px-2 py-1.5 rounded-md border bg-transparent text-sm text-[var(--dark-brown)]"
+              style={{ borderColor: 'var(--caramel)' }}
+            />
+            <span className="text-xs text-[var(--walnut)]">{unit}</span>
+            {!live && (
+              <button
+                onClick={() => usable && onChange(usable.id)}
+                disabled={!usable || usable.id === value}
+                className="text-xs font-semibold text-[var(--mahogany)] disabled:opacity-40"
+              >
+                Save
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] mt-1" style={{ color: amount && !usable ? '#C62828' : 'var(--walnut)' }}>
+            {hint}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

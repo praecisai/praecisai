@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 const KIND_STYLES: Record<string, { color: string; icon: React.ElementType }> = {
   CREDITS_LOW: { color: '#E65100', icon: AlertTriangle },
+  CREDITS_EMPTY: { color: '#7F5539', icon: Sparkles },
   AUTOPAY_FAILED: { color: '#C62828', icon: CreditCard },
   MANDATE_FAILED: { color: '#C62828', icon: PauseCircle },
 };
@@ -66,7 +67,11 @@ export function BillingBanners() {
                 className="text-xs font-semibold underline underline-offset-2"
                 style={{ color: style.color }}
               >
-                {b.kind === 'MANDATE_FAILED' ? 'Open Billing & Usage' : 'Buy credits or turn on autopay'}
+                {b.kind === 'MANDATE_FAILED'
+                  ? 'Open Billing & Usage'
+                  : b.kind === 'CREDITS_EMPTY'
+                    ? 'Add credits'
+                    : 'Buy credits or turn on autopay'}
               </Link>
             </div>
           </div>
