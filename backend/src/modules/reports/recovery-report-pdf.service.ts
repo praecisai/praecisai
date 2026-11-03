@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { EscalationEntry, ReportEntry, SegmentOverviewSection } from './reports.service';
+import {
+  PDF_BODY,
+  PDF_CARD_BG,
+  PDF_HAIRLINE,
+  PDF_INK,
+  PDF_MUTED,
+  PDF_ROW_LINE,
+  PDF_SEGMENT_COLORS,
+  drawPraecisLogo,
+} from '../../common/utils/pdf-brand.util';
 
 // Modern, quiet layout: white page, left-aligned header, KPI cards, hairline
 // tables with a tinted status pill, page numbers on every page. Colour is used
@@ -25,28 +35,17 @@ const THEMES: Record<'positive' | 'negative', Theme & { eyebrow: string; subtitl
   },
 };
 
-// Same segment hues as the dashboard, in a softer modern palette
-const SEGMENT_COLORS: Record<string, Theme> = {
-  'No Follow-up': { accent: '#64748B', tint: '#F1F5F9' },
-  'Soft Reminder': { accent: '#059669', tint: '#ECFDF5' },
-  'Follow-up': { accent: '#D97706', tint: '#FFFBEB' },
-  'Strong Follow-up': { accent: '#EA580C', tint: '#FFF7ED' },
-  Escalation: { accent: '#E11D48', tint: '#FFF1F2' },
-};
+const SEGMENT_COLORS: Record<string, Theme> = PDF_SEGMENT_COLORS;
 
 // Brand mahogany for the neutral overview report
 const BRAND: Theme = { accent: '#7F5539', tint: '#F7F1EB' };
 
-const INK = '#111827';
-const BODY = '#374151';
-const MUTED = '#6B7280';
-const HAIRLINE = '#E5E7EB';
-const ROW_LINE = '#F0F1F3';
-const CARD_BG = '#F9FAFB';
-
-// Praecis AI brand colours (from the logo): navy wordmark + blue "AI"
-const BRAND_NAVY = '#0F1D35';
-const BRAND_BLUE = '#3B63F3';
+const INK = PDF_INK;
+const BODY = PDF_BODY;
+const MUTED = PDF_MUTED;
+const HAIRLINE = PDF_HAIRLINE;
+const ROW_LINE = PDF_ROW_LINE;
+const CARD_BG = PDF_CARD_BG;
 
 const HEADER_H = 24;
 const MIN_ROW_H = 24;
@@ -99,36 +98,6 @@ export class RecoveryReportPdfService {
     return doc.page.width - doc.page.margins.left - doc.page.margins.right;
   }
 
-  /** The logo's four-pointed sparkle star: concave sides via quadratic curves. */
-  private drawSparkle(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, color: string) {
-    const k = r * 0.22; // waist: how far the concave sides bow toward the centre
-    doc
-      .save()
-      .moveTo(cx, cy - r)
-      .quadraticCurveTo(cx + k, cy - k, cx + r, cy)
-      .quadraticCurveTo(cx + k, cy + k, cx, cy + r)
-      .quadraticCurveTo(cx - k, cy + k, cx - r, cy)
-      .quadraticCurveTo(cx - k, cy - k, cx, cy - r)
-      .fill(color);
-    doc.restore();
-  }
-
-  /** "✦ Praecis AI" wordmark, right-aligned at the given baseline area. */
-  private drawPraecisLogo(doc: PDFKit.PDFDocument, yText: number, fontSize = 10) {
-    doc.font('Helvetica-Bold').fontSize(fontSize);
-    const praecisW = doc.widthOfString('Praecis');
-    const spaceW = doc.widthOfString(' ');
-    const aiW = doc.widthOfString('AI');
-    const starR = fontSize * 0.55;
-    const gap = 4;
-    const right = doc.page.width - doc.page.margins.right;
-    const x = right - (starR * 2 + gap + praecisW + spaceW + aiW);
-    this.drawSparkle(doc, x + starR, yText + fontSize * 0.38, starR, BRAND_NAVY);
-    const xText = x + starR * 2 + gap;
-    doc.fillColor(BRAND_NAVY).text('Praecis', xText, yText, { lineBreak: false });
-    doc.fillColor(BRAND_BLUE).text('AI', xText + praecisW + spaceW, yText, { lineBreak: false });
-  }
-
   /**
    * Header: short accent rule, eyebrow, business name, one-line subtitle on
    * the left; logo and generation date on the right; hairline underneath.
@@ -155,7 +124,7 @@ export class RecoveryReportPdfService {
       .fillColor(MUTED).font('Helvetica').fontSize(9.5)
       .text(subtitle, left, 88, { width: textW, lineBreak: false });
 
-    this.drawPraecisLogo(doc, 44, 11);
+    drawPraecisLogo(doc, 44, 11);
     doc
       .fillColor(MUTED).font('Helvetica').fontSize(8)
       .text(`Generated on ${dateStamp()}`, left, 62, { width, align: 'right', lineBreak: false });
