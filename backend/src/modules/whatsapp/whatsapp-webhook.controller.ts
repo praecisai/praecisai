@@ -7,6 +7,10 @@ import { WhatsappService } from './whatsapp.service';
  * service. Protected by a shared secret in the URL (?token=...) matched
  * against AISENSY_INBOUND_TOKEN. Always answers 200 fast so AiSensy does not
  * retry, then processes asynchronously.
+ *
+ * Each tenant's AiSensy project should add &business=<businessId> to the URL
+ * so a reply is only matched within that business (one project = one tenant's
+ * WhatsApp number). Without it, matching falls back to all businesses.
  */
 @Controller('whatsapp')
 export class WhatsappWebhookController {
@@ -14,7 +18,12 @@ export class WhatsappWebhookController {
 
   @Post('inbound')
   @HttpCode(200)
-  async inbound(@Query('token') token: string, @Body() payload: any, @Res() res: Response) {
+  async inbound(
+    @Query('token') token: string,
+    @Query('business') businessId: string | undefined,
+    @Body() payload: any,
+    @Res() res: Response,
+  ) {
     res.status(200).json({ received: true });
 
     const expected = process.env.AISENSY_INBOUND_TOKEN;
@@ -24,7 +33,7 @@ export class WhatsappWebhookController {
     }
 
     try {
-      await this.whatsappService.handleInbound(payload);
+      await this.whatsappService.handleInbound(payload, businessId || undefined);
     } catch (err) {
       // Never throw back to AiSensy: already responded 200
       console.error('Inbound WhatsApp handling error:', err);

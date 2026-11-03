@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantKeysService } from './tenant-keys.service';
-import { isAllowedCouponPercent, planFromAmount } from './billing-math.util';
+import { isAllowedCouponPercent, planAmountPaise, planFromAmount } from './billing-math.util';
+import { BillingInvoiceService } from './billing-invoice.service';
 import { isPlatformOwner } from '../../common/constants/platform-owner';
 import { SEGMENT_STYLES, VALID_STYLE_SLUGS, DEFAULT_STYLE } from '../demo/segment-styles';
 import { CreditsService } from './credits.service';
@@ -24,6 +25,9 @@ export interface UpsertTenantDto {
   gstin?: string;
   handoffNumber?: string;
   city?: string;
+  // Statement PDF identity: address (one line per printed line) and email
+  statementAddress?: string;
+  statementEmail?: string;
   // AI model this tenant dials with ("A" | "B" | "C") and the agent ids of
   // models B and C on the tenant's Bolna account (empty string clears)
   callModelTier?: string;
@@ -68,6 +72,7 @@ export class AdminService {
     private prisma: PrismaService,
     private tenantKeys: TenantKeysService,
     private credits: CreditsService,
+    private invoices: BillingInvoiceService,
   ) {}
 
   // ─── Tenants ────────────────────────────────────────────────────────────────
@@ -192,6 +197,8 @@ export class AdminService {
         gstin: true,
         handoff_number: true,
         city: true,
+        statement_address: true,
+        statement_email: true,
         bolna_api_key: true,
         bolna_agent_id: true,
         bolna_from_number: true,
@@ -310,6 +317,8 @@ export class AdminService {
         gstin: dto.gstin?.trim() || null,
         handoff_number: dto.handoffNumber?.trim() || null,
         city: dto.city?.trim() || null,
+        statement_address: dto.statementAddress?.trim() || null,
+        statement_email: dto.statementEmail?.trim() || null,
         ...(dto.lowBalanceThresholdUsd !== undefined
           ? { low_balance_threshold_usd: dto.lowBalanceThresholdUsd }
           : {}),
@@ -361,6 +370,12 @@ export class AdminService {
           ? { handoff_number: dto.handoffNumber?.trim() || null }
           : {}),
         ...(dto.city !== undefined ? { city: dto.city?.trim() || null } : {}),
+        ...(dto.statementAddress !== undefined
+          ? { statement_address: dto.statementAddress?.trim() || null }
+          : {}),
+        ...(dto.statementEmail !== undefined
+          ? { statement_email: dto.statementEmail?.trim() || null }
+          : {}),
         ...(dto.callModelTier !== undefined
           ? (() => {
               if (!isModelTier(dto.callModelTier)) throw new BadRequestException('AI model must be A, B or C');
@@ -422,6 +437,80 @@ export class AdminService {
     await this.prisma.business.delete({ where: { id } });
     this.logger.warn(`Tenant DELETED: ${business.name} (${id})`);
     return { success: true };
+  }
+
+  /**
+   * Record a plan payment taken outside Razorpay (bank transfer, UPI to the
+   * company account, cash). Marks the first payment PAID, issues the invoice
+   * and stores the plan with mandate_type "offline": nothing auto-debits, and
+   * next_debit_date is when the next payment is due.
+   */
+  async recordOfflinePayment(
+    id: string,
+    dto: { plan: string; amountRupees: number; paidOn?: string },
+  ) {
+    const business = await this.prisma.business.findUnique({
+      where: { id },
+      select: { onboarding_status: true },
+    });
+    if (!business) throw new NotFoundException('Tenant not found');
+    if (business.onboarding_status === 'PAID' || business.onboarding_status === 'ACTIVE')
+      throw new BadRequestException('This tenant has already paid for its plan');
+    if (dto.plan !== 'MONTHLY' && dto.plan !== 'YEARLY')
+      throw new BadRequestException('Plan must be monthly or yearly');
+    const base = planAmountPaise(dto.plan);
+    const total = Math.round(Number(dto.amountRupees) * 100);
+    if (!Number.isFinite(total) || total <= 0 || total > base)
+      throw new BadRequestException(`Amount must be between ₹1 and ₹${(base / 100).toLocaleString('en-IN')}`);
+    const paidAt = dto.paidOn ? new Date(dto.paidOn) : new Date();
+    if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 24 * 60 * 60 * 1000)
+      throw new BadRequestException('Payment date must be today or earlier');
+
+    const nextDue = new Date(paidAt);
+    if (dto.plan === 'YEARLY') nextDue.setFullYear(nextDue.getFullYear() + 1);
+    else nextDue.setMonth(nextDue.getMonth() + 1);
+
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const paid = await tx.billingPayment.create({
+        data: {
+          business_id: id,
+          type: 'ONBOARDING',
+          base_amount: base,
+          // Anything below list price shows as a discount on the invoice
+          discount_amount: base - total,
+          subscription_component: base,
+          gst_amount: 0,
+          total_amount: total,
+          status: 'PAID',
+          paid_at: paidAt,
+        },
+      });
+      await tx.billingSubscription.upsert({
+        where: { business_id: id },
+        create: {
+          business_id: id,
+          plan_amount: base,
+          status: 'ACTIVE',
+          mandate_type: 'offline',
+          next_debit_date: nextDue,
+        },
+        update: {
+          plan_amount: base,
+          status: 'ACTIVE',
+          mandate_type: 'offline',
+          next_debit_date: nextDue,
+        },
+      });
+      await tx.business.update({
+        where: { id },
+        data: { onboarding_status: 'PAID' },
+      });
+      return paid;
+    });
+
+    await this.invoices.createForPayment(payment);
+    this.logger.log(`Offline ${dto.plan} payment of ₹${total / 100} recorded for tenant ${id}`);
+    return this.getTenant(id);
   }
 
   async toggleTestCall(id: string, passed: boolean) {

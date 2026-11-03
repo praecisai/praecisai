@@ -23,7 +23,8 @@ export interface StatementData {
   agentName?: string;
   segment: string; // drives the color theme
   invoices: StatementInvoice[];
-  // Business identity for the header/footer; defaults to Aeromen
+  // Business identity for the header/footer. Production sends always pass
+  // the tenant's own; only the frozen demo flow omits it (Aeromen sample).
   business?: StatementBusinessInfo;
 }
 
@@ -37,17 +38,16 @@ const SEGMENT_THEMES: Record<string, { accent: string; tint: string }> = {
   Escalation: { accent: '#C62828', tint: '#FDEAEA' },
 };
 
-const INK = '#1F2937';
-const MUTED = '#6B7280';
-
-// Business identity on the statement header. Hardcoded Aeromen for now: same
-// approach as the demo call flow's business_name (see demo.service.ts).
-const BUSINESS = {
+// The demo flow's identity (demo module is frozen and passes no business)
+const DEMO_BUSINESS: StatementBusinessInfo = {
   name: 'AEROMEN CLOTHING LLP',
   addressLine1: 'C-Wing 19, 2nd Floor, Shree Beliram Industrial Estate,',
   addressLine2: 'Opp. Police Station, S.V. Road, Dahisar East, Mumbai - 400068',
   email: 'aeromenclothingllp@gmail.com',
 };
+
+const INK = '#1F2937';
+const MUTED = '#6B7280';
 
 function inr(n: number): string {
   return n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
@@ -64,11 +64,15 @@ export class StatementPdfService {
    */
   async generate(data: StatementData): Promise<Buffer> {
     const theme = SEGMENT_THEMES[data.segment] ?? SEGMENT_THEMES['Escalation'];
+    // Each tenant's own identity; a missing address or email is left out
+    // rather than borrowed from another business.
+    const source = data.business ?? DEMO_BUSINESS;
     const biz = {
-      name: data.business?.name?.toUpperCase() || BUSINESS.name,
-      addressLine1: data.business?.addressLine1 ?? BUSINESS.addressLine1,
-      addressLine2: data.business?.addressLine2 ?? BUSINESS.addressLine2,
-      email: data.business?.email ?? BUSINESS.email,
+      name: source.name.toUpperCase(),
+      addressLines: [source.addressLine1, source.addressLine2]
+        .map((l) => l?.trim())
+        .filter((l): l is string => !!l),
+      email: source.email?.trim() || '',
     };
     const doc = new PDFDocument({ size: 'A4', margin: 40 });
 
@@ -92,9 +96,10 @@ export class StatementPdfService {
     doc
       .fillColor(MUTED)
       .font('Helvetica')
-      .fontSize(9)
-      .text(biz.addressLine1, { width: contentWidth, align: 'center' })
-      .text(biz.addressLine2, { width: contentWidth, align: 'center' });
+      .fontSize(9);
+    for (const line of biz.addressLines) {
+      doc.text(line, { width: contentWidth, align: 'center' });
+    }
 
     // ── Statement band ──
     let y = doc.y + 12;
@@ -235,7 +240,7 @@ export class StatementPdfService {
       .font('Helvetica')
       .fontSize(9)
       .text(
-        `Kindly arrange payment for the above outstanding invoices at the earliest. For any queries, please contact us at ${biz.email}`,
+        `Kindly arrange payment for the above outstanding invoices at the earliest.${biz.email ? ` For any queries, please contact us at ${biz.email}` : ''}`,
         left,
         y,
         { width: contentWidth },
@@ -245,7 +250,9 @@ export class StatementPdfService {
       .fillColor(MUTED)
       .fontSize(7.5)
       .text(
-        `${toTitle(biz.name)} | ${biz.email} | ${biz.addressLine1} ${biz.addressLine2} | Computer-generated statement.`,
+        [toTitle(biz.name), biz.email, biz.addressLines.join(' '), 'Computer-generated statement.']
+          .filter(Boolean)
+          .join(' | '),
         left,
         doc.page.height - 70,
         { width: contentWidth, align: 'center' },

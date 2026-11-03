@@ -113,7 +113,9 @@ export default function BillingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">Next auto-debit</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--walnut)]">
+                {sub?.mandate_type === 'offline' ? 'Next payment due' : 'Next auto-debit'}
+              </p>
               <p className="text-lg font-bold text-[var(--dark-brown)] mt-1 flex items-center gap-2">
                 <CalendarClock size={16} className="text-[var(--mahogany)]" />
                 {sub?.next_debit_date ? fmtDate(sub.next_debit_date) : '-'}
@@ -137,7 +139,11 @@ export default function BillingPage() {
                 </span>
               </p>
               <p className="text-xs text-[var(--walnut)] mt-2">
-                {sub?.mandate_type ? `Auto-debit via ${String(sub.mandate_type).toUpperCase()}` : 'UPI Autopay or card mandate'}
+                {sub?.mandate_type === 'offline'
+                  ? 'Paid directly to PraecisAI: no auto-debit'
+                  : sub?.mandate_type
+                    ? `Auto-debit via ${String(sub.mandate_type).toUpperCase()}`
+                    : 'UPI Autopay or card mandate'}
               </p>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'var(--sand)' }}>

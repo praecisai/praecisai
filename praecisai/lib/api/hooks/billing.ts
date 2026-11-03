@@ -344,6 +344,16 @@ export function useAdminLinkUsers(id: string) {
   });
 }
 
+/** Record a plan payment taken outside Razorpay (bank transfer, UPI, cash). */
+export function useAdminRecordOfflinePayment(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { plan: 'MONTHLY' | 'YEARLY'; amount: number; paid_on: string }) =>
+      adminApi.post(`/admin/tenants/${id}/offline-payment`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
+  });
+}
+
 export function useAdminPollBolna(id: string) {
   const qc = useQueryClient();
   return useMutation({

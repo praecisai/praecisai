@@ -157,6 +157,19 @@ export class TenantKeysService {
   }
 
   /**
+   * The tenant's OWN AiSensy key, for real sends. No env fallback: the
+   * platform key belongs to another tenant's WhatsApp number, so a business
+   * without its key must fail instead of messaging from someone else's number.
+   */
+  async requireAisensyKey(businessId: string): Promise<string> {
+    const keys = await this.effectiveKeys(businessId);
+    if (keys?.aisensy_api_key) return this.cryptoService.decrypt(keys.aisensy_api_key);
+    throw new BadRequestException(
+      'WhatsApp is not set up for this business yet: add its AiSensy API key in admin.',
+    );
+  }
+
+  /**
    * Write-only key storage. Values are encrypted at rest; passing an empty
    * string clears a key. Moves onboarding PENDING → KEYS_ADDED once both
    * Bolna and AiSensy keys are on the record.

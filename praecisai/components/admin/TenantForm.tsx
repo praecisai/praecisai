@@ -17,6 +17,8 @@ export interface TenantFormValues {
   billingEmail?: string;
   gstin?: string;
   city?: string;
+  statementAddress?: string;
+  statementEmail?: string;
 }
 
 export interface KeyPreviews {
@@ -133,6 +135,8 @@ export function TenantForm({
   const [billingEmail, setBillingEmail] = useState(initial?.billingEmail ?? '');
   const [gstin, setGstin] = useState(initial?.gstin ?? '');
   const [city, setCity] = useState(initial?.city ?? '');
+  const [statementAddress, setStatementAddress] = useState(initial?.statementAddress ?? '');
+  const [statementEmail, setStatementEmail] = useState(initial?.statementEmail ?? '');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,6 +161,8 @@ export function TenantForm({
       billingEmail: billingEmail.trim(),
       gstin: gstin.trim(),
       city: city.trim(),
+      statementAddress: statementAddress.trim(),
+      statementEmail: statementEmail.trim(),
     });
   }
 
@@ -267,6 +273,28 @@ export function TenantForm({
         </Field>
         <Field label="GSTIN" hint="Optional: printed on GST invoices">
           <input value={gstin} onChange={(e) => setGstin(e.target.value)} className={inputCls} style={inputStyle} />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Statement address" hint="Printed under the business name on WhatsApp statement PDFs. Two lines at most.">
+          <textarea
+            value={statementAddress}
+            onChange={(e) => setStatementAddress(e.target.value)}
+            rows={2}
+            className={inputCls}
+            style={inputStyle}
+            placeholder={'Shop 4, Main Road,\nAndheri East, Mumbai - 400069'}
+          />
+        </Field>
+        <Field label="Statement contact email" hint="Shown on statement PDFs for queries. Empty = billing email.">
+          <input
+            type="email"
+            value={statementEmail}
+            onChange={(e) => setStatementEmail(e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+          />
         </Field>
       </div>
 

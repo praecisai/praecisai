@@ -14,6 +14,7 @@ import {
 } from '../../../../lib/api/hooks';
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
 import { CallerNumbersPanel } from '../../../../components/admin/CallerNumbersPanel';
+import { OfflinePaymentForm } from '../../../../components/admin/OfflinePaymentForm';
 import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, MessageCircle } from 'lucide-react';
 
 /** Plan-aware label for the payment row so trial vs full onboarding is clear. */
@@ -165,6 +166,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
               billingEmail: tenant.billing_email ?? '',
               gstin: tenant.gstin ?? '',
               city: tenant.city ?? '',
+              statementAddress: tenant.statement_address ?? '',
+              statementEmail: tenant.statement_email ?? '',
             }}
             previews={tenant.keys}
             saving={update.isPending}
@@ -279,13 +282,17 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                 tenant.billing_subscriptions.map((s: any) => (
                   <div key={s.id} className="text-xs text-[var(--walnut)] space-y-1">
                     <p>Status: <span className="font-semibold text-[var(--dark-brown)]">{s.status}</span></p>
-                    <p>Next debit: {s.next_debit_date ? new Date(s.next_debit_date).toLocaleDateString('en-IN') : '-'}</p>
-                    <p>Mandate: {s.mandate_type ?? '-'}</p>
+                    <p>
+                      {s.mandate_type === 'offline' ? 'Next payment due' : 'Next debit'}:{' '}
+                      {s.next_debit_date ? new Date(s.next_debit_date).toLocaleDateString('en-IN') : '-'}
+                    </p>
+                    <p>Mandate: {s.mandate_type === 'offline' ? 'Paid offline (no auto-debit)' : (s.mandate_type ?? '-')}</p>
                   </div>
                 ))
               ) : (
                 <p className="text-xs text-[var(--walnut)]">No subscription yet</p>
               )}
+              {!['PAID', 'ACTIVE'].includes(tenant.onboarding_status) && <OfflinePaymentForm tenantId={id} />}
             </div>
           )}
 

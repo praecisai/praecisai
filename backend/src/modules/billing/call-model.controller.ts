@@ -24,17 +24,36 @@ class SetCallModelDto {
 
 /**
  * Which AI model (A best, B 2nd best, C 3rd best) this business dials with.
- * Everyone can read it; only platform-owner logins (praecisai@gmail.com) can
- * switch it from the dashboard. Customers' models are set in /admin.
+ * Everyone can read it. A customer picks their plan themselves on Billing
+ * while they hold no call minutes; once minutes are bought the plan is locked
+ * (minutes bought at one plan's rate must not be spent on a pricier plan)
+ * until they run out. Platform-owner logins and /admin can always switch.
  */
 @Controller('call-model')
 @UseGuards(JwtAuthGuard)
 export class CallModelController {
   constructor(private prisma: PrismaService) {}
 
+  /** Call minutes left (0 when the business has no credit account yet). */
+  private async callBalance(businessId: string): Promise<number> {
+    const account = await this.prisma.creditAccount.findUnique({
+      where: { business_id: businessId },
+      select: { call_credits: true },
+    });
+    return account?.call_credits ?? 0;
+  }
+
+  /** Why this login cannot switch now, or null when it can. */
+  private async switchLock(businessId: string, user: any): Promise<string | null> {
+    if (isPlatformOwner(user?.email)) return null;
+    const minutes = await this.callBalance(businessId);
+    if (minutes < 1) return null;
+    return `You have ${Math.round(minutes * 100) / 100} call minutes on your current plan. You can switch plan once they are used up, or ask the PraecisAI team to switch it for you.`;
+  }
+
   @Get()
   async get(@BusinessId() businessId: string, @CurrentUser() user: any) {
-    const [business, tiers] = await Promise.all([
+    const [business, tiers, lock] = await Promise.all([
       this.prisma.business.findUnique({
         where: { id: businessId },
         select: {
@@ -44,6 +63,7 @@ export class CallModelController {
         },
       }),
       this.prisma.callModelTier.findMany({ orderBy: { tier: 'asc' } }),
+      this.switchLock(businessId, user),
     ]);
     const agentFor = (t: string) =>
       t === 'A'
@@ -53,7 +73,8 @@ export class CallModelController {
       current: isModelTier(business?.call_model_tier)
         ? business!.call_model_tier
         : 'A',
-      can_switch: isPlatformOwner(user?.email),
+      can_switch: !lock,
+      locked_reason: lock,
       tiers: tiers.map((t) => ({
         tier: t.tier,
         label: t.label,
@@ -76,11 +97,8 @@ export class CallModelController {
     @CurrentUser() user: any,
     @Body() dto: SetCallModelDto,
   ) {
-    if (!isPlatformOwner(user?.email)) {
-      throw new ForbiddenException(
-        'Only the PraecisAI team can switch the AI model',
-      );
-    }
+    const lock = await this.switchLock(businessId, user);
+    if (lock) throw new ForbiddenException(lock);
     const tier = await this.prisma.callModelTier.findUnique({
       where: { tier: dto.tier },
     });

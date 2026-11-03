@@ -116,6 +116,18 @@ export class AdminController {
     return this.admin.deleteTenant(id, body?.confirmName ?? '');
   }
 
+  @Post('tenants/:id/offline-payment')
+  recordOfflinePayment(
+    @Param('id') id: string,
+    @Body() body: { plan: string; amount: number; paid_on?: string },
+  ) {
+    return this.admin.recordOfflinePayment(id, {
+      plan: body.plan,
+      amountRupees: body.amount,
+      paidOn: body.paid_on,
+    });
+  }
+
   @Patch('tenants/:id/test-call')
   toggleTestCall(@Param('id') id: string, @Body() body: { passed: boolean }) {
     return this.admin.toggleTestCall(id, !!body.passed);

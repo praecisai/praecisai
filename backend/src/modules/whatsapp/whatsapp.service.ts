@@ -80,7 +80,17 @@ export class WhatsappService {
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, business_id: businessId },
       include: {
-        business: { select: { name: true, segment_rules: true, whatsapp_segment_rules: true, vip_rule: true } },
+        business: {
+          select: {
+            name: true,
+            segment_rules: true,
+            whatsapp_segment_rules: true,
+            vip_rule: true,
+            statement_address: true,
+            statement_email: true,
+            billing_email: true,
+          },
+        },
         invoices: {
           where: { due_amount: { gt: 0 }, status: { not: 'PAID' } },
           orderBy: { invoice_date: 'asc' },
@@ -165,7 +175,12 @@ export class WhatsappService {
       agentName,
       segment,
       invoices,
-      business: { name: customer.business.name },
+      business: {
+        name: customer.business.name,
+        addressLine1: customer.business.statement_address?.split('\n')[0],
+        addressLine2: customer.business.statement_address?.split('\n').slice(1).join(' '),
+        email: customer.business.statement_email || customer.business.billing_email || undefined,
+      },
     });
 
     const pdfUrl = await this.storage.uploadStatementPdf(
@@ -180,8 +195,7 @@ export class WhatsappService {
 
     const logMessage = `Statement PDF (${segment}): Rs.${totalDue.toLocaleString('en-IN')} across ${invoices.length} invoice(s)`;
 
-    // Tenant-record AiSensy key first, platform env fallback (pre-migration)
-    const tenantAisensyKey = await this.tenantKeys.getAisensyKey(businessId);
+    const tenantAisensyKey = await this.tenantKeys.requireAisensyKey(businessId);
 
     try {
       await this.aisensy.sendStatement({
@@ -192,7 +206,7 @@ export class WhatsappService {
         invoiceCount: invoices.length,
         pdfUrl,
         pdfFilename,
-        apiKeyOverride: tenantAisensyKey ?? undefined,
+        apiKeyOverride: tenantAisensyKey,
       });
     } catch (err: any) {
       // Record WHY it failed so the dashboard can show it, and hand the log id
@@ -279,13 +293,13 @@ export class WhatsappService {
   async sendAgentHandoff(businessId: string, toPhone: string, briefing: string): Promise<void> {
     const campaignName =
       process.env.AISENSY_CAMPAIGN_AGENT_HANDOFF || 'agent_handoff_v1';
-    const tenantAisensyKey = await this.tenantKeys.getAisensyKey(businessId);
+    const tenantAisensyKey = await this.tenantKeys.requireAisensyKey(businessId);
     await this.aisensy.sendText({
       campaignName,
       destinationPhone: toPhone,
       userName: 'Recovery Agent',
       templateParams: [briefing],
-      apiKeyOverride: tenantAisensyKey ?? undefined,
+      apiKeyOverride: tenantAisensyKey,
     });
   }
 
@@ -318,7 +332,7 @@ export class WhatsappService {
 
     const campaignName =
       process.env[PDC_REMINDER_CAMPAIGN_ENV] || PDC_REMINDER_CAMPAIGN_FALLBACK;
-    const apiKeyOverride = (await this.tenantKeys.getAisensyKey(params.businessId)) ?? undefined;
+    const apiKeyOverride = await this.tenantKeys.requireAisensyKey(params.businessId);
 
     const amountText = params.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
     const dateText = formatIndianDate(params.chequeDate);
@@ -461,7 +475,7 @@ export class WhatsappService {
    * Single AiSensy account = single business, so we resolve the business from
    * the matched customer / pending call rather than from the payload.
    */
-  async handleInbound(payload: any) {
+  async handleInbound(payload: any, businessId?: string) {
     const senderRaw =
       payload?.senderMobile ?? payload?.sender ?? payload?.mobile ??
       payload?.from ?? payload?.waId ?? payload?.wa_id ?? '';
@@ -482,6 +496,7 @@ export class WhatsappService {
     // because the sender's WA number won't be on file).
     const pendingCall = await this.prisma.callLog.findFirst({
       where: {
+        ...(businessId ? { business_id: businessId } : {}),
         whatsapp_requested: true,
         whatsapp_fulfilled: false,
         created_at: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
@@ -492,7 +507,10 @@ export class WhatsappService {
 
     // Case 1: the sender IS a known customer (their WA number is on file)
     const senderCustomer = await this.prisma.customer.findFirst({
-      where: { phone: { endsWith: sender.slice(-10) } },
+      where: {
+        ...(businessId ? { business_id: businessId } : {}),
+        phone: { endsWith: sender.slice(-10) },
+      },
       select: { id: true, business_id: true },
     });
 

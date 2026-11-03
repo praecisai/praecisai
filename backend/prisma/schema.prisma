@@ -168,6 +168,10 @@ model Business {
   // "aap kahaan se bol rahe ho?" ({business_city}). Null = fall back to the
   // CALL_BUSINESS_CITY env default, then "Mumbai".
   city                      String?
+  // Statement PDF header/footer: address (one line per printed line) and
+  // contact email. Null email = billing_email.
+  statement_address         String?
+  statement_email           String?
   // VIP-only override: { min_days, max_days, segment }. VIP customers whose
   // days overdue fall in this range are contacted (manually: VIPs are never
   // auto-contacted) with the chosen segment's script/template instead of the
