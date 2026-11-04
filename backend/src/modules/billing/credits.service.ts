@@ -19,6 +19,8 @@ import {
   callCreditsForSeconds,
   callPacks,
   callPackFor,
+  FREE_TRIAL_CALL_MINUTES,
+  FREE_TRIAL_WHATSAPP_MESSAGES,
   MIN_CUSTOM_CREDITS,
   MAX_CUSTOM_CREDITS,
   findPack,
@@ -27,7 +29,7 @@ import {
   whatsappPacks,
 } from './credit-packs.util';
 
-type Reason = 'PURCHASE' | 'AUTOPAY' | 'USAGE' | 'ADJUSTMENT';
+type Reason = 'PURCHASE' | 'AUTOPAY' | 'USAGE' | 'ADJUSTMENT' | 'TRIAL';
 
 /** A call needs at least this many minutes left to be dialled. */
 const MIN_CALL_CREDITS = 1;
@@ -137,6 +139,40 @@ export class CreditsService {
     }
   }
 
+  /**
+   * Give a credit-billed business its one-time free trial (10 call minutes +
+   * 10 WhatsApp messages) the first time its balance matters. Only for a
+   * business that has never had credits any other way (bought, autopay or an
+   * admin opening balance), so existing customers moved onto credits don't
+   * get it. The ledger's unique (kind, reason, ref_id) keeps it to once.
+   */
+  async ensureFreeTrial(businessId: string): Promise<void> {
+    if (!(await this.creditBillingOn(businessId))) return;
+    const history = await this.prisma.creditTransaction.findFirst({
+      where: {
+        business_id: businessId,
+        reason: { in: ['TRIAL', 'PURCHASE', 'AUTOPAY', 'ADJUSTMENT'] },
+      },
+      select: { id: true },
+    });
+    if (history) return;
+    await this.applyDelta(businessId, 'CALL', FREE_TRIAL_CALL_MINUTES, 'TRIAL', businessId, 'Free trial');
+    await this.applyDelta(businessId, 'WHATSAPP', FREE_TRIAL_WHATSAPP_MESSAGES, 'TRIAL', businessId, 'Free trial');
+    this.logger.log(`Free trial credits granted to ${businessId}`);
+  }
+
+  /** On the free trial: got trial credits and has never bought any. */
+  private async trialState(businessId: string): Promise<'NONE' | 'ON_TRIAL'> {
+    const rows = await this.prisma.creditTransaction.findMany({
+      where: { business_id: businessId, reason: { in: ['TRIAL', 'PURCHASE', 'AUTOPAY'] } },
+      select: { reason: true },
+      take: 5,
+    });
+    const hadTrial = rows.some((r) => r.reason === 'TRIAL');
+    const bought = rows.some((r) => r.reason !== 'TRIAL');
+    return hadTrial && !bought ? 'ON_TRIAL' : 'NONE';
+  }
+
   private async creditBillingOn(businessId: string): Promise<boolean> {
     const b = await this.prisma.business.findUnique({
       where: { id: businessId },
@@ -157,7 +193,11 @@ export class CreditsService {
     opts?: { reserveInFlight?: boolean },
   ): Promise<void> {
     if (!(await this.creditBillingOn(businessId))) return;
-    const account = await this.getAccount(businessId);
+    let account = await this.getAccount(businessId);
+    if (account.call_credits < MIN_CALL_CREDITS) {
+      await this.ensureFreeTrial(businessId);
+      account = await this.getAccount(businessId);
+    }
     if (account.call_credits < MIN_CALL_CREDITS) {
       throw new OutOfCreditsError(
         `Out of call credits: ${Math.max(0, roundCredits(account.call_credits))} minutes left. Add call credits in Billing & Usage to start calling.`,
@@ -182,7 +222,11 @@ export class CreditsService {
   /** Throws when a credit-billed business cannot cover `count` WhatsApp messages. */
   async assertCanSendWhatsapp(businessId: string, count = 1): Promise<void> {
     if (!(await this.creditBillingOn(businessId))) return;
-    const account = await this.getAccount(businessId);
+    let account = await this.getAccount(businessId);
+    if (account.whatsapp_credits < count) {
+      await this.ensureFreeTrial(businessId);
+      account = await this.getAccount(businessId);
+    }
     if (account.whatsapp_credits < count) {
       throw new OutOfCreditsError(
         `Out of WhatsApp credits: ${Math.max(0, Math.floor(account.whatsapp_credits))} messages left. Add WhatsApp credits in Billing & Usage to start sending.`,
@@ -285,6 +329,7 @@ export class CreditsService {
         `Credit reconcile failed for ${businessId}: ${err?.message}`,
       ),
     );
+    await this.ensureFreeTrial(businessId);
 
     const [business, account, tiers, transactions] = await Promise.all([
       this.prisma.business.findUnique({
@@ -409,13 +454,51 @@ export class CreditsService {
   /** Banners for the dashboard: only credit-billed businesses below their alert level. */
   async lowCreditBanners(businessId: string) {
     if (!(await this.creditBillingOn(businessId))) return [];
-    const a = await this.getAccount(businessId);
+    await this.ensureFreeTrial(businessId);
+    const [a, trial, business] = await Promise.all([
+      this.getAccount(businessId),
+      this.trialState(businessId),
+      this.prisma.business.findUnique({
+        where: { id: businessId },
+        select: { onboarding_status: true },
+      }),
+    ]);
     const out: Array<{ id: string; kind: string; message: string }> = [];
     const autopay = a.autopay_enabled && a.autopay_status === 'ACTIVE';
     // An empty wallet (a new tenant, or everything used up) is not "low": the
     // feature is off until credits are bought, so say so plainly.
     const callEmpty = a.call_credits < MIN_CALL_CREDITS;
     const waEmpty = a.whatsapp_credits < 1;
+    const planPaid = business?.onboarding_status === 'PAID' || business?.onboarding_status === 'ACTIVE';
+
+    if (trial === 'ON_TRIAL') {
+      // Free trial: one banner, either what's left or that it's over
+      const mins = roundCredits(Math.max(0, a.call_credits));
+      const msgs = Math.floor(Math.max(0, a.whatsapp_credits));
+      const next = planPaid ? 'Buy credits' : 'Choose your plan and buy credits';
+      if (callEmpty && waEmpty) {
+        out.push({
+          id: 'credits-trial-over',
+          kind: 'TRIAL_OVER',
+          message: `Your free trial is over: the ${FREE_TRIAL_CALL_MINUTES} free call minutes and ${FREE_TRIAL_WHATSAPP_MESSAGES} free WhatsApp messages are used up. ${next} to keep AI calls and WhatsApp reminders going.`,
+        });
+      } else {
+        out.push({
+          id: 'credits-trial',
+          kind: 'TRIAL_ACTIVE',
+          message: `Free trial: ${mins} of ${FREE_TRIAL_CALL_MINUTES} call minutes and ${msgs} of ${FREE_TRIAL_WHATSAPP_MESSAGES} WhatsApp messages left${callEmpty ? ' (calls paused until you buy credits)' : waEmpty ? ' (WhatsApp paused until you buy credits)' : ''}. ${next} to keep going after the trial.`,
+        });
+      }
+      if (a.autopay_enabled && a.autopay_last_error) {
+        out.push({
+          id: 'credits-autopay-error',
+          kind: 'AUTOPAY_FAILED',
+          message: `Last autopay top-up failed: ${a.autopay_last_error}. Buy credits manually or set up autopay again.`,
+        });
+      }
+      return out;
+    }
+
     if (callEmpty || waEmpty) {
       out.push({
         id: 'credits-empty',

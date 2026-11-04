@@ -1,12 +1,14 @@
 'use client';
 
 import { useBillingSummary, useBillingAccess } from '../../lib/api/hooks';
-import { AlertTriangle, PauseCircle, CreditCard, Sparkles } from 'lucide-react';
+import { AlertTriangle, PauseCircle, CreditCard, Sparkles, Gift } from 'lucide-react';
 import Link from 'next/link';
 
 const KIND_STYLES: Record<string, { color: string; icon: React.ElementType }> = {
   CREDITS_LOW: { color: '#E65100', icon: AlertTriangle },
   CREDITS_EMPTY: { color: '#7F5539', icon: Sparkles },
+  TRIAL_ACTIVE: { color: '#2E7D32', icon: Gift },
+  TRIAL_OVER: { color: '#C62828', icon: Gift },
   AUTOPAY_FAILED: { color: '#C62828', icon: CreditCard },
   MANDATE_FAILED: { color: '#C62828', icon: PauseCircle },
 };
@@ -69,8 +71,10 @@ export function BillingBanners() {
               >
                 {b.kind === 'MANDATE_FAILED'
                   ? 'Open Billing & Usage'
-                  : b.kind === 'CREDITS_EMPTY'
+                  : b.kind === 'CREDITS_EMPTY' || b.kind === 'TRIAL_OVER'
                     ? 'Add credits'
+                    : b.kind === 'TRIAL_ACTIVE'
+                      ? 'See plans and credits'
                     : 'Buy credits or turn on autopay'}
               </Link>
             </div>

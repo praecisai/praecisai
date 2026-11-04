@@ -57,6 +57,13 @@ export interface CreditPack {
   autopayEligible: boolean;
 }
 
+/**
+ * Free trial every new credit-billed customer gets once, on us: enough to
+ * hear the AI on a few real calls and send a few statements before buying.
+ */
+export const FREE_TRIAL_CALL_MINUTES = 10;
+export const FREE_TRIAL_WHATSAPP_MESSAGES = 10;
+
 /** Smallest and largest amount a customer may buy (or autopay) in one go. */
 export const MIN_CUSTOM_CREDITS = 100;
 export const MAX_CUSTOM_CREDITS = 100000;

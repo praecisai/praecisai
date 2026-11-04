@@ -72,6 +72,7 @@ const REASON_LABEL: Record<string, string> = {
   AUTOPAY: 'Autopay top-up',
   USAGE: 'Used',
   ADJUSTMENT: 'Adjusted by PraecisAI',
+  TRIAL: 'Free trial',
 };
 
 /**

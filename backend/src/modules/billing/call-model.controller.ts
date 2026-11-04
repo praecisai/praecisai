@@ -48,6 +48,17 @@ export class CallModelController {
     if (isPlatformOwner(user?.email)) return null;
     const minutes = await this.callBalance(businessId);
     if (minutes < 1) return null;
+    // Free trial minutes are on us and work on any plan: only minutes that
+    // were paid for (or granted by admin) tie the customer to a plan.
+    const paidFor = await this.prisma.creditTransaction.findFirst({
+      where: {
+        business_id: businessId,
+        kind: 'CALL',
+        reason: { in: ['PURCHASE', 'AUTOPAY', 'ADJUSTMENT'] },
+      },
+      select: { id: true },
+    });
+    if (!paidFor) return null;
     return `You have ${Math.round(minutes * 100) / 100} call minutes on your current plan. You can switch plan once they are used up, or ask the PraecisAI team to switch it for you.`;
   }
 
