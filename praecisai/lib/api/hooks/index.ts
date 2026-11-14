@@ -425,6 +425,25 @@ export function useUpdateCustomerPhone() {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+/** Every business, for the platform owner's switcher (403 for anyone else). */
+export function useSwitchableBusinesses(enabled: boolean) {
+  return useQuery({
+    queryKey: ['business', 'switchable'],
+    queryFn: async () => {
+      const res = await api.get('/business/switchable');
+      return res.data.data as Array<{
+        id: string;
+        name: string;
+        onboarding_status: string;
+        customers: number;
+        email: string | null;
+      }>;
+    },
+    enabled,
+    retry: false,
+  });
+}
+
 export function useMe() {
   return useQuery({
     queryKey: ['auth', 'me'],

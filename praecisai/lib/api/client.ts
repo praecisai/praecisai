@@ -7,8 +7,19 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+/** localStorage key of the business a platform owner is viewing (owner switcher). */
+export const ACT_AS_BUSINESS_KEY = 'praecis_act_as_business';
+
 // Attach Supabase JWT to every request
 api.interceptors.request.use(async (config) => {
+  // Platform owners can open any business; the backend ignores this header
+  // for everyone else.
+  try {
+    const actAs = typeof window !== 'undefined' ? window.localStorage.getItem(ACT_AS_BUSINESS_KEY) : null;
+    if (actAs) config.headers['x-praecis-business'] = actAs;
+  } catch {
+    // storage blocked: work in the login's own business
+  }
   try {
     const supabase = createClient();
     const { data } = await supabase.auth.getSession();

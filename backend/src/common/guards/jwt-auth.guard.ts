@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { allowlistedTenantFor } from '../utils/tenant-allowlist.util';
+import { isPlatformOwner } from '../constants/platform-owner';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -84,6 +85,19 @@ export class JwtAuthGuard implements CanActivate {
     request.businessId = dbUser.business_id;
     request.userRole = dbUser.role;
     request.dbUser = dbUser;
+
+    // Platform owners may work inside any business: the dashboard's business
+    // switcher sends its id here. Ignored for everyone else, so a tenant can
+    // never reach another tenant's data by setting the header.
+    const actAs = request.headers['x-praecis-business'];
+    if (typeof actAs === 'string' && actAs && actAs !== dbUser.business_id && isPlatformOwner(supabaseUser.email)) {
+      const target = await this.prisma.business.findUnique({ where: { id: actAs }, select: { id: true } });
+      if (target) {
+        request.businessId = target.id;
+        request.userRole = 'BUSINESS_OWNER';
+        request.actingAsBusiness = true;
+      }
+    }
 
     return true;
   }

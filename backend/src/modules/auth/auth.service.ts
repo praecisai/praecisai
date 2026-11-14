@@ -26,7 +26,8 @@ export class AuthService {
     return data.user;
   }
 
-  async getMe(supabaseUser: any) {
+  /** actingBusinessId: a platform owner viewing another business (see JwtAuthGuard). */
+  async getMe(supabaseUser: any, actingBusinessId?: string) {
     let user = await this.prisma.user.findUnique({
       where: { supabase_uid: supabaseUser.id },
       include: { business: true },
@@ -49,8 +50,14 @@ export class AuthService {
       user = { ...res.user, business: res.business } as any;
     }
 
+    if (actingBusinessId && user) {
+      const business = await this.prisma.business.findUnique({ where: { id: actingBusinessId } });
+      if (business) user = { ...user, business_id: business.id, business } as any;
+    }
+
     return {
       ...user,
+      acting_as_business: !!actingBusinessId,
       name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || null,
       avatar_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || null
     };

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -38,8 +38,8 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@CurrentUser() user: any) {
-    return this.authService.getMe(user);
+  async getMe(@CurrentUser() user: any, @Req() req: any) {
+    return this.authService.getMe(user, req.actingAsBusiness ? req.businessId : undefined);
   }
 
   @Post('onboard')

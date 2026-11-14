@@ -6,7 +6,10 @@
 // Extra emails can be added via the PLATFORM_OWNER_EMAILS env var (comma-
 // separated); the hardcoded entry guarantees at least the primary owner even if
 // the env is missing. Compared lowercase.
-const HARDCODED_OWNER_EMAILS = ['praecisai@gmail.com'];
+//
+// An owner can also open ANY business's dashboard: the frontend sends the
+// chosen business id in the x-praecis-business header (see JwtAuthGuard).
+const HARDCODED_OWNER_EMAILS = ['praecisai@gmail.com', 'virajwalavalkar90982@gmail.com'];
 
 export function platformOwnerEmails(): string[] {
   const fromEnv = (process.env.PLATFORM_OWNER_EMAILS ?? '')

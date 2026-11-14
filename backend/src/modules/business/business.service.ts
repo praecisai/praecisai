@@ -181,6 +181,27 @@ export class BusinessService {
     return business;
   }
 
+  /** id + name + size of every business, newest first (owner switcher). */
+  async listForSwitcher() {
+    const rows = await this.prisma.business.findMany({
+      select: {
+        id: true,
+        name: true,
+        onboarding_status: true,
+        _count: { select: { customers: true } },
+        users: { select: { email: true }, take: 1 },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    return rows.map((b) => ({
+      id: b.id,
+      name: b.name,
+      onboarding_status: b.onboarding_status,
+      customers: b._count.customers,
+      email: b.users[0]?.email ?? null,
+    }));
+  }
+
   async update(id: string, dto: UpdateBusinessDto) {
     await this.findById(id);
     if (dto.name !== undefined) {

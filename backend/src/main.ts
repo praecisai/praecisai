@@ -22,7 +22,7 @@ async function bootstrap() {
     origin: ['https://praecisai.vercel.app', 'https://praecisai.in', 'https://www.praecisai.in', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-praecis-business'],
   });
 
   // Global prefix

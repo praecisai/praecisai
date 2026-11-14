@@ -1,9 +1,10 @@
-import { Controller, Get, Patch, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, UseGuards, Query, ForbiddenException } from '@nestjs/common';
 import { BusinessService, UpdateBusinessDto } from './business.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { BusinessId } from '../../common/decorators/current-user.decorator';
+import { BusinessId, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { isPlatformOwner } from '../../common/constants/platform-owner';
 
 @Controller('business')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,6 +15,13 @@ export class BusinessController {
     @Roles('SUPER_ADMIN')
   findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
     return this.businessService.findAll(page, limit);
+  }
+
+  /** Every business, for the platform owner's business switcher. */
+  @Get('switchable')
+  async switchable(@CurrentUser() user: any) {
+    if (!isPlatformOwner(user?.email)) throw new ForbiddenException('Platform owners only');
+    return this.businessService.listForSwitcher();
   }
 
   @Get('me')

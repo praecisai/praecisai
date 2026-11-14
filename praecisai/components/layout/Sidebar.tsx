@@ -9,7 +9,8 @@ import {
   Upload, Settings, LogOut, Star, ClipboardList,
   ChevronRight, FileSpreadsheet, Menu, X, Activity, CreditCard, Cpu,
 } from 'lucide-react';
-import { useMe, useBillingAccess } from '../../lib/api/hooks';
+import { useMe, useBillingAccess, useSwitchableBusinesses } from '../../lib/api/hooks';
+import { ACT_AS_BUSINESS_KEY } from '../../lib/api/client';
 import { AutoCallToggle } from '../shared/AutoCallToggle';
 import { AutoWhatsappToggle } from '../shared/AutoWhatsappToggle';
 import { Logo } from '../../app/components/landing/Logo';
@@ -60,6 +61,57 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Platform owners only: open any business's dashboard. The choice is kept in
+ * localStorage and sent as x-praecis-business on every API call; a full
+ * reload makes sure no data from the previous business stays on screen.
+ */
+function BusinessSwitcher({ currentId, acting }: { currentId: string; acting: boolean }) {
+  const { data: businesses } = useSwitchableBusinesses(true);
+  const [ownId] = useState(() => (acting ? null : currentId));
+
+  function choose(id: string) {
+    try {
+      if (!id || id === ownId) window.localStorage.removeItem(ACT_AS_BUSINESS_KEY);
+      else window.localStorage.setItem(ACT_AS_BUSINESS_KEY, id);
+    } catch {
+      return;
+    }
+    window.location.reload();
+  }
+
+  return (
+    <>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--rust)] flex items-center justify-between">
+        Business {acting && <span className="normal-case tracking-normal text-[var(--mahogany)]">Owner view</span>}
+      </p>
+      <select
+        value={currentId}
+        onChange={(e) => choose(e.target.value)}
+        className="mt-1 w-full px-2 py-1.5 rounded-md border text-sm font-semibold bg-transparent text-[var(--dark-brown)]"
+        style={{ borderColor: acting ? 'var(--mahogany)' : 'var(--caramel)' }}
+      >
+        {!businesses?.some((b) => b.id === currentId) && <option value={currentId}>Loading…</option>}
+        {businesses?.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+            {b.customers ? ` · ${b.customers} customers` : ''}
+          </option>
+        ))}
+      </select>
+      {acting && (
+        <button
+          type="button"
+          onClick={() => choose('')}
+          className="mt-1.5 text-[11px] font-semibold text-[var(--mahogany)] underline underline-offset-2"
+        >
+          Back to my own business
+        </button>
+      )}
+    </>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -72,6 +124,11 @@ export function Sidebar() {
       : NAV_ITEMS;
 
   async function handleLogout() {
+    try {
+      window.localStorage.removeItem(ACT_AS_BUSINESS_KEY);
+    } catch {
+      // nothing stored
+    }
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -112,7 +169,9 @@ export function Sidebar() {
             Settings: with several Aeromen logins it must be obvious at a glance
             whose ledger is on screen. */}
         <div className="px-5 pb-4 border-b" style={{ borderColor: 'rgba(221,184,146,0.4)' }}>
-          {user?.business?.name ? (
+          {access?.reason === 'OWNER' && user?.business_id ? (
+            <BusinessSwitcher currentId={user.business_id} acting={!!user.acting_as_business} />
+          ) : user?.business?.name ? (
             <>
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--rust)]">
                 Business
