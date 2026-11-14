@@ -7,6 +7,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { allowlistedTenantFor } from '../utils/tenant-allowlist.util';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -57,6 +58,22 @@ export class JwtAuthGuard implements CanActivate {
     // a lead. Previously only /auth/me did this, which the locked paywall never
     // calls — so brand-new (or post-tenant-delete) accounts got stuck on
     // "No business linked" and could never reach checkout.
+    // Same person, new Supabase account (e.g. deleted and signed up again):
+    // a verified email already on file keeps its user and business instead
+    // of getting a fresh empty one. Display name never matters here.
+    if (!dbUser && supabaseUser.email && supabaseUser.email_confirmed_at) {
+      const sameEmail = await this.prisma.user.findMany({
+        where: { email: { equals: supabaseUser.email, mode: 'insensitive' } },
+        take: 2,
+      });
+      if (sameEmail.length === 1) {
+        dbUser = await this.prisma.user.update({
+          where: { id: sameEmail[0].id },
+          data: { supabase_uid: supabaseUser.id },
+        });
+      }
+    }
+
     if (!dbUser) {
       dbUser = await this.provisionTenant(supabaseUser);
     }
@@ -92,11 +109,15 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // New signups are on prepaid credits from day one
-        const business = await tx.business.create({ data: { name: businessName, credit_billing: true } });
+        // An email the PraecisAI team allowlisted for a tenant joins that
+        // tenant; everyone else gets their own new business. New signups are
+        // on prepaid credits from day one.
+        const businessId =
+          (await allowlistedTenantFor(tx, supabaseUser.email)) ??
+          (await tx.business.create({ data: { name: businessName, credit_billing: true } })).id;
         return tx.user.create({
           data: {
-            business_id: business.id,
+            business_id: businessId,
             supabase_uid: supabaseUser.id,
             email: supabaseUser.email,
             phone,

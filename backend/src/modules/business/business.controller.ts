@@ -24,7 +24,10 @@ export class BusinessController {
   @Patch('me')
     @Roles('BUSINESS_OWNER')
   updateMyBusiness(@BusinessId() businessId: string, @Body() dto: UpdateBusinessDto) {
-    return this.businessService.update(businessId, dto);
+    // Status and plan are set by the PraecisAI team (admin), never by the
+    // tenant. The owner may rename their business.
+    const { status: _status, plan: _plan, ...own } = dto;
+    return this.businessService.update(businessId, own);
   }
 
   @Get(':id')

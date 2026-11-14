@@ -183,6 +183,10 @@ export class BusinessService {
 
   async update(id: string, dto: UpdateBusinessDto) {
     await this.findById(id);
+    if (dto.name !== undefined) {
+      dto.name = dto.name.trim();
+      if (dto.name.length < 2) throw new BadRequestException('Business name must be at least 2 characters');
+    }
 
     // Validate segment rules structurally + logically before persisting.
     // WhatsApp ranges use the same shape; null clears them (WhatsApp then

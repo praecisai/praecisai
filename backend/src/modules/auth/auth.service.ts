@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import { toE164India } from '../../common/utils/call-script.util';
+import { allowlistedTenantFor } from '../../common/utils/tenant-allowlist.util';
 
 @Injectable()
 export class AuthService {
@@ -89,11 +90,14 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({
       where: { supabase_uid: dto.supabaseUid },
     });
+    // A tenant the PraecisAI team set up keeps the name the team gave it
+    const tenantId = await allowlistedTenantFor(this.prisma, dto.email);
     if (existing) {
+      const keepName = tenantId !== null && tenantId === existing.business_id;
       const [business, user] = await this.prisma.$transaction([
         this.prisma.business.update({
           where: { id: existing.business_id },
-          data: { name: dto.businessName },
+          data: keepName ? {} : { name: dto.businessName },
         }),
         this.prisma.user.update({
           where: { id: existing.id },
@@ -103,12 +107,14 @@ export class AuthService {
       return { user, business };
     }
 
-    // Create business + owner in transaction
+    // Create business + owner in transaction (or join the admin-made tenant)
     return this.prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({
-        // New signups are on prepaid credits from day one
-        data: { name: dto.businessName, credit_billing: true },
-      });
+      const business = tenantId
+        ? await tx.business.findUniqueOrThrow({ where: { id: tenantId } })
+        : await tx.business.create({
+            // New signups are on prepaid credits from day one
+            data: { name: dto.businessName, credit_billing: true },
+          });
 
       const user = await tx.user.create({
         data: {

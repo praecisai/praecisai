@@ -127,20 +127,22 @@ export default function SettingsPage() {
   // Empty is allowed (falls back to platform default); otherwise must look like a phone number.
   const handoffValid = /^(\+?[0-9]{10,15})?$/.test(handoffNumber.trim());
 
-  // Tenants can only edit the transfer number; the business name is admin-set.
+  const nameValid = businessName.trim().length >= 2;
+
   const saveBusiness = async () => {
-    if (!handoffValid) return;
+    if (!handoffValid || !nameValid) return;
     try {
       await updateBusiness.mutateAsync({
+        name: businessName.trim(),
         handoff_number: handoffNumber.trim(),
       });
-      toast.success('Call transfer number saved', {
+      toast.success('Business settings saved', {
         description: handoffNumber.trim()
           ? `Senior transfers will go to ${handoffNumber.trim()}.`
           : 'Transfers will use the platform default number.',
       });
     } catch (e: any) {
-      toast.error('Could not save the transfer number', { description: e.message });
+      toast.error('Could not save business settings', { description: e.message });
     }
   };
 
@@ -205,16 +207,21 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Business Name</label>
-                  {/* Read-only for tenants: the name is set by the PraecisAI admin
-                      and reflected here. On calls Meena speaks the spoken form. */}
-                  <p className="input-dark flex items-center" style={{ color: 'var(--dark-brown)' }}>
-                    {businessName || '—'}
-                  </p>
+                  <input
+                    className="input-dark"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Siddhivinayak LLP"
+                  />
                   <p className="text-xs text-[var(--walnut)] mt-1.5">
-                    Set by the PraecisAI team. On AI calls, legal suffixes are dropped automatically —
-                    Meena will say &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;.
-                    To change it, contact the PraecisAI team.
+                    Shown on your dashboard and WhatsApp statements. On AI calls, legal suffixes like LLP are dropped,
+                    so Meena says &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;.
                   </p>
+                  {!nameValid && (
+                    <p className="text-xs mt-1" style={{ color: '#C62828' }}>
+                      Enter at least 2 characters.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--walnut)] mb-1.5 uppercase tracking-wider">Call Transfer Number</label>
@@ -252,10 +259,10 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={saveBusiness}
-                  disabled={updateBusiness.isPending || !handoffValid}
+                  disabled={updateBusiness.isPending || !handoffValid || !nameValid}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--cream)] disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, var(--walnut), var(--mahogany))' }}>
-                  {updateBusiness.isPending ? 'Saving…' : 'Save Transfer Number'}
+                  {updateBusiness.isPending ? 'Saving…' : 'Save Business Settings'}
                 </button>
               </div>
             </div>
