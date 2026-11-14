@@ -612,14 +612,16 @@ export function toE164India(raw: string): string {
   return `+${digits}`;
 }
 
-// Strip legal suffixes for the spoken business name — "Aeromen Clothing LLP"
-// should be spoken as "Aeromen Clothing". Tally exports are usually ALL CAPS,
-// which the TTS reads robotically or spells out ("A-E-R-O-M-E-N"), so proper-case
-// an all-caps result. Names that already have lowercase (intentional brands like
-// "TechCorp") are left untouched.
+// The business name as Meena says it. "LLP" is kept (businesses are known by
+// it: "Siddhivinayak LLP"); company suffixes (Ltd, Pvt Ltd, Limited) are
+// dropped. Tally exports are usually ALL CAPS, which the TTS reads robotically
+// or spells out ("A-E-R-O-M-E-N"), so an all-caps name is proper-cased, with
+// LLP kept in capitals so it is read out as letters, not as a word. Names that
+// already have lowercase (intentional brands like "TechCorp") stay as typed.
 export function spokenBusinessName(name: string): string {
   const stripped = name
-    .replace(/\s+(llp|ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '')
+    .replace(/\s+(ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '')
     .trim();
-  return /[a-z]/.test(stripped) ? stripped : toProperCase(stripped);
+  const cased = /[a-z]/.test(stripped) ? stripped : toProperCase(stripped);
+  return cased.replace(/\bllp\b/gi, 'LLP');
 }

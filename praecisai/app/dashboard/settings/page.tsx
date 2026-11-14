@@ -165,7 +165,11 @@ export default function SettingsPage() {
     }
   };
 
-  const spokenName = businessName.replace(/\s+(llp|ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '').trim();
+  // Mirrors spokenBusinessName (backend call-script.util): LLP is kept, Ltd-style suffixes are dropped
+  const spokenName = businessName
+    .replace(/\s+(ltd\.?|pvt\.?\s*ltd\.?|private\s+limited|limited)\s*$/i, '')
+    .trim()
+    .replace(/\bllp\b/gi, 'LLP');
 
   const ranges = [
     `0 – ${bounds[0]} days`,
@@ -214,8 +218,9 @@ export default function SettingsPage() {
                     placeholder="e.g. Siddhivinayak LLP"
                   />
                   <p className="text-xs text-[var(--walnut)] mt-1.5">
-                    Shown on your dashboard and WhatsApp statements. On AI calls, legal suffixes like LLP are dropped,
-                    so Meena says &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;.
+                    Shown on your dashboard and WhatsApp statements. On AI calls Meena says
+                    &ldquo;<span className="font-semibold text-[var(--mahogany)]">{spokenName || '…'}</span>&rdquo;
+                    (LLP is kept; Ltd and Pvt Ltd are left out).
                   </p>
                   {!nameValid && (
                     <p className="text-xs mt-1" style={{ color: '#C62828' }}>
