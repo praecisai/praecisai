@@ -11,11 +11,12 @@ import {
   useAdminLinkUsers,
   useAdminPollBolna,
   useAdminDeleteTenant,
+  useAdminModelTiers,
 } from '../../../../lib/api/hooks';
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
 import { CallerNumbersPanel } from '../../../../components/admin/CallerNumbersPanel';
 import { OfflinePaymentForm } from '../../../../components/admin/OfflinePaymentForm';
-import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, MessageCircle } from 'lucide-react';
+import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, MessageCircle, Cpu } from 'lucide-react';
 
 /** Plan-aware label for the payment row so trial vs full onboarding is clear. */
 function paymentLabel(checklist: any): string {
@@ -79,6 +80,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const linkUsers = useAdminLinkUsers(id);
   const pollBolna = useAdminPollBolna(id);
   const deleteTenant = useAdminDeleteTenant();
+  const { data: modelTiers } = useAdminModelTiers();
   const [deleteInput, setDeleteInput] = useState('');
   const [showDelete, setShowDelete] = useState(false);
 
@@ -97,12 +99,29 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   // The owner is whoever signed up; their mobile is the WhatsApp contact.
   const owner = (tenant.users ?? []).find((u: any) => u.role === 'BUSINESS_OWNER') ?? tenant.users?.[0];
   const ownerWa = whatsappLink(owner?.phone);
+  // Which AI model this business dials with right now, and that model's agent
+  const tierInUse: string = tenant.call_model_tier ?? 'A';
+  const tierInUseLabel = (modelTiers ?? []).find((t: any) => t.tier === tierInUse)?.label ?? `Model ${tierInUse}`;
+  const agentInUse: string | null =
+    tierInUse === 'A' ? tenant.keys?.bolna_agent_id ?? null : tenant.keys?.models?.[tierInUse]?.bolna_agent_id ?? null;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-[var(--dark-brown)]">{tenant.name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg font-bold text-[var(--dark-brown)]">{tenant.name}</h1>
+            <span
+              className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ background: 'var(--sand)', color: 'var(--mahogany)', border: '1px solid var(--caramel)' }}
+              title={agentInUse ? `Bolna agent ${agentInUse}` : 'No agent id set for this model'}
+            >
+              <Cpu size={11} /> In use: {tierInUseLabel}
+              <span className="font-normal text-[var(--walnut)]">
+                · {agentInUse ? `agent ${agentInUse.slice(0, 8)}…` : 'no agent id'}
+              </span>
+            </span>
+          </div>
           <p className="text-xs text-[var(--walnut)]">
             Onboarding: {tenant.onboarding_status} · Created {new Date(tenant.created_at).toLocaleDateString('en-IN')}
           </p>
