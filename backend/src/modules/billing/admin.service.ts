@@ -638,7 +638,16 @@ export class AdminService {
     const exists = await this.prisma.business.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Tenant not found');
     if (!isCreditKind(body.kind)) throw new BadRequestException('kind must be CALL or WHATSAPP');
-    await this.credits.adminAdjust(id, body.kind, Number(body.delta), body.note?.trim() || 'Adjusted by PraecisAI');
+    const delta = Number(body.delta);
+    if (!Number.isFinite(delta) || Math.abs(delta) > 100000)
+      throw new BadRequestException('Add or remove at most 1,00,000 credits at a time');
+    if (delta < 0) {
+      const account = await this.credits.getAccount(id);
+      const balance = body.kind === 'CALL' ? account.call_credits : account.whatsapp_credits;
+      if (balance + delta < 0)
+        throw new BadRequestException(`Only ${Math.round(balance * 100) / 100} credits left to remove`);
+    }
+    await this.credits.adminAdjust(id, body.kind, delta, body.note?.trim() || 'Adjusted by PraecisAI');
     return this.getTenant(id);
   }
 

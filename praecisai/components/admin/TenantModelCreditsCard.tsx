@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { Cpu, Coins } from 'lucide-react';
 import {
   useAdminUpdateTenant,
-  useAdminAdjustCredits,
   useAdminCreditHistory,
   useAdminModelTiers,
 } from '../../lib/api/hooks';
@@ -20,16 +19,16 @@ const REASON_LABEL: Record<string, string> = {
   AUTOPAY: 'Autopay',
   USAGE: 'Used',
   ADJUSTMENT: 'Adjusted',
+  TRIAL: 'Free trial',
 };
 
 /**
  * Admin tenant page: which AI model the tenant dials with (+ the full
  * connection settings of models B and C), prepaid credits on/off,
- * balances, and manual credit adjustments (opening balance, goodwill, fixes).
+ * balances and credit history. Adding credits lives in AddCreditsCard.
  */
 export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
   const update = useAdminUpdateTenant(tenant.id);
-  const adjust = useAdminAdjustCredits(tenant.id);
   const { data: history } = useAdminCreditHistory(tenant.id);
   const { data: tiers } = useAdminModelTiers();
   const tierLabel = (t: string) => (tiers ?? []).find((x: any) => x.tier === t)?.label ?? `Model ${t}`;
@@ -37,9 +36,6 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
   const [tier, setTier] = useState<string>(tenant.call_model_tier ?? 'A');
   const [editTier, setEditTier] = useState<'B' | 'C'>('B');
   const modelPreviews = tenant.keys?.models ?? {};
-  const [kind, setKind] = useState<'CALL' | 'WHATSAPP'>('CALL');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
 
   function saveModel() {
     if ((tier === 'B' || tier === 'C') && !modelPreviews[tier]?.bolna_agent_id) {
@@ -56,22 +52,6 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
       { creditBilling: on },
       {
         onSuccess: () => toast.success(on ? 'Prepaid credits switched on' : 'Back on direct billing'),
-        onError: (e: any) => toast.error(e.message),
-      },
-    );
-  }
-
-  function applyAdjustment() {
-    const delta = Number(amount);
-    if (!Number.isFinite(delta) || delta === 0) return toast.error('Enter a non-zero amount (negative to remove)');
-    adjust.mutate(
-      { kind, delta, note: note.trim() || undefined },
-      {
-        onSuccess: () => {
-          toast.success('Credits adjusted');
-          setAmount('');
-          setNote('');
-        },
         onError: (e: any) => toast.error(e.message),
       },
     );
@@ -156,7 +136,7 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
         </label>
         <p className="text-xs text-[var(--walnut)] mt-1">
           Off = legacy direct billing: nothing is deducted or blocked. Before switching a live customer on, give them an
-          opening balance below so their calls don&apos;t stop.
+          opening balance with Add credits so their calls don&apos;t stop.
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
@@ -174,32 +154,6 @@ export function TenantModelCreditsCard({ tenant }: { tenant: any }) {
               {credits.autopay_enabled ? 'On' : credits.autopay_status === 'PENDING' ? 'Pending' : 'Off'}
             </p>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3 items-end">
-          <div>
-            <label className={labelCls}>Credits</label>
-            <select value={kind} onChange={(e) => setKind(e.target.value as any)} className={inputCls} style={{ borderColor: 'var(--caramel)' }}>
-              <option value="CALL">Call minutes</option>
-              <option value="WHATSAPP">WhatsApp</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Add / remove</label>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 500 or -20" className={inputCls} style={{ borderColor: 'var(--caramel)' }} />
-          </div>
-          <div>
-            <label className={labelCls}>Note (customer sees it)</label>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opening balance" className={inputCls} style={{ borderColor: 'var(--caramel)' }} />
-          </div>
-          <button
-            onClick={applyAdjustment}
-            disabled={adjust.isPending}
-            className="px-4 py-2 rounded-lg text-sm font-semibold border text-[var(--mahogany)] disabled:opacity-50"
-            style={{ borderColor: 'var(--caramel)' }}
-          >
-            {adjust.isPending ? 'Saving…' : 'Apply'}
-          </button>
         </div>
 
         {history?.length ? (

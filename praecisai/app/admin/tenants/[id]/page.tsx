@@ -16,6 +16,7 @@ import {
 import { TenantForm, TenantFormValues } from '../../../../components/admin/TenantForm';
 import { CallerNumbersPanel } from '../../../../components/admin/CallerNumbersPanel';
 import { OfflinePaymentForm } from '../../../../components/admin/OfflinePaymentForm';
+import { AddCreditsCard } from '../../../../components/admin/AddCreditsCard';
 import { CheckCircle2, Circle, RefreshCcw, Users, Link2, Trash2, AlertTriangle, MessageCircle, Cpu } from 'lucide-react';
 
 /** Plan-aware label for the payment row so trial vs full onboarding is clear. */
@@ -200,6 +201,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="space-y-4">
+          <AddCreditsCard tenant={tenant} />
+
           {/* Onboarding checklist */}
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-[var(--dark-brown)] mb-2">Onboarding checklist</h2>
