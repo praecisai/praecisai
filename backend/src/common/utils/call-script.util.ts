@@ -560,6 +560,22 @@ export function buildLastBillNote(amount: number, date: Date, language: CallLang
   return `जी, आपका पिछला bill लगभग ${amountToHindi(amount)} का था, ${formatHindiDate(date)} को।`;
 }
 
+/**
+ * A bill date on its own, as the agent speaks it: Hindi "अक्टूबर की अट्ठाईसवीं
+ * तारीख", English "28th October 2026". Lets a script name the invoice and its
+ * date in the opening line ({last_bill_date} / {last_bill_date_english}).
+ */
+export function spokenBillDate(date: Date | null | undefined, language: CallLang): string {
+  if (!date) return '';
+  if (language !== 'ENGLISH') return formatHindiDate(date);
+  const ist = new Date(date.getTime() + 330 * 60000);
+  const day = ist.getUTCDate();
+  const suffix = day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December'];
+  return `${day}${suffix} ${months[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
+}
+
 // IST greeting based on time of call — server runs UTC, IST = UTC+5:30
 export function getISTGreeting(): string {
   const nowUTC = new Date();

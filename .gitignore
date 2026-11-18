@@ -124,3 +124,7 @@ dist
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Per-customer Bolna call scripts (contain customer names and contacts): kept locally, never committed
+docs/bolna-canvas/*.md
+!docs/bolna-canvas/README.md

@@ -35,6 +35,7 @@ import {
   buildMultiInvoiceNote,
   buildPartialPaymentNote,
   buildLastBillNote,
+  spokenBillDate,
   getISTGreeting,
   transliterateNameToDevanagari,
   transliterateCityToDevanagari,
@@ -384,6 +385,9 @@ export class CallingService {
         // Raw Tally bill number of the latest invoice — spoken ONLY if the
         // customer explicitly asks for the bill number (read slowly in the canvas).
         last_bill_number: latestInvoice.invoice_number || '',
+        // The same bill's date alone, for scripts that name the invoice up front
+        last_bill_date: spokenBillDate(latestInvoice.invoice_date, 'HINDI'),
+        last_bill_date_english: spokenBillDate(latestInvoice.invoice_date, 'ENGLISH'),
       },
     }, opts.delayMs ? { delay: opts.delayMs } : undefined);
 

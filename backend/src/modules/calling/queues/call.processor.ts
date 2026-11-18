@@ -148,6 +148,8 @@ export class CallProcessor extends WorkerHost {
             last_bill_note: context.last_bill_note || '',
             last_bill_note_english: context.last_bill_note_english || '',
             last_bill_number: context.last_bill_number || '',
+            last_bill_date: context.last_bill_date || '',
+            last_bill_date_english: context.last_bill_date_english || '',
           },
           metadata: callLogId ? { call_log_id: callLogId } : { demo_lead_id: demoLeadId },
         }),
