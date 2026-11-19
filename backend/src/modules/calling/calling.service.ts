@@ -411,8 +411,13 @@ export class CallingService {
      * followUpOnly: the hourly run's extra Escalation attempts between the
      * scheduled slots. Only parties already called today are considered, and
      * only when the business has an Escalation daily limit set.
+     *
+     * skipAnsweredToday: the scheduled (automatic) runs only. A party who
+     * already picked up a call today (IST), or is being dialled right now, is
+     * left out; busy / no-answer / failed parties are retried as before. The
+     * manual "Call all" never sets it.
      */
-    opts: { followUpOnly?: boolean } = {},
+    opts: { followUpOnly?: boolean; skipAnsweredToday?: boolean } = {},
   ) {
     // The No Follow-up range receives no contact at all
     if (segment === NO_FOLLOWUP_SEGMENT) {
@@ -444,7 +449,13 @@ export class CallingService {
     // routinely share a number (a group accountant, one proprietor with three
     // firms); without this, that single phone rings once per party back to
     // back, which is exactly what gets a CLI reported as spam.
-    const { unique: deduped, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
+    const { unique: dedupedAll, duplicates } = dedupeByPhone(withPhone, (o) => o.customer?.phone);
+
+    // One answered call per party per day, for the scheduled runs
+    const answeredToday = opts.skipAnsweredToday
+      ? await this.answeredTodayIds(businessId, dedupedAll.map((o) => o.customer.id))
+      : new Set<string>();
+    const deduped = dedupedAll.filter((o) => !answeredToday.has(o.customer.id));
 
     // Escalation daily limit: filtered BEFORE the billing gate so the gate
     // estimates only the dials that will really happen. Other segments, VIP
@@ -473,6 +484,11 @@ export class CallingService {
       reason: 'Another party in this batch shares the same phone number',
     }));
     skipped.push(...capped);
+    for (const o of dedupedAll) {
+      if (answeredToday.has(o.customer.id)) {
+        skipped.push({ customer: o.customer.customer_name, reason: 'Already answered a call today' });
+      }
+    }
 
     for (const o of eligible) {
       try {
@@ -490,8 +506,36 @@ export class CallingService {
       no_phone: noPhone,
       shared_number: duplicates.length,
       skipped,
-      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}${capped.length ? `; ${capped.length} held back by the Escalation daily limit` : ''}`,
+      message: `${queued} call(s) queued for ${vipOnly ? 'VIP ' : ''}${segment}${noPhone ? `: ${noPhone} customer(s) have no phone number` : ''}${duplicates.length ? `; ${duplicates.length} skipped as duplicate number(s)` : ''}${capped.length ? `; ${capped.length} held back by the Escalation daily limit` : ''}${answeredToday.size ? `; ${answeredToday.size} already answered today` : ''}`,
     };
+  }
+
+  /**
+   * Customers (of `customerIds`) who already picked up a call today, IST
+   * calendar day, or have a dial still in progress. A COMPLETED call log means
+   * the call connected; a PENDING one under 3 hours old is still ringing or
+   * live, so dialling again would double-ring them.
+   */
+  private async answeredTodayIds(businessId: string, customerIds: string[]): Promise<Set<string>> {
+    if (customerIds.length === 0) return new Set();
+    const nowIst = new Date(Date.now() + 330 * 60000);
+    const istMidnight = new Date(
+      Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - 330 * 60000,
+    );
+    const rows = await this.prisma.callLog.findMany({
+      where: {
+        business_id: businessId,
+        customer_id: { in: customerIds },
+        created_at: { gte: istMidnight },
+        OR: [
+          { call_status: 'COMPLETED' },
+          { call_status: 'PENDING', created_at: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) } },
+        ],
+      },
+      select: { customer_id: true },
+      distinct: ['customer_id'],
+    });
+    return new Set(rows.map((r) => r.customer_id).filter((id): id is string => !!id));
   }
 
   /**

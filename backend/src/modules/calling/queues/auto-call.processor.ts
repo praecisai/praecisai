@@ -22,7 +22,8 @@ const AUTO_CALL_SEGMENTS = ['Soft Reminder', 'Follow-up', 'Strong Follow-up', 'E
  * runs ONCE per slot even when several API instances are live. Each tenant is
  * processed only while `auto_calls_enabled` is true, and every per-customer
  * guard still applies downstream (VIP, No Follow-up, PDC/sensitive cooldowns,
- * the same-customer repeat gap, and the billing/balance gate).
+ * the same-customer repeat gap, and the billing/balance gate). A party who
+ * already answered a call today is not called again by a later run.
  */
 @Processor('auto-calls', { concurrency: 1 })
 export class AutoCallProcessor extends WorkerHost {
@@ -83,7 +84,9 @@ export class AutoCallProcessor extends WorkerHost {
       for (const segment of AUTO_CALL_SEGMENTS) {
         if (segment === NO_FOLLOWUP_SEGMENT) continue; // defensive
         try {
-          const res = await this.callingService.queueSegmentCalls(business.id, segment);
+          const res = await this.callingService.queueSegmentCalls(business.id, segment, false, {
+            skipAnsweredToday: true,
+          });
           totalQueued += res.queued;
           if (res.queued > 0) {
             this.logger.log(
@@ -117,7 +120,7 @@ export class AutoCallProcessor extends WorkerHost {
           business.id,
           ESCALATION_SEGMENT,
           false,
-          { followUpOnly: true },
+          { followUpOnly: true, skipAnsweredToday: true },
         );
         queued += res.queued;
         if (res.queued > 0) {
