@@ -15,7 +15,6 @@ import {
   useDisableAutopay,
   useSimulateCreditsPaid,
   useCallModel,
-  useSetCallModel,
   formatPaise,
 } from '../../lib/api/hooks';
 import {
@@ -380,92 +379,44 @@ export function CreditsPanel() {
 const RANK: Record<string, string> = { A: 'Best', B: '2nd best', C: '3rd best' };
 
 /**
- * Which calling plan (AI model A/B/C) the account dials with. It sets the
- * price of call credits, so it sits right above Buy credits. Customers choose
- * freely while they have no call minutes; after that it is locked until the
- * minutes are used (the backend enforces this and says why).
+ * The calling plan (AI model A/B/C) this account dials with. It sets the price
+ * of call credits, so it sits right above Buy credits. Read-only here: only
+ * the PraecisAI team changes it (admin), never the customer.
  */
 function PlanPicker() {
   const { data, isLoading } = useCallModel();
-  const setModel = useSetCallModel();
   if (isLoading || !data) return null;
-  const tiers = (data.tiers ?? []).filter((t: any) => t.active);
-
-  function choose(tier: 'A' | 'B' | 'C', label: string) {
-    setModel.mutate(tier, {
-      onSuccess: () => toast.success(`${label} selected: call credits are now priced at its rate`),
-      onError: (e: any) => toast.error(e.message),
-    });
-  }
+  const plan = (data.tiers ?? []).find((t: any) => t.tier === data.current);
+  if (!plan) return null;
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Cpu size={18} className="text-[var(--mahogany)]" />
-        <h2 className="font-semibold text-[var(--dark-brown)]">Choose your calling plan</h2>
-      </div>
-      <p className="text-xs text-[var(--walnut)] mb-4">
-        Your plan decides the AI voice your customers hear and the price of call credits. Pick it before you buy call
-        credits: minutes you buy are used on this plan.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {tiers.map((t: any) => {
-          const current = data.current === t.tier;
-          const canPick = !current && t.available && data.can_switch;
-          return (
-            <button
-              key={t.tier}
-              type="button"
-              onClick={() => canPick && choose(t.tier, t.label)}
-              disabled={!canPick || setModel.isPending}
-              className="text-left rounded-xl border p-4 flex flex-col transition-colors disabled:cursor-default"
-              style={{
-                background: 'var(--surface-warm)',
-                borderColor: current ? 'var(--mahogany)' : 'var(--caramel)',
-                borderWidth: current ? 2 : 1,
-                opacity: !current && !t.available ? 0.6 : 1,
-              }}
+    <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+      <div className="flex items-start gap-3 min-w-0">
+        <Cpu size={18} className="text-[var(--mahogany)] flex-shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--walnut)]">Your calling plan</p>
+          <p className="font-semibold text-[var(--dark-brown)] mt-0.5 flex flex-wrap items-center gap-2">
+            {plan.label}
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              style={{ background: 'var(--sand)', color: 'var(--mahogany)' }}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-                  style={current ? { background: 'var(--mahogany)', color: 'var(--cream)' } : { background: 'var(--sand)', color: 'var(--walnut)' }}
-                >
-                  {RANK[t.tier] ?? t.tier}
-                </span>
-                {current && (
-                  <span className="text-xs font-semibold flex items-center gap-1" style={{ color: '#2E7D32' }}>
-                    <CheckCircle2 size={13} /> Your plan
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 font-semibold text-[var(--dark-brown)]">{t.label}</p>
-              {t.description ? <p className="text-xs text-[var(--walnut)] mt-0.5">{t.description}</p> : null}
-              {t.rate_from != null && (
-                <p className="text-sm font-semibold text-[var(--mahogany)] mt-2">
-                  ₹{t.rate_from} to ₹{t.rate_to} per minute
-                </p>
-              )}
-              <p className="text-[11px] text-[var(--walnut)] mt-2 flex items-center gap-1">
-                {current ? (
-                  'Calls use this plan.'
-                ) : !t.available ? (
-                  <>
-                    <Lock size={11} /> Not set up for your account yet: ask the PraecisAI team
-                  </>
-                ) : data.can_switch ? (
-                  setModel.isPending ? 'Switching…' : `Select ${t.label}`
-                ) : (
-                  <>
-                    <Lock size={11} /> Locked while you have call minutes
-                  </>
-                )}
-              </p>
-            </button>
-          );
-        })}
+              {RANK[plan.tier] ?? plan.tier}
+            </span>
+          </p>
+          {plan.description ? <p className="text-xs text-[var(--walnut)] mt-0.5">{plan.description}</p> : null}
+        </div>
       </div>
-      {data.locked_reason && <p className="text-[11px] text-[var(--walnut)] mt-3">{data.locked_reason}</p>}
+      <div className="sm:text-right flex-shrink-0">
+        {plan.rate_from != null && (
+          <p className="text-sm font-semibold text-[var(--mahogany)]">
+            ₹{plan.rate_from} to ₹{plan.rate_to} per minute
+          </p>
+        )}
+        <p className="text-[11px] text-[var(--walnut)] mt-0.5 flex items-center sm:justify-end gap-1">
+          <Lock size={11} /> To change your plan, contact the PraecisAI team
+        </p>
+      </div>
     </div>
   );
 }
@@ -659,30 +610,37 @@ function AutopayCard({
   const [callPack, setCallPack] = useState<string>(savedCallId || callOptions[1]?.id || callOptions[0]?.id || '');
   const [waPack, setWaPack] = useState<string>(ap.whatsapp_pack || waOptions[1]?.id || '');
   const [method, setMethod] = useState<'upi' | 'card'>('upi');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<AutopayMode | null>(null);
   const [mockOrder, setMockOrder] = useState<string | null>(null);
 
   const active = ap.enabled && ap.status === 'ACTIVE';
   const pending = ap.status === 'PENDING';
-  const firstPrice = packFromId(callPack || waPack, tier)?.pricePaise;
+  const callPrice = packFromId(callPack, tier)?.pricePaise;
+  const waPrice = packFromId(waPack, tier)?.pricePaise;
+  // With "Both", the setup payment buys the call pack; the WhatsApp pack is
+  // bought through the new mandate right after approval when WhatsApp is at 0
+  // (backend applyTokenStatus), else when it next runs low.
+  const waEmpty = (data.whatsapp?.balance ?? 0) < 1;
 
-  async function turnOn() {
-    if (!callPack && !waPack) {
-      toast.error('Pick a call pack, a WhatsApp pack, or both');
+  async function turnOn(mode: AutopayMode) {
+    const call = mode === 'WHATSAPP' ? null : callPack || null;
+    const wa = mode === 'CALL' ? null : waPack || null;
+    if ((mode !== 'WHATSAPP' && !call) || (mode !== 'CALL' && !wa)) {
+      toast.error(mode === 'BOTH' ? 'Pick a call pack and a WhatsApp pack' : 'Pick a pack first');
       return;
     }
-    setBusy(true);
+    setBusy(mode);
     try {
-      const res = await setup.mutateAsync({ call_pack: callPack || null, whatsapp_pack: waPack || null, method });
+      const res = await setup.mutateAsync({ call_pack: call, whatsapp_pack: wa, method });
       if (res.mock) {
         setMockOrder(res.order_id);
-        setBusy(false);
+        setBusy(null);
         return;
       }
-      await openCheckout({ ...res, recurring: true, onDone: () => setBusy(false) });
-      setBusy(false);
+      await openCheckout({ ...res, recurring: true, onDone: () => setBusy(null) });
+      setBusy(null);
     } catch (err: any) {
-      setBusy(false);
+      setBusy(null);
       toast.error(err.message);
     }
   }
@@ -808,19 +766,40 @@ function AutopayCard({
               </button>
             </div>
           ) : (
-            <button
-              onClick={turnOn}
-              disabled={busy}
-              className="px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
-              style={{ background: 'var(--dark-brown)', color: 'var(--cream)' }}
-            >
-              {busy && <Loader2 size={14} className="animate-spin" />}
-              Turn on autopay{firstPrice ? ` · pay ${formatPaise(firstPrice)} now` : ''}
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <AutopayButton
+                title="Calls only"
+                detail={callPrice ? `Pay ${formatPaise(callPrice)} now` : 'Pick a call pack'}
+                disabled={!!busy || !callPrice}
+                loading={busy === 'CALL'}
+                onClick={() => turnOn('CALL')}
+              />
+              <AutopayButton
+                title="WhatsApp only"
+                detail={waPrice ? `Pay ${formatPaise(waPrice)} now` : 'Pick a WhatsApp pack'}
+                disabled={!!busy || !waPrice}
+                loading={busy === 'WHATSAPP'}
+                onClick={() => turnOn('WHATSAPP')}
+              />
+              <AutopayButton
+                primary
+                title="Both"
+                detail={
+                  callPrice && waPrice
+                    ? `Pay ${formatPaise(callPrice)} now · WhatsApp ${formatPaise(waPrice)} ${waEmpty ? 'by autopay once approved' : 'by autopay when low'}`
+                    : 'Pick both packs'
+                }
+                disabled={!!busy || !callPrice || !waPrice}
+                loading={busy === 'BOTH'}
+                onClick={() => turnOn('BOTH')}
+              />
+            </div>
           )}
           <p className="text-[11px] text-[var(--walnut)]">
-            Turning it on buys your {callPack ? 'call' : 'WhatsApp'} pack now and approves future top-ups in the same step.
-            Bigger packs (over ₹15,000) can be bought manually above.
+            The first payment buys one pack and approves future top-ups in the same step. With Both, the call pack is paid now
+            and the WhatsApp pack is charged through autopay{waEmpty ? ' right after your bank approves it' : ' when it runs low'}
+            {method === 'upi' ? ' (UPI sends a notice 24 hours before each debit)' : ''}. Up to ₹15,000 per top-up; bigger packs
+            can be bought manually above.
           </p>
         </div>
       )}
@@ -835,6 +814,39 @@ const CUSTOM = '__custom';
  * at most ₹15,000 per top-up). `live` applies a valid typed amount straight
  * away (before autopay is on); otherwise a Save button applies it.
  */
+type AutopayMode = 'CALL' | 'WHATSAPP' | 'BOTH';
+
+function AutopayButton({
+  title, detail, primary, disabled, loading, onClick,
+}: {
+  title: string;
+  detail: string;
+  primary?: boolean;
+  disabled: boolean;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="px-4 py-2.5 rounded-lg text-left border flex items-start gap-2 disabled:opacity-50"
+      style={
+        primary
+          ? { background: 'var(--dark-brown)', color: 'var(--cream)', borderColor: 'var(--dark-brown)' }
+          : { background: 'var(--surface-warm)', color: 'var(--dark-brown)', borderColor: 'var(--caramel)' }
+      }
+    >
+      {loading && <Loader2 size={14} className="animate-spin mt-0.5 flex-shrink-0" />}
+      <span className="min-w-0">
+        <span className="block text-sm font-bold">Turn on autopay: {title}</span>
+        <span className="block text-[11px] opacity-80 mt-0.5">{detail}</span>
+      </span>
+    </button>
+  );
+}
+
 function PackSelect({
   label, value, options, unit, kind, tier, live, onChange,
 }: {

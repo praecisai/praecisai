@@ -1001,6 +1001,7 @@ export class CreditsService {
     failureReason?: string | null,
   ) {
     if (status === 'confirmed') {
+      const before = await this.getAccount(businessId);
       await this.prisma.creditAccount.update({
         where: { business_id: businessId },
         data: {
@@ -1009,6 +1010,16 @@ export class CreditsService {
           autopay_last_error: null,
         },
       });
+      // Just switched on: the setup payment bought one pack; any other pack
+      // the customer chose (autopay "Both") is bought now through the new
+      // mandate, instead of waiting for a usage that can't happen at 0 credits.
+      if (before.autopay_status !== 'ACTIVE') {
+        for (const kind of ['CALL', 'WHATSAPP'] as CreditKind[]) {
+          await this.triggerAutopay(businessId, kind, { onlyIfEmpty: true }).catch((err) =>
+            this.logger.warn(`Autopay first top-up (${kind}) for ${businessId} failed to start: ${err?.message}`),
+          );
+        }
+      }
     } else if (
       ['rejected', 'cancelled', 'paused', 'expired'].includes(status)
     ) {
@@ -1100,7 +1111,15 @@ export class CreditsService {
    * Charge the saved token for this kind's autopay pack, when the balance is
    * below the alert level. Guarded so a burst of calls starts one debit only.
    */
-  async triggerAutopay(businessId: string, kind: CreditKind): Promise<boolean> {
+  async triggerAutopay(
+    businessId: string,
+    kind: CreditKind,
+    // At activation: buy ONLY a kind that is empty (under 1 credit). The kind
+    // the setup payment just bought is never empty, so it can't be bought
+    // twice, whatever its warning level; a kind with credits left tops up
+    // through normal usage instead.
+    opts?: { onlyIfEmpty?: boolean },
+  ): Promise<boolean> {
     const account = await this.getAccount(businessId);
     if (
       !account.autopay_enabled ||
@@ -1114,7 +1133,8 @@ export class CreditsService {
       kind === 'CALL'
         ? account.call_low_threshold
         : account.whatsapp_low_threshold;
-    if (balance >= threshold) return false;
+    const level = opts?.onlyIfEmpty ? 1 : threshold;
+    if (balance >= level) return false;
 
     let packId =
       kind === 'CALL'
