@@ -128,3 +128,5 @@ Thumbs.db
 # Per-customer Bolna call scripts (contain customer names and contacts): kept locally, never committed
 docs/bolna-canvas/*.md
 !docs/bolna-canvas/README.md
+# Per-customer onboarding guides (customer names, ids): local only
+docs/onboarding/
