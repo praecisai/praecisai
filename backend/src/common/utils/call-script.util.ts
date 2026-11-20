@@ -94,6 +94,42 @@ export function amountToEnglish(amount: number): string {
 }
 
 // Language-appropriate spoken amount for the {due_amount_hindi} call variable.
+/**
+ * Close-to-exact amount in plain English words, the way Indian business
+ * people read it off a ledger: "two point zero four lakh rupees" (2,03,550),
+ * "one point five lakh rupees", "forty thousand five hundred rupees",
+ * "one point two crore rupees". Lakhs and crores keep up to two decimals,
+ * spoken digit by digit; below a lakh it is thousands + hundreds. Used by
+ * scripts that want the amount in English even on the Hindi agent
+ * ({due_amount_words}).
+ */
+export function amountToEnglishWords(amount: number): string {
+  if (!amount || amount <= 0) return 'some amount';
+  const decimals = (value: number, unit: string) => {
+    const fixed = (Math.round(value * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
+    const [whole, frac] = fixed.split('.');
+    const fracWords = frac ? ` point ${frac.split('').map((d) => ENGLISH_ONES[Number(d)]).join(' ')}` : '';
+    return `${englishIndianWords(Number(whole))}${fracWords} ${unit} rupees`;
+  };
+  const rounded = Math.round(amount / 100) * 100; // nearest hundred below a lakh
+  if (amount >= 1e7) return decimals(amount / 1e7, 'crore');
+  if (rounded >= 1e5) return decimals(amount / 1e5, 'lakh');
+  if (rounded >= 1000) {
+    const thousands = Math.floor(rounded / 1000);
+    const hundreds = Math.round((rounded % 1000) / 100);
+    return `${englishNumberWords(thousands)} thousand${hundreds ? ` ${ENGLISH_ONES[hundreds]} hundred` : ''} rupees`;
+  }
+  return `${englishNumberWords(Math.round(amount))} rupees`;
+}
+
+/** Whole numbers up to 99,999 in Indian English words (for lakh / crore heads). */
+function englishIndianWords(n: number): string {
+  if (n < 1000) return englishNumberWords(n);
+  const thousands = Math.floor(n / 1000);
+  const rest = n % 1000;
+  return `${englishNumberWords(thousands)} thousand${rest ? ` ${englishNumberWords(rest)}` : ''}`;
+}
+
 export function amountToSpoken(amount: number, language: CallLang): string {
   return language === 'ENGLISH' ? amountToEnglish(amount) : amountToHindi(amount);
 }
@@ -574,6 +610,40 @@ export function spokenBillDate(date: Date | null | undefined, language: CallLang
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
     'August', 'September', 'October', 'November', 'December'];
   return `${day}${suffix} ${months[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
+}
+
+/**
+ * Pending-bill details for a party, for when the customer asks which bills
+ * are due. Oldest first; the list names at most 5 bills ("and 6 more bills").
+ * Amounts in English words (see amountToEnglishWords); Hindi and English
+ * versions differ only in how the date is spoken.
+ */
+export function buildPendingBills(
+  invoices: Array<{ invoice_number: string | null; invoice_date: Date; due_amount: number }>,
+): Record<string, string> {
+  const bills = invoices
+    .filter((i) => i.due_amount > 0)
+    .sort((a, b) => a.invoice_date.getTime() - b.invoice_date.getTime());
+  if (bills.length === 0) {
+    return { pending_bills_count: '0', pending_bills_list: '', pending_bills_list_english: '', oldest_bill_number: '', oldest_bill_date: '', oldest_bill_date_english: '' };
+  }
+  const MAX = 5;
+  const list = (lang: CallLang) => {
+    const items = bills.slice(0, MAX).map((b) =>
+      `${b.invoice_number ? `bill ${b.invoice_number}` : 'one bill'}, ${spokenBillDate(b.invoice_date, lang)}, ${amountToEnglishWords(b.due_amount)}`,
+    );
+    const more = bills.length - MAX;
+    return items.join('; ') + (more > 0 ? (lang === 'ENGLISH' ? `; and ${more} more bills` : `; और ${more} bills भी pending हैं`) : '');
+  };
+  const oldest = bills[0];
+  return {
+    pending_bills_count: String(bills.length),
+    pending_bills_list: list('HINDI'),
+    pending_bills_list_english: list('ENGLISH'),
+    oldest_bill_number: oldest.invoice_number || '',
+    oldest_bill_date: spokenBillDate(oldest.invoice_date, 'HINDI'),
+    oldest_bill_date_english: spokenBillDate(oldest.invoice_date, 'ENGLISH'),
+  };
 }
 
 // IST greeting based on time of call — server runs UTC, IST = UTC+5:30

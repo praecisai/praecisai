@@ -36,6 +36,8 @@ import {
   buildPartialPaymentNote,
   buildLastBillNote,
   spokenBillDate,
+  buildPendingBills,
+  amountToEnglishWords,
   getISTGreeting,
   transliterateNameToDevanagari,
   transliterateCityToDevanagari,
@@ -330,7 +332,8 @@ export class CallingService {
       transliterateNameToDevanagari(customer.customer_name),
       transliterateCityToDevanagari(cityRaw),
     ]);
-    const customerNameEn = toProperCase(customer.customer_name);
+    // LLP stays in capitals so the voice reads it as letters, not "Llp"
+    const customerNameEn = toProperCase(customer.customer_name).replace(/\bllp\b/gi, 'LLP');
     const businessCityEn = toProperCase(cityRaw);
 
     const callLog = await this.prisma.callLog.create({
@@ -386,6 +389,14 @@ export class CallingService {
         // customer explicitly asks for the bill number (read slowly in the canvas).
         last_bill_number: latestInvoice.invoice_number || '',
         // The same bill's date alone, for scripts that name the invoice up front
+        // Outstanding and last bill as close-to-exact English words ("two point
+        // zero four lakh rupees"), for scripts that speak amounts in English
+        // on both agents
+        due_amount_words: amountToEnglishWords(totalDue),
+        last_bill_amount_words: amountToEnglishWords(lastBillAmount),
+        // Every pending bill, for "konsa bill / kab ka hai" questions: count,
+        // oldest bill, and a short list (oldest first, at most 5)
+        ...buildPendingBills(customer.invoices),
         last_bill_date: spokenBillDate(latestInvoice.invoice_date, 'HINDI'),
         last_bill_date_english: spokenBillDate(latestInvoice.invoice_date, 'ENGLISH'),
       },
