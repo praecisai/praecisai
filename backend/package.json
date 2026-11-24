@@ -25,6 +25,7 @@
     "prisma:migrate": "prisma migrate deploy",
     "billing:seed": "ts-node scripts/seed-billing.ts",
     "billing:migrate-aeromen": "ts-node scripts/migrate-aeromen-keys.ts",
+    "calls:backfill-analysis": "ts-node scripts/backfill-call-analysis.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

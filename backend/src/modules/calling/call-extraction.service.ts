@@ -118,7 +118,11 @@ export class CallExtractionService {
     }
   }
 
-  async extract(transcript: string): Promise<CallExtractionResult | null> {
+  /**
+   * `asOf` grounds relative dates ("month end", "next week"). Live calls use
+   * now; the backfill script passes the call's own date.
+   */
+  async extract(transcript: string, asOf: Date = new Date()): Promise<CallExtractionResult | null> {
     if (!this.client) {
       this.logger.warn('Extraction skipped: no OpenAI client');
       return null;
@@ -134,7 +138,7 @@ export class CallExtractionService {
 
     // Ground relative dates ("end of the month", "next week") to a real
     // calendar via today's IST date. The model returns intent; code does the math.
-    const todayIso = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+    const todayIso = new Date(asOf.getTime() + 330 * 60000).toISOString().slice(0, 10);
 
     try {
       const response = await this.client.chat.completions.create({
